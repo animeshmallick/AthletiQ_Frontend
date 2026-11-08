@@ -27,6 +27,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Test with coverage
-        run: npm run test:coverage
+        # The github-actions reporter turns failing tests into annotations on the run and commit.
+        run: npm run test:coverage -- --reporters=default --reporters=github-actions
       - name: Build
         run: npm run build
