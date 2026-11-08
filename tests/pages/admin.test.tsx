@@ -289,6 +289,41 @@ describe('AuditLogPage', () => {
   });
 });
 
+describe('AuditLogPage paging', () => {
+  it('loads 100 entries at a time and fetches more on demand', async () => {
+    const entry = (i: number) => ({
+      id: `a${i}`,
+      action: 'student.updated',
+      entityType: 'student',
+      entityId: 's1',
+      metadata: {},
+      ipAddress: null,
+      createdAt: '2026-03-09T05:00:00Z',
+      actor: { id: 'a', name: `Admin ${i}` },
+    });
+    const api = mockApi({
+      'GET /admin/audit-logs': (c) => {
+        const page = Number(c.query.get('page'));
+        return {
+          data: page === 1 ? [entry(1), entry(2)] : [entry(3)],
+          meta: { page, pageSize: 100, total: 3, totalPages: 2 },
+        };
+      },
+    });
+    const { user } = await renderPage(<AuditLogPage />, {
+      path: '/audit-log',
+      route: '/audit-log',
+      user: adminUser,
+    });
+    expect(await screen.findByText('Showing 2 of 3 entries')).toBeInTheDocument();
+    expect(api.calls[0]!.query.get('pageSize')).toBe('100');
+    await user.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByText('Showing 3 of 3 entries')).toBeInTheDocument();
+    expect(screen.getByText(/Admin 3/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
+  });
+});
+
 describe('AccountPage', () => {
   it('updates profile and changes password', async () => {
     const api = mockApi({

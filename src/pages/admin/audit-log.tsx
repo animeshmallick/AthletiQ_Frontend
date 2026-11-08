@@ -16,10 +16,11 @@ import {
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
+import { Button } from '@/components/ui/button';
 import { relativeTime } from '@/app/deployments';
-import { EmptyState, ErrorState, ListSkeleton, PageHeader, Pagination } from '@/components/common';
+import { EmptyState, ErrorState, ListSkeleton, PageHeader } from '@/components/common';
 import {
   Dialog,
   DialogContent,
@@ -136,19 +137,36 @@ const time = (iso: string) =>
 
 export function AuditLogPage() {
   const [entityType, setEntityType] = useState('');
-  const [page, setPage] = useState(1);
   const [open, setOpen] = useState<AuditLog | null>(null);
-  const q = useAuditLogs({ entityType: entityType || undefined, page, pageSize: 50 });
+  const q = useAuditLogs({ entityType: entityType || undefined });
+  const logs = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
+  const total = q.data?.pages[0]?.meta?.total ?? 0;
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = q;
+
+  // Fetch the next 100 well before the end of the list is reached.
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !hasNextPage || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting) && !isFetchingNextPage) void fetchNextPage();
+      },
+      { rootMargin: '800px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, logs.length]);
 
   const groups = useMemo(() => {
     const out: { day: string; items: AuditLog[] }[] = [];
-    for (const l of q.data?.data ?? []) {
+    for (const l of logs) {
       const day = dayLabel(l.createdAt);
       if (out.at(-1)?.day !== day) out.push({ day, items: [] });
       out.at(-1)!.items.push(l);
     }
     return out;
-  }, [q.data]);
+  }, [logs]);
 
   return (
     <div>
@@ -158,7 +176,7 @@ export function AuditLogPage() {
       />
       <Select
         value={entityType}
-        onChange={(e) => (setEntityType(e.target.value), setPage(1))}
+        onChange={(e) => setEntityType(e.target.value)}
         className="mb-3 sm:w-64"
         aria-label="Filter by type"
       >
@@ -173,7 +191,7 @@ export function AuditLogPage() {
         <ListSkeleton rows={8} />
       ) : q.isError ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-      ) : q.data.data.length === 0 ? (
+      ) : logs.length === 0 ? (
         <EmptyState icon={<ScrollText />} title="No activity yet" />
       ) : (
         <div className="space-y-4">
@@ -220,14 +238,18 @@ export function AuditLogPage() {
               </Card>
             </section>
           ))}
-          {q.data.meta && (
-            <Pagination
-              page={page}
-              totalPages={(q.data.meta as { totalPages: number }).totalPages}
-              total={(q.data.meta as { total: number }).total}
-              onPage={setPage}
-            />
-          )}
+          <div ref={sentinel} className="flex flex-col items-center gap-2 py-2">
+            {isFetchingNextPage ? (
+              <ListSkeleton rows={2} />
+            ) : hasNextPage ? (
+              <Button variant="outline" size="sm" onClick={() => void fetchNextPage()}>
+                Load more
+              </Button>
+            ) : null}
+            <p className="text-[11px] text-muted-foreground">
+              Showing {logs.length} of {total} entries
+            </p>
+          </div>
         </div>
       )}
       <AuditDetails log={open} onClose={() => setOpen(null)} />

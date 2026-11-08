@@ -8,6 +8,7 @@ import {
   useQuery,
   useQueryClient,
   type QueryKey,
+  useInfiniteQuery,
 } from '@tanstack/react-query';
 import { api, type PageMeta, type Session } from './api';
 import type {
@@ -787,11 +788,20 @@ export type AuditLog = {
   actor: { id: string; name: string } | null;
 };
 
+/** Audit log, 100 entries at a time; the next page is fetched as the list nears its end. */
+export const AUDIT_PAGE_SIZE = 100;
 export const useAuditLogs = (q: Query) =>
-  useQuery({
+  useInfiniteQuery({
     queryKey: keys.auditLogs(q),
-    queryFn: () => api.page<AuditLog[]>('/admin/audit-logs', q),
-    placeholderData: keepPreviousData,
+    queryFn: ({ pageParam, signal }) =>
+      api.page<AuditLog[]>(
+        '/admin/audit-logs',
+        { ...q, page: pageParam, pageSize: AUDIT_PAGE_SIZE },
+        signal,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (last) =>
+      last.meta && last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,
   });
 
 export const useJobRuns = () =>
