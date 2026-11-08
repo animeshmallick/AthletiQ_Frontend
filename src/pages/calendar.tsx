@@ -22,6 +22,7 @@ import { Segmented } from '@/components/ui/controls';
 import { Badge, Card, Skeleton } from '@/components/ui/primitives';
 import {
   addDays,
+  coachTimes,
   formatLongDate,
   formatShortDate,
   formatTime,
@@ -587,7 +588,8 @@ function SessionDetails({
             </Badge>
             {s.coachSession ? (
               <Badge variant={s.coachSession.flagged ? 'warning' : 'success'}>
-                <CheckCircle2 /> {s.coachSession.flagged ? 'Check-in flagged' : 'Checked in'}
+                <CheckCircle2 /> {s.coachSession.flagged ? 'Flagged · ' : ''}
+                {coachTimes(s.coachSession)}
               </Badge>
             ) : (
               <Badge variant="muted">

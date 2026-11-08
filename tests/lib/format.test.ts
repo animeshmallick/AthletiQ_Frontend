@@ -1,4 +1,5 @@
 import {
+  coachTimes,
   addDays,
   addMonths,
   eachDay,
@@ -95,5 +96,17 @@ describe('labels', () => {
     expect(initials('asha')).toBe('A');
     expect(plural(1, 'student')).toBe('1 student');
     expect(plural(3, 'batch', 'batches')).toBe('3 batches');
+  });
+});
+
+describe('coachTimes', () => {
+  it('shows check-in and check-out, or what is missing', () => {
+    expect(coachTimes(null)).toBe('Not in');
+    expect(coachTimes({ checkInAt: '2026-03-09T00:32:00Z', checkOutAt: null })).toMatch(
+      /^In 6:02\s?am · not out$/i,
+    );
+    expect(
+      coachTimes({ checkInAt: '2026-03-09T00:32:00Z', checkOutAt: '2026-03-09T02:31:00Z' }),
+    ).toMatch(/^6:02\s?am – 8:01\s?am$/i);
   });
 });

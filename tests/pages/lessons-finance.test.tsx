@@ -224,7 +224,8 @@ describe('Batches', () => {
       user: adminUser,
     });
     expect(await screen.findByText('Morning U-12')).toBeInTheDocument();
-    expect(screen.getByText('Capacity 20')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Morning U-12' })).toBeInTheDocument();
+    expect(screen.getByText('Seats left')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /new batch/i }));
     expect(await screen.findByRole('dialog')).toHaveTextContent('New batch');
     await user.click(screen.getByRole('button', { name: 'Create batch' }));

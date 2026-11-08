@@ -3,10 +3,11 @@ import {
   ArrowRight,
   CalendarCheck2,
   CheckCircle2,
-  CloudRain,
   ClipboardList,
   Clock,
+  CloudRain,
   IndianRupee,
+  Lock,
   LogIn,
   LogOut,
   MapPin,
@@ -20,7 +21,14 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
-import { EmptyState, ErrorState, ListSkeleton, Progress, StatCard } from '@/components/common';
+import {
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  ListSkeleton,
+  Progress,
+  StatCard,
+} from '@/components/common';
 import { Button } from '@/components/ui/button';
 import {
   Badge,
@@ -33,6 +41,7 @@ import {
 import { errorMessage } from '@/lib/api';
 import {
   addDays,
+  coachTimes,
   formatClock,
   formatDate,
   formatLongDate,
@@ -69,10 +78,12 @@ function greeting() {
 
 // ─── Coach: check-in card ────────────────────────────────────────────────────
 
-function CheckInButton({ item }: { item: TodaySession }) {
+function CheckInButton({ item, overview }: { item: TodaySession; overview?: DayOverviewSession }) {
   const checkIn = useCheck('check-in');
   const checkOut = useCheck('check-out');
   const [locating, setLocating] = useState(false);
+  const [confirmOut, setConfirmOut] = useState(false);
+  const unmarked = overview ? overview.expectedStudents - overview.marked : 0;
   const s = item.session;
   const done = Boolean(s?.checkOutAt);
   const mode: 'check-in' | 'check-out' = s ? 'check-out' : 'check-in';
@@ -106,19 +117,37 @@ function CheckInButton({ item }: { item: TodaySession }) {
     );
   }
   return (
-    <Button
-      size="sm"
-      variant={mode === 'check-in' ? 'default' : 'outline'}
-      loading={locating || checkIn.isPending || checkOut.isPending}
-      onClick={() => void run()}
-    >
-      {mode === 'check-in' ? <LogIn /> : <LogOut />}
-      {locating
-        ? 'Locating…'
-        : mode === 'check-in'
-          ? 'Check in'
-          : `Check out · in since ${formatClock(s!.checkInAt)}`}
-    </Button>
+    <>
+      <Button
+        size="sm"
+        variant={mode === 'check-in' ? 'default' : 'outline'}
+        loading={locating || checkIn.isPending || checkOut.isPending}
+        onClick={() => (mode === 'check-out' ? setConfirmOut(true) : void run())}
+      >
+        {mode === 'check-in' ? <LogIn /> : <LogOut />}
+        {locating
+          ? 'Locating…'
+          : mode === 'check-in'
+            ? 'Check in'
+            : `Check out · in since ${formatClock(s!.checkInAt)}`}
+      </Button>
+      <ConfirmDialog
+        open={confirmOut}
+        onOpenChange={setConfirmOut}
+        title={unmarked > 0 ? 'Attendance is not complete' : 'Check out now?'}
+        description={
+          unmarked > 0
+            ? `${unmarked} of ${overview!.expectedStudents} students are not marked. After you check out, attendance for ${item.batch.name} is locked and only an admin can change it.`
+            : `After you check out, attendance for ${item.batch.name} is locked and only an admin can change it.`
+        }
+        confirmLabel={unmarked > 0 ? 'Check out anyway' : 'Check out'}
+        destructive={unmarked > 0}
+        onConfirm={() => {
+          setConfirmOut(false);
+          void run();
+        }}
+      />
+    </>
   );
 }
 
@@ -158,7 +187,7 @@ function CoachSessionCard({
             <CloudRain /> Cancelled · {item.cancelled}
           </Badge>
         ) : (
-          <CheckInButton item={item} />
+          <CheckInButton item={item} overview={overview} />
         )}
       </div>
       <div className="grid grid-cols-2 border-t text-sm">
@@ -182,6 +211,11 @@ function CoachSessionCard({
               <span className="tabular text-xs text-muted-foreground">
                 {overview.marked}/{overview.expectedStudents} marked · {overview.present} present
               </span>
+              {item.session?.checkOutAt && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Lock className="size-3" /> Locked after check-out
+                </span>
+              )}
             </>
           ) : (
             <span className="text-xs text-muted-foreground">No students today</span>
@@ -435,8 +469,7 @@ function AdminToday() {
                                 : 'muted'
                             }
                           >
-                            <MapPin />{' '}
-                            {s.coachSession ? formatClock(s.coachSession.checkInAt) : 'Not in'}
+                            <MapPin /> {coachTimes(s.coachSession)}
                           </Badge>
                         </>
                       )}

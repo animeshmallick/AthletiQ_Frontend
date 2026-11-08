@@ -209,3 +209,11 @@ export function formatPhone(phone: string | null | undefined): string {
   const m = digits.match(/^(?:\+?91)?([6-9]\d{4})(\d{5})$/);
   return m ? `+91 ${m[1]} ${m[2]}` : phone;
 }
+
+/** Coach visit times: "6:02 am – 8:01 am", "In 6:02 am · not out" or "Not in". */
+export function coachTimes(cs: { checkInAt: string; checkOutAt: string | null } | null) {
+  if (!cs) return 'Not in';
+  return cs.checkOutAt
+    ? `${formatClock(cs.checkInAt)} – ${formatClock(cs.checkOutAt)}`
+    : `In ${formatClock(cs.checkInAt)} · not out`;
+}
