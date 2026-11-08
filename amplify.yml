@@ -3,11 +3,10 @@ frontend:
   phases:
     preBuild:
       commands:
-        # Node 26 needs libatomic, which Amplify's Amazon Linux 2023 build image doesn't ship.
-        - (command -v dnf >/dev/null && dnf install -y -q libatomic) || yum install -y -q libatomic
-        # Node version from .nvmrc. Skip nvm's default global packages (Amplify CLI, Cypress, …):
-        # this app doesn't need them, and installing them slows every build.
-        - nvm install --skip-default-packages && nvm use
+        # Node 22 LTS: Amplify's build image runs without root and lacks libatomic, which newer Node
+        # binaries (26) need. The app supports Node >= 22.12; local dev and CI use .nvmrc (26).
+        # --skip-default-packages avoids installing the Amplify CLI, Cypress, … on every build.
+        - nvm install 22 --skip-default-packages && nvm use 22
         - node -v && npm -v
         - npm ci
     build:
