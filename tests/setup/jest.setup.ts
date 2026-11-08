@@ -56,3 +56,6 @@ console.warn = (...args: unknown[]) => {
   if (typeof args[0] === 'string' && args[0].includes('of chart should be greater than 0')) return;
   originalWarn(...args);
 };
+
+// jsdom doesn't implement scrolling; React Router's <ScrollRestoration> calls it on navigation.
+window.scrollTo = (() => {}) as typeof window.scrollTo;

@@ -9,7 +9,12 @@ const field =
 
 export function Input({ className, type = 'text', ...props }: ComponentProps<'input'>) {
   return (
-    <input type={type} data-slot="input" className={cn(field, 'h-10 py-2', className)} {...props} />
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(field, 'h-10 py-2 pointer-coarse:h-11', className)}
+      {...props}
+    />
   );
 }
 
@@ -30,7 +35,7 @@ export function NativeSelect({ className, children, ...props }: ComponentProps<'
       data-slot="select"
       className={cn(
         field,
-        'bg-[url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 fill=%27none%27 stroke=%27%2364748b%27 stroke-width=%272%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E")] h-10 cursor-pointer appearance-none bg-[position:right_0.65rem_center] bg-no-repeat py-2 pr-9',
+        'bg-[url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 fill=%27none%27 stroke=%27%2364748b%27 stroke-width=%272%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E")] h-10 cursor-pointer appearance-none bg-[position:right_0.65rem_center] bg-no-repeat py-2 pr-9 pointer-coarse:h-11',
         className,
       )}
       {...props}

@@ -148,7 +148,27 @@
   }
   html {
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+  }
+  /* No double-tap-to-zoom delay on controls (faster taps on phones). */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  summary,
+  [role='button'],
+  [role='radio'],
+  [role='tab'],
+  [role='menuitem'] {
+    touch-action: manipulation;
+  }
+  /* Dialogs and sheets scroll on their own without dragging the page behind them. */
+  [role='dialog'] {
+    overscroll-behavior: contain;
   }
   body {
     @apply bg-background text-foreground antialiased;

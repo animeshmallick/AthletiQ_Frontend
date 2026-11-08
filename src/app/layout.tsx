@@ -1,9 +1,8 @@
-import { KeyRound, LogOut, Menu, Monitor, Moon, Sun, WifiOff } from 'lucide-react';
-import { Dialog as D } from 'radix-ui';
+import { Download, Ellipsis, KeyRound, LogOut, Monitor, Moon, Sun, WifiOff } from 'lucide-react';
 import { Suspense, useState, useSyncExternalStore } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { Avatar } from '@/components/common';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,12 +10,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  SheetContent,
+  Dialog,
+  DialogContent,
+  DialogTitle,
 } from '@/components/ui/overlays';
 import { Skeleton } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from './auth';
-import { navFor, type NavItem } from './nav';
+import { useInstallPrompt } from './install';
+import { navFor, tabsFor, type NavItem } from './nav';
 import { useTheme, type Theme } from './theme';
 
 function Logo({ className }: { className?: string }) {
@@ -83,6 +85,7 @@ function UserMenu() {
   const { logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const install = useInstallPrompt();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -118,6 +121,15 @@ function UserMenu() {
           ))}
         </div>
         <DropdownMenuSeparator />
+        {install && (
+          <DropdownMenuItem
+            onSelect={() =>
+              void install().then((ok) => ok && toast.success('AthletiQ installed on this device'))
+            }
+          >
+            <Download /> Install app
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => navigate('/account')}>
           <KeyRound /> Account & password
         </DropdownMenuItem>
@@ -132,9 +144,13 @@ function UserMenu() {
 export function AppLayout() {
   const user = useUser();
   const items = navFor(user.role);
-  const mobileItems = items.filter((i) => i.mobile).slice(0, 5);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const tabs = tabsFor(user.role);
+  const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
+  // "More" lights up when the current screen isn't one of the tabs.
+  const onTab = tabs.some((t) =>
+    t.to === '/' ? location.pathname === '/' : location.pathname.startsWith(t.to),
+  );
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
@@ -146,24 +162,7 @@ export function AppLayout() {
 
       <div className="flex min-w-0 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-6">
-          <D.Root open={menuOpen} onOpenChange={setMenuOpen}>
-            <D.Trigger asChild>
-              <Button variant="ghost" size="icon-sm" className="lg:hidden" aria-label="Open menu">
-                <Menu />
-              </Button>
-            </D.Trigger>
-            <SheetContent
-              side="left"
-              title="Navigation"
-              className="max-w-72 bg-sidebar px-3 py-5 text-sidebar-foreground [&>button]:text-sidebar-muted"
-            >
-              <Logo className="mb-6 px-3" />
-              <div className="overflow-y-auto">
-                <SidebarNav items={items} onNavigate={() => setMenuOpen(false)} />
-              </div>
-            </SheetContent>
-          </D.Root>
+        <header className="sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center gap-3 border-b bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-6">
           <Logo className="lg:hidden" />
           <div className="flex-1" />
           <UserMenu />
@@ -179,31 +178,67 @@ export function AppLayout() {
           </Suspense>
         </main>
 
-        {/* Phone bottom bar */}
+        {/* Phone tab bar: the role's main screens + "More" for everything else */}
         <nav
           aria-label="Quick navigation"
           className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-          style={{ gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}
         >
-          {mobileItems.map((item) => (
+          {tabs.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors',
-                  isActive && 'text-primary',
-                )
-              }
+              className={({ isActive }) => tabClass(isActive)}
             >
-              <item.icon className="size-5" />
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  <TabIcon icon={item.icon} active={isActive} />
+                  <span className="max-w-full truncate px-0.5">{item.short ?? item.label}</span>
+                </>
+              )}
             </NavLink>
           ))}
+          <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={moreOpen}
+              className={tabClass(!onTab || moreOpen)}
+            >
+              <TabIcon icon={Ellipsis} active={!onTab || moreOpen} />
+              More
+            </button>
+            <DialogContent className="gap-3 bg-sidebar text-sidebar-foreground [&>button]:text-sidebar-muted">
+              <DialogTitle className="text-base">All screens</DialogTitle>
+              <SidebarNav items={items} onNavigate={() => setMoreOpen(false)} />
+            </DialogContent>
+          </Dialog>
         </nav>
+        <ScrollRestoration />
       </div>
     </div>
+  );
+}
+
+function tabClass(active: boolean) {
+  return cn(
+    'flex min-h-14 min-w-0 cursor-pointer flex-col items-center justify-center gap-1 pt-2 pb-1.5 text-[11px] font-medium text-muted-foreground transition-colors active:bg-muted/60',
+    active && 'text-primary',
+  );
+}
+
+function TabIcon({ icon: Icon, active }: { icon: NavItem['icon']; active: boolean }) {
+  return (
+    <span
+      className={cn(
+        'flex h-7 w-12 items-center justify-center rounded-full transition-colors',
+        active && 'bg-primary/12',
+      )}
+    >
+      <Icon className="size-5" strokeWidth={active ? 2.25 : 2} />
+    </span>
   );
 }
 

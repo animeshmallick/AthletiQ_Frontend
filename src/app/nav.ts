@@ -23,32 +23,43 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   roles: Role[];
-  /** Shown in the phone bottom bar (max 5 per role). */
-  mobile?: boolean;
+  /** Short label for the phone tab bar. */
+  short?: string;
+  /** Roles that get this screen as a phone tab (4 per role; the 5th tab is "More"). */
+  tabs?: Role[];
   group: 'main' | 'manage' | 'system';
 }
 
 export const NAV: NavItem[] = [
-  { to: '/', label: 'Today', icon: Home, roles: ['coach', 'admin'], mobile: true, group: 'main' },
+  {
+    to: '/',
+    label: 'Today',
+    icon: Home,
+    roles: ['coach', 'admin'],
+    tabs: ['coach', 'admin'],
+    group: 'main',
+  },
   {
     to: '/attendance',
     label: 'Attendance',
+    tabs: ['coach'],
     icon: CalendarCheck2,
     roles: ['coach', 'admin'],
-    mobile: true,
     group: 'main',
   },
   {
     to: '/lesson-plans',
     label: 'Lesson plans',
+    short: 'Plans',
+    tabs: ['coach'],
     icon: ClipboardList,
     roles: ['coach', 'admin'],
-    mobile: true,
     group: 'main',
   },
   {
     to: '/feedback',
     label: 'Feedback',
+    tabs: ['coach'],
     icon: MessageSquareText,
     roles: ['coach', 'admin'],
     group: 'main',
@@ -56,20 +67,27 @@ export const NAV: NavItem[] = [
   {
     to: '/students',
     label: 'Students',
+    tabs: ['admin'],
     icon: Users,
     roles: ['coach', 'admin'],
-    mobile: true,
     group: 'main',
   },
   {
     to: '/invoices',
     label: 'Invoices',
+    tabs: ['admin'],
     icon: IndianRupee,
     roles: ['coach', 'admin'],
-    mobile: true,
     group: 'main',
   },
-  { to: '/finance', label: 'Finance', icon: BarChart3, roles: ['coach', 'admin'], group: 'main' },
+  {
+    to: '/finance',
+    label: 'Finance',
+    icon: BarChart3,
+    roles: ['coach', 'admin'],
+    tabs: ['admin'],
+    group: 'main',
+  },
 
   {
     to: '/batches',
@@ -102,4 +120,9 @@ export const NAV: NavItem[] = [
 
 export function navFor(role: Role) {
   return NAV.filter((n) => n.roles.includes(role));
+}
+
+/** Phone tab bar: the role's most-used screens (the layout adds a "More" tab for the rest). */
+export function tabsFor(role: Role) {
+  return NAV.filter((n) => n.tabs?.includes(role));
 }

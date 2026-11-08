@@ -18,11 +18,12 @@ export const buttonVariants = cva(
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        default: 'h-10 px-4',
-        sm: 'h-8 rounded-md px-3 text-xs',
+        // Touch screens get ~44px targets (Apple HIG / Material guidance); mouse users keep compact sizes.
+        default: 'h-10 px-4 pointer-coarse:h-11',
+        sm: 'h-8 rounded-md px-3 text-xs pointer-coarse:h-10 pointer-coarse:px-3.5 pointer-coarse:text-sm',
         lg: 'h-12 px-6 text-base',
-        icon: 'size-10',
-        'icon-sm': 'size-8',
+        icon: 'size-10 pointer-coarse:size-11',
+        'icon-sm': 'size-8 pointer-coarse:size-10',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },

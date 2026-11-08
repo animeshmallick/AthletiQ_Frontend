@@ -1,8 +1,10 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { __setInstallEvent, isStandalone } from '@/app/install';
 import { RouterProvider } from 'react-router';
 import { Providers } from '@/app/providers';
 import { router } from '@/app/router';
-import { navFor } from '@/app/nav';
+import { navFor, tabsFor } from '@/app/nav';
 import {
   adminUser,
   coachUser,
@@ -44,6 +46,7 @@ async function boot(
       sessions: [],
       summary: { sessions: 0, flagged: 0, unreviewedFlagged: 0, missingCheckOut: 0, totalHours: 0 },
     }),
+    'GET /admin/audit-logs': () => ({ data: [], meta: { total: 0, page: 1, pageSize: 25 } }),
     ...routes,
   });
   await router.navigate(path);
@@ -63,7 +66,11 @@ describe('navigation', () => {
     expect(admin).toEqual(
       expect.arrayContaining(['/settings', '/registrations', '/coaches', '/fee-plans']),
     );
-    expect(navFor('coach').filter((n) => n.mobile).length).toBeLessThanOrEqual(5);
+    // Four tabs + "More" fit a phone; every tab is a screen the role can open.
+    for (const role of ['coach', 'admin'] as const) {
+      expect(tabsFor(role)).toHaveLength(4);
+      for (const t of tabsFor(role)) expect(t.roles).toContain(role);
+    }
   });
 });
 
@@ -80,6 +87,40 @@ describe('route guards', () => {
     expect(await screen.findByText(/Ravi/, { selector: 'h1' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Attendance' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+  });
+
+  it('opens every screen from the phone "More" sheet', async () => {
+    await boot('/', adminUser);
+    const user = userEvent.setup();
+    const tabbar = await screen.findByRole('navigation', { name: 'Quick navigation' });
+    expect(tabbar).toHaveTextContent('Finance');
+    await user.click(screen.getByRole('button', { name: 'More' }));
+    const sheet = await screen.findByRole('dialog', { name: 'All screens' });
+    const audit = Array.from(sheet.querySelectorAll('a')).find(
+      (a) => a.textContent === 'Audit log',
+    );
+    expect(audit).toBeDefined();
+    await user.click(audit!);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/audit-log'));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'All screens' })).toBeNull());
+  });
+
+  it('offers "Install app" when the browser allows installing', async () => {
+    const prompt = jest.fn(() => Promise.resolve());
+    await boot('/', coachUser);
+    const user = userEvent.setup();
+    act(() =>
+      __setInstallEvent(
+        Object.assign(new Event('beforeinstallprompt'), {
+          prompt,
+          userChoice: Promise.resolve({ outcome: 'accepted' as const }),
+        }),
+      ),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Account menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Install app/ }));
+    expect(prompt).toHaveBeenCalled();
+    expect(isStandalone()).toBe(false);
   });
 
   it('redirects coaches away from admin-only pages', async () => {
