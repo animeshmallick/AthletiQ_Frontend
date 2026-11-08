@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { api, refreshSession, request, tokenStore, type Session } from '@/lib/api';
 import type { Role, User } from '@/lib/types';
+import { unregisterPush } from './native';
 
 interface AuthState {
   status: 'loading' | 'authenticated' | 'anonymous';
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      await unregisterPush();
       await request('/auth/logout', { method: 'POST', noRetry: true });
     } catch {
       // Signing out locally must succeed even if the network call fails.

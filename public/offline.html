@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>AthletiQ · Offline</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f4f5fa;
+        --card: #fff;
+        --fg: #1e2235;
+        --muted: #6b7185;
+        --primary: #4f46e5;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1020;
+          --card: #141a2c;
+          --fg: #eef0f6;
+          --muted: #a2a8b8;
+          --primary: #8b85ff;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .card {
+        width: 100%;
+        max-width: 360px;
+        padding: 32px 24px;
+        border-radius: 24px;
+        background: var(--card);
+        text-align: center;
+        box-shadow: 0 8px 30px -12px rgb(0 0 0 / 0.2);
+      }
+      .icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        display: grid;
+        place-items: center;
+        border-radius: 20px;
+        background: color-mix(in srgb, var(--primary) 12%, transparent);
+        color: var(--primary);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      p {
+        margin: 0 0 24px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      button {
+        width: 100%;
+        height: 48px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--primary);
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      .hint {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" role="alert">
+      <div class="icon" aria-hidden="true">
+        <svg
+          width="30"
+          height="30"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 20h.01" />
+          <path d="M8.5 16.43a5 5 0 0 1 7 0" />
+          <path d="M5 12.86a10 10 0 0 1 5.17-2.69" />
+          <path d="M19 12.86a10 10 0 0 0-2-1.41" />
+          <path d="M2 8.82a15 15 0 0 1 4.18-2.65" />
+          <path d="M22 8.82a15 15 0 0 0-11.29-3.76" />
+          <path d="m2 2 20 20" />
+        </svg>
+      </div>
+      <h1>You're offline</h1>
+      <p>AthletiQ needs an internet connection. Check your mobile data or Wi-Fi and try again.</p>
+      <button type="button" id="retry">Try again</button>
+      <div class="hint" id="status">We'll reconnect automatically when you're back online.</div>
+    </main>
+    <script>
+      var APP = 'https://www.edupilots.in/';
+      function retry() {
+        document.getElementById('status').textContent = 'Connecting…';
+        window.location.replace(APP);
+      }
+      document.getElementById('retry').addEventListener('click', retry);
+      window.addEventListener('online', retry);
+    </script>
+  </body>
+</html>

@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet, useLocation, useRouteError } fro
 import { Button } from '@/components/ui/button';
 import type { Role } from '@/lib/types';
 import { useAuth } from './auth';
+import { setNativeNavigator } from './native';
 import { AppLayout, PageFallback } from './layout';
 import {
   LoginPage,
@@ -155,3 +156,6 @@ export const router = createBrowserRouter([
 ]);
 
 export { PageFallback };
+
+// Android back button and notification taps navigate inside the app.
+setNativeNavigator((path, opts) => void router.navigate(path, opts));

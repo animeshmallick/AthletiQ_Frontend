@@ -1,0 +1,100 @@
+name: Android app
+
+# Builds the signed APK and publishes it as the latest GitHub Release (tag android-v<versionCode>).
+# The app loads the live website, so ordinary frontend changes need no new APK: this only runs
+# when the native shell changes, or by hand from the Actions tab ("Run workflow").
+on:
+  workflow_dispatch:
+  push:
+    branches: [mainline]
+    paths:
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'public/offline.html'
+      - '.github/workflows/android.yml'
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/mainline'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Monotonic per workflow run: Android only installs updates with a higher versionCode.
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build web assets (offline fallback page bundled in the APK)
+        run: npm run build
+
+      - run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Signing key and Firebase config
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::Add the ANDROID_KEYSTORE_* secrets (see ANDROID.md, step 2)."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON is not set: this build has no push notifications."
+          fi
+
+      - name: Build signed APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease -PversionCode="$VERSION_CODE" -PversionName="$VERSION_NAME"
+
+      - name: Verify signature
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner verify --print-certs "$APK"
+          cp "$APK" athletiq.apk
+          ls -l athletiq.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v${{ env.VERSION_CODE }}
+          name: AthletiQ for Android ${{ env.VERSION_NAME }}
+          make_latest: true
+          files: athletiq.apk
+          body: |
+            **Install / update:** open this link on the phone and tap the file to install:
+            https://github.com/${{ github.repository }}/releases/latest/download/athletiq.apk
+
+            Installed apps offer this update automatically. Built from ${{ github.sha }}.

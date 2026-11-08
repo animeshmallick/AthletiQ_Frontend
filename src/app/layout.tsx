@@ -1,4 +1,15 @@
-import { Download, Ellipsis, KeyRound, LogOut, Monitor, Moon, Sun, WifiOff } from 'lucide-react';
+import {
+  Download,
+  Ellipsis,
+  KeyRound,
+  LogOut,
+  Monitor,
+  Moon,
+  RefreshCw,
+  Smartphone,
+  Sun,
+  WifiOff,
+} from 'lucide-react';
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -18,6 +29,15 @@ import { Skeleton } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from './auth';
 import { useInstallPrompt } from './install';
+import {
+  APK_URL,
+  checkForAppUpdate,
+  downloadUpdate,
+  isAndroidBrowser,
+  isNativeApp,
+  registerPush,
+  type AppUpdate,
+} from './native';
 import { navFor, tabsFor, type NavItem } from './nav';
 import { preloadRoute, preloadWhenIdle } from './pages';
 import { PullToRefresh } from './pull-to-refresh';
@@ -123,7 +143,25 @@ function UserMenu() {
           ))}
         </div>
         <DropdownMenuSeparator />
-        {install && (
+        {isAndroidBrowser() && (
+          <DropdownMenuItem asChild>
+            <a href={APK_URL}>
+              <Smartphone /> Get the Android app
+            </a>
+          </DropdownMenuItem>
+        )}
+        {isNativeApp() && (
+          <DropdownMenuItem
+            onSelect={() =>
+              void checkForAppUpdate(true).then((u) =>
+                u ? offerUpdate(u) : toast.success('You have the latest version of the app'),
+              )
+            }
+          >
+            <RefreshCw /> Check for app update
+          </DropdownMenuItem>
+        )}
+        {install && !isAndroidBrowser() && (
           <DropdownMenuItem
             onSelect={() =>
               void install().then((ok) => ok && toast.success('AthletiQ installed on this device'))
@@ -149,6 +187,7 @@ export function AppLayout() {
   const tabs = tabsFor(user.role);
   const [moreOpen, setMoreOpen] = useState(false);
   usePreloadOnIntent(tabs.map((t) => t.to));
+  useNativeApp();
   const location = useLocation();
   // "More" lights up when the current screen isn't one of the tabs.
   const onTab = tabs.some((t) =>
@@ -226,6 +265,23 @@ export function AppLayout() {
       </div>
     </div>
   );
+}
+
+function offerUpdate(update: AppUpdate) {
+  toast('A new version of the app is available', {
+    description: 'Download it and tap Install. Your data stays as it is.',
+    duration: 15_000,
+    action: { label: 'Update', onClick: () => downloadUpdate(update.url) },
+  });
+}
+
+/** Inside the Android app: register for push and offer new APK versions (once per sign-in). */
+function useNativeApp() {
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    void registerPush();
+    void checkForAppUpdate().then((u) => u && offerUpdate(u));
+  }, []);
 }
 
 /**
