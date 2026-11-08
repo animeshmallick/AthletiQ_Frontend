@@ -68,6 +68,7 @@ async function boot(user: typeof coachUser, routes: Parameters<typeof mockApi>[0
       totals: null,
       trend: [],
       byPaymentMode: [],
+      byReceiver: [],
       byBatch: [],
       topOverdue: [],
     }),

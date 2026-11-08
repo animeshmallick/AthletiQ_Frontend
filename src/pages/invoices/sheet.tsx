@@ -78,7 +78,7 @@ function MarkPaidDialog({
       toast.success(`${money(invoice.totalAmount)} received from ${invoice.student.fullName}`);
       onOpenChange(false);
     } catch (err) {
-      toast.error('Could not record payment', { description: errorMessage(err) });
+      toast.error('Could not mark as paid', { description: errorMessage(err) });
     }
   }
 
@@ -86,9 +86,10 @@ function MarkPaidDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Record payment</DialogTitle>
+          <DialogTitle>Confirm payment received</DialogTitle>
           <DialogDescription>
-            {invoice.number} · {invoice.student.fullName}
+            {invoice.number} · {invoice.student.fullName}. The invoice is marked paid and the amount
+            is counted as collected by you.
           </DialogDescription>
         </DialogHeader>
         <div className="rounded-xl bg-success/10 px-4 py-3">
@@ -138,7 +139,7 @@ function MarkPaidDialog({
             disabled={!paidOn}
             onClick={() => void submit()}
           >
-            <CheckCircle2 /> Mark as paid
+            <CheckCircle2 /> I have received the payment
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -232,7 +233,7 @@ function PaymentRow({
           </p>
           <p className="text-xs text-muted-foreground">
             Paid {formatDate(p.paidOn)}
-            {p.reference && ` · Ref ${p.reference}`} · recorded by {p.recordedBy.name}
+            {p.reference && ` · Ref ${p.reference}`} · received by {p.recordedBy.name}
           </p>
           {p.note && <p className="mt-1 text-xs text-muted-foreground">{p.note}</p>}
         </div>
@@ -432,7 +433,7 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
         <div className="flex flex-wrap gap-2">
           {inv.status === 'due' && (
             <Button variant="success" className="flex-1" onClick={() => setPaying(true)}>
-              <Wallet /> Mark as paid
+              <Wallet /> I have received the payment
             </Button>
           )}
           {inv.status !== 'cancelled' && (

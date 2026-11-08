@@ -360,6 +360,8 @@ export interface FinanceSummary {
   };
   trend: { month: string; billed: number; collected: number }[];
   byPaymentMode: { mode: PaymentMode; amount: number; count: number }[];
+  /** Who received the money (the person who confirmed the payment). Coaches: only themselves. */
+  byReceiver: { userId: string; name: string; role: Role; amount: number; count: number }[];
   byBatch: {
     batchId: string | null;
     batchName: string | null;

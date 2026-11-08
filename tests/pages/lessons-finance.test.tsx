@@ -162,6 +162,9 @@ describe('FinancePage', () => {
         },
         trend: [{ month: '2026-03', billed: 1_000_000, collected: 250_000 }],
         byPaymentMode: [{ mode: 'upi', amount: 250_000, count: 1 }],
+        byReceiver: [
+          { userId: 'c1', name: 'Coach Arjun', role: 'coach', amount: 250_000, count: 1 },
+        ],
         byBatch: [
           {
             batchId: 'b1',
@@ -202,6 +205,8 @@ describe('FinancePage', () => {
     expect(screen.getByText('25%')).toBeInTheDocument();
     expect(screen.getAllByText('Morning U-12').length).toBeGreaterThan(0);
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
+    expect(screen.getByText('Collected by')).toBeInTheDocument();
+    expect(screen.getByText('Coach Arjun')).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: 'This FY' }));
     await waitFor(() =>
       expect(

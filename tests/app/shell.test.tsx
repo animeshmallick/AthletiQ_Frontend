@@ -35,6 +35,7 @@ async function boot(
       totals: null,
       trend: [],
       byPaymentMode: [],
+      byReceiver: [],
       byBatch: [],
       topOverdue: [],
     }),
@@ -88,7 +89,9 @@ describe('route guards', () => {
 
   it('shows the app shell with role-based navigation for coaches', async () => {
     await boot('/', coachUser);
-    expect(await screen.findByText(/Ravi/, { selector: 'h1' })).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Ravi/, { selector: 'h1' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Attendance' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
   });

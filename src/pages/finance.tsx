@@ -15,6 +15,13 @@ import {
   YAxis,
 } from 'recharts';
 import { useUser } from '@/app/auth';
+import {
+  chartTooltipStyle,
+  CollectedByChart,
+  financeRange,
+  PIE_COLORS,
+  type FinancePreset,
+} from '@/components/collected-by';
 import { EmptyState, ErrorState, ListSkeleton, PageHeader, StatCard } from '@/components/common';
 import { Segmented } from '@/components/ui/controls';
 import {
@@ -26,8 +33,6 @@ import {
   Select,
 } from '@/components/ui/primitives';
 import {
-  addMonths,
-  endOfMonth,
   formatDate,
   formatMonth,
   formatShortDate,
@@ -35,54 +40,16 @@ import {
   moneyCompact,
   PAYMENT_MODE_LABELS,
   plural,
-  startOfMonth,
-  today,
 } from '@/lib/format';
 import { useBatches, useFinance, useProjection, useUsers } from '@/lib/queries';
-
-type Preset = 'month' | 'last-month' | 'quarter' | 'fy';
-
-function rangeFor(preset: Preset): { from: string; to: string } {
-  const t = today();
-  switch (preset) {
-    case 'month':
-      return { from: startOfMonth(t), to: t };
-    case 'last-month': {
-      const s = addMonths(t, -1);
-      return { from: s, to: endOfMonth(s) };
-    }
-    case 'quarter':
-      return { from: addMonths(t, -2), to: t };
-    case 'fy': {
-      const [y, m] = t.split('-').map(Number) as [number, number];
-      return { from: `${m >= 4 ? y : y - 1}-04-01`, to: t };
-    }
-  }
-}
-
-const tooltipStyle = {
-  background: 'var(--popover)',
-  border: '1px solid var(--border)',
-  borderRadius: 12,
-  fontSize: 12,
-  color: 'var(--popover-foreground)',
-};
-const PIE_COLORS = [
-  'var(--chart-1)',
-  'var(--chart-2)',
-  'var(--chart-3)',
-  'var(--chart-4)',
-  'var(--chart-5)',
-  '#94a3b8',
-];
 
 export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
   const user = useUser();
   const isAdmin = user.role === 'admin';
-  const [preset, setPreset] = useState<Preset>('month');
+  const [preset, setPreset] = useState<FinancePreset>('month');
   const [coachId, setCoachId] = useState('');
   const [batchId, setBatchId] = useState('');
-  const range = useMemo(() => rangeFor(preset), [preset]);
+  const range = useMemo(() => financeRange(preset), [preset]);
   const q = useFinance({ ...range, coachId: coachId || undefined, batchId: batchId || undefined });
   const projection = useProjection(30);
   const coaches = useUsers({ role: 'coach', pageSize: 100 });
@@ -231,7 +198,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
                         width={64}
                       />
                       <Tooltip
-                        contentStyle={tooltipStyle}
+                        contentStyle={chartTooltipStyle}
                         cursor={{ fill: 'var(--muted)' }}
                         formatter={(v) => money(Number(v) * 100)}
                       />
@@ -286,7 +253,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
                         ))}
                       </Pie>
                       <Tooltip
-                        contentStyle={tooltipStyle}
+                        contentStyle={chartTooltipStyle}
                         formatter={(v) => money(Number(v) * 100)}
                       />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -296,6 +263,24 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Collected by</CardTitle>
+              <CardDescription>
+                {isAdmin
+                  ? 'Who received the money in this period (whoever confirmed the payment)'
+                  : 'Payments you confirmed as received in this period'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {q.isPending ? (
+                <ListSkeleton rows={2} />
+              ) : (
+                <CollectedByChart rows={q.data.byReceiver} />
+              )}
+            </CardContent>
+          </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>

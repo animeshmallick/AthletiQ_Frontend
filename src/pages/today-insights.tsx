@@ -8,6 +8,7 @@ import {
   CalendarCheck2,
   Clock,
   Cake,
+  HandCoins,
   IndianRupee,
   LayoutGrid,
   MessageSquareText,
@@ -18,6 +19,7 @@ import {
   UsersRound,
   Wallet,
 } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { Link } from 'react-router';
 import { StatCard } from '@/components/common';
 import {
@@ -31,6 +33,11 @@ import {
 import { formatShortDate, money, plural } from '@/lib/format';
 import { useDashboard, useFinance, type Dashboard } from '@/lib/queries';
 import { cn } from '@/lib/utils';
+
+// Charts (recharts) load on demand so the Today screen stays light.
+const CollectedByCard = lazy(() =>
+  import('@/components/collected-by').then((m) => ({ default: m.CollectedByCard })),
+);
 
 const rateTone = (r: number | null) =>
   r === null
@@ -328,6 +335,9 @@ export function AdminInsights() {
         />
       </div>
       <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-2">
+        <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
+          <CollectedByCard admin />
+        </Suspense>
         <AttendanceTrend d={d} />
         <CoachPerformance d={d} />
         <BatchHealth d={d} />
@@ -406,6 +416,14 @@ export function CoachInsights() {
               to="/invoices?view=insights"
               value={money(t.collected)}
               hint="This month, my students"
+            />
+            <StatCard
+              label="Received by me"
+              icon={<HandCoins />}
+              tone="success"
+              to="/invoices?view=insights"
+              value={money(fin.data?.byReceiver[0]?.amount ?? 0)}
+              hint={plural(fin.data?.byReceiver[0]?.count ?? 0, 'payment') + ' this month'}
             />
             <StatCard
               label="Outstanding"

@@ -152,6 +152,7 @@ describe('TodayPage (admin)', () => {
         },
         trend: [],
         byPaymentMode: [],
+        byReceiver: [],
         byBatch: [],
         topOverdue: [
           {
@@ -234,9 +235,11 @@ describe('InvoicesPage', () => {
     // Coaches cannot cancel invoices.
     expect(screen.queryByRole('button', { name: 'Cancel invoice' })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /mark as paid/i }));
+    await user.click(screen.getByRole('button', { name: /i have received the payment/i }));
     await user.type(screen.getByLabelText(/UPI reference/i), 'UTR123');
-    await user.click(screen.getAllByRole('button', { name: /mark as paid/i }).at(-1)!);
+    await user.click(
+      screen.getAllByRole('button', { name: /i have received the payment/i }).at(-1)!,
+    );
     await waitFor(() => expect(api.find('POST /invoices/i1/payments')).toHaveLength(1));
     expect(api.find('POST /invoices/i1/payments')[0]!.body).toMatchObject({
       mode: 'upi',
