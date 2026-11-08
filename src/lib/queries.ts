@@ -34,6 +34,7 @@ import type {
   TodaySession,
   User,
   WeeklyFeedback,
+  TasksResponse,
 } from './types';
 
 type Query = Record<string, unknown>;
@@ -859,3 +860,12 @@ export const useAdjustInvoice = (id: string) =>
   useInvoiceMutation((body: { discountAmount: number; reason: string }) =>
     api.post<InvoiceDetail>(`/invoices/${id}/adjust`, body),
   );
+
+/** Pending tasks + badge counts; refreshed every minute and when the app regains focus. */
+export const useTasks = () =>
+  useQuery({
+    queryKey: ['me', 'tasks'] as const,
+    queryFn: () => api.get<TasksResponse>('/me/tasks'),
+    refetchInterval: 60_000,
+    staleTime: 20_000,
+  });

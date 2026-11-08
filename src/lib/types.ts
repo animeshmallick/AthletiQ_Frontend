@@ -407,3 +407,32 @@ export interface AcademySettings {
   upiId: string | null;
   invoiceFooter: string | null;
 }
+
+/** GET /me/tasks: what needs the signed-in user's attention now. */
+export interface AppTask {
+  id: string;
+  kind:
+    | 'check-in'
+    | 'missed-check-in'
+    | 'attendance'
+    | 'lesson-plan'
+    | 'check-out'
+    | 'feedback'
+    | 'registrations'
+    | 'flagged-check-ins'
+    | 'overdue-fees';
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  detail: string;
+  link: string;
+  screen: string;
+  count?: number;
+}
+
+export interface TasksResponse {
+  generatedAt: string;
+  total: number;
+  /** Badge count per screen path, e.g. { "/attendance": 2 }. */
+  counts: Record<string, number>;
+  items: AppTask[];
+}

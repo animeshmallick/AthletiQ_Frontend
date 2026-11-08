@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
@@ -14,16 +15,33 @@ function vendorChunk(id: string): string | undefined {
   return undefined;
 }
 
+/** Commit this build came from: Amplify provides AWS_COMMIT_ID; locally ask git. */
+function buildCommit(env: Record<string, string>): string | null {
+  if (env.AWS_COMMIT_ID) return env.AWS_COMMIT_ID.slice(0, 7);
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+  } catch {
+    return null;
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
     plugins: [react(), tailwindcss()],
+    // Shown to admins (More → Deployments) to confirm what's live.
+    define: {
+      __BUILD__: JSON.stringify({ commit: buildCommit(env), builtAt: new Date().toISOString() }),
+    },
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
     server: {
       port: 5173,
       // Same-origin API in development: the refresh cookie works without CORS/SameSite concerns.
       proxy: {
         '/api': { target: env.API_PROXY_TARGET || 'http://localhost:4000', changeOrigin: true },
+        '/ready': { target: env.API_PROXY_TARGET || 'http://localhost:4000', changeOrigin: true },
       },
     },
     build: {

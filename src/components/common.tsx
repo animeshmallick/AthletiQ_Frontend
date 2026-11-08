@@ -178,7 +178,7 @@ export function StatCard({
   const body = (
     <Card
       className={cn(
-        'relative h-full overflow-hidden p-3 sm:p-4',
+        'relative h-full overflow-hidden p-2.5 sm:p-3.5',
         to && 'transition-[transform,box-shadow] duration-150 hover:shadow-e2 active:scale-[0.98]',
       )}
     >
@@ -208,12 +208,12 @@ export function StatCard({
       {loading ? (
         <Skeleton className="mt-2.5 h-6 w-20" />
       ) : (
-        <p className="tabular relative mt-2 truncate text-[22px] leading-none font-bold tracking-tight sm:text-2xl">
+        <p className="tabular relative mt-1.5 truncate text-[21px] leading-none font-bold tracking-tight sm:text-2xl">
           {value}
         </p>
       )}
       {hint && (
-        <p className="relative mt-1.5 truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
+        <p className="relative mt-1 truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
           {hint}
         </p>
       )}

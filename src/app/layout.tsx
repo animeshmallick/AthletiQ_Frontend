@@ -12,7 +12,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
-import { NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
+import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { Avatar } from '@/components/common';
 import {
@@ -45,19 +45,19 @@ import { preloadRoute, preloadWhenIdle } from './pages';
 import { PullToRefresh } from './pull-to-refresh';
 import { enableWebPush, refreshWebPush, webPushState } from './web-push';
 import { useTheme, type Theme } from './theme';
+import { AppHeader, BrandMark } from './header';
+import { DeploymentsInfo } from './deployments';
+import { useTasks } from '@/lib/queries';
 
-function Logo({ className }: { className?: string }) {
-  return (
-    <div className={cn('flex items-center gap-2.5', className)}>
-      <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-sm">
-        A
-      </div>
-      <span className="text-base font-semibold tracking-tight">AthletiQ</span>
-    </div>
-  );
-}
-
-function SidebarNav({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
+function SidebarNav({
+  items,
+  onNavigate,
+  counts = {},
+}: {
+  items: NavItem[];
+  onNavigate?: () => void;
+  counts?: Record<string, number>;
+}) {
   const groups: { key: NavItem['group']; label?: string }[] = [
     { key: 'main' },
     { key: 'manage', label: 'Manage' },
@@ -89,7 +89,12 @@ function SidebarNav({ items, onNavigate }: { items: NavItem[]; onNavigate?: () =
                 }
               >
                 <item.icon className="size-4.5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {!!counts[item.to] && (
+                  <span className="tabular rounded-full bg-destructive px-1.5 py-px text-[11px] font-bold text-white">
+                    {counts[item.to]! > 99 ? '99+' : counts[item.to]}
+                  </span>
+                )}
               </NavLink>
             ))}
           </div>
@@ -205,6 +210,12 @@ export function AppLayout() {
   const items = navFor(user.role);
   const tabs = tabsFor(user.role);
   const [moreOpen, setMoreOpen] = useState(false);
+  const counts = useTasks().data?.counts ?? {};
+  const tabPaths = new Set(tabs.map((t) => t.to));
+  // "More" shows the total for screens that aren't tabs.
+  const moreCount = items
+    .filter((i) => !tabPaths.has(i.to))
+    .reduce((n, i) => n + (counts[i.to] ?? 0), 0);
   usePreloadOnIntent(tabs.map((t) => t.to));
   useNativeApp();
   const location = useLocation();
@@ -217,17 +228,21 @@ export function AppLayout() {
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh flex-col gap-6 overflow-y-auto bg-sidebar px-3 py-5 text-sidebar-foreground lg:flex">
-        <Logo className="px-3" />
-        <SidebarNav items={items} />
+        <Link
+          to="/"
+          className="group flex items-center gap-2.5 rounded-xl px-3"
+          aria-label="AthletiQ, go to Today"
+        >
+          <BrandMark />
+          <span className="text-base font-semibold tracking-tight">AthletiQ</span>
+        </Link>
+        <SidebarNav items={items} counts={counts} />
+        {user.role === 'admin' && <DeploymentsInfo className="mt-auto" />}
       </aside>
 
       <div className="flex min-w-0 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-[calc(3.25rem+env(safe-area-inset-top))] items-center gap-3 border-b border-border/60 bg-background/85 px-3.5 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:h-[calc(3.5rem+env(safe-area-inset-top))] sm:px-6">
-          <Logo className="lg:hidden" />
-          <div className="flex-1" />
-          <UserMenu />
-        </header>
+        <AppHeader userMenu={<UserMenu />} />
 
         <OfflineBanner />
         <PullToRefresh />
@@ -258,7 +273,7 @@ export function AppLayout() {
             >
               {({ isActive }) => (
                 <>
-                  <TabIcon icon={item.icon} active={isActive} />
+                  <TabIcon icon={item.icon} active={isActive} badge={counts[item.to]} />
                   <span className="max-w-full truncate px-0.5">{item.short ?? item.label}</span>
                 </>
               )}
@@ -272,12 +287,13 @@ export function AppLayout() {
               aria-expanded={moreOpen}
               className={tabClass(!onTab || moreOpen)}
             >
-              <TabIcon icon={Ellipsis} active={!onTab || moreOpen} />
+              <TabIcon icon={Ellipsis} active={!onTab || moreOpen} badge={moreCount} />
               More
             </button>
             <DialogContent className="gap-3 bg-sidebar text-sidebar-foreground [&>button]:text-sidebar-muted">
               <DialogTitle className="text-base">All screens</DialogTitle>
-              <SidebarNav items={items} onNavigate={() => setMoreOpen(false)} />
+              <SidebarNav items={items} counts={counts} onNavigate={() => setMoreOpen(false)} />
+              {user.role === 'admin' && <DeploymentsInfo className="mt-2" />}
             </DialogContent>
           </Dialog>
         </nav>
@@ -344,15 +360,40 @@ function tabClass(active: boolean) {
   );
 }
 
-function TabIcon({ icon: Icon, active }: { icon: NavItem['icon']; active: boolean }) {
+function TabIcon({
+  icon: Icon,
+  active,
+  badge,
+}: {
+  icon: NavItem['icon'];
+  active: boolean;
+  badge?: number;
+}) {
   return (
     <span
       className={cn(
-        'flex h-7 w-12 items-center justify-center rounded-full transition-colors',
+        'relative flex h-7 w-12 items-center justify-center rounded-full transition-colors',
         active && 'bg-primary/12 text-primary',
       )}
     >
       <Icon className="size-5" strokeWidth={active ? 2.25 : 2} />
+      {!!badge && <CountBadge n={badge} className="absolute -top-1 right-1.5" />}
+    </span>
+  );
+}
+
+/** Small red count bubble (pops in when the number changes). */
+export function CountBadge({ n, className }: { n: number; className?: string }) {
+  return (
+    <span
+      key={n}
+      aria-label={`${n} pending`}
+      className={cn(
+        'flex h-4 min-w-4 animate-[pop_0.3s_ease-out] items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-none font-bold text-white ring-2 ring-card',
+        className,
+      )}
+    >
+      {n > 9 ? '9+' : n}
     </span>
   );
 }
