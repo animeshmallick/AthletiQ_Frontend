@@ -16,6 +16,13 @@ customHeaders:
     headers:
       - key: Cache-Control
         value: public, max-age=31536000, immutable
+  # The service worker must always be re-checked so fixes reach installed apps.
+  - pattern: 'sw.js'
+    headers:
+      - key: Cache-Control
+        value: no-cache
+      - key: Service-Worker-Allowed
+        value: /
   - pattern: 'index.html'
     headers:
       - key: Cache-Control

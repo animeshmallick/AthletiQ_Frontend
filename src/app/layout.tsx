@@ -1,4 +1,5 @@
 import {
+  Bell,
   Download,
   Ellipsis,
   KeyRound,
@@ -28,6 +29,7 @@ import {
 import { Skeleton } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from './auth';
+import { IosInstallBanner } from '@/components/notifications';
 import { useInstallPrompt } from './install';
 import {
   APK_URL,
@@ -41,6 +43,7 @@ import {
 import { navFor, tabsFor, type NavItem } from './nav';
 import { preloadRoute, preloadWhenIdle } from './pages';
 import { PullToRefresh } from './pull-to-refresh';
+import { enableWebPush, refreshWebPush, webPushState } from './web-push';
 import { useTheme, type Theme } from './theme';
 
 function Logo({ className }: { className?: string }) {
@@ -108,6 +111,7 @@ function UserMenu() {
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const install = useInstallPrompt();
+  const [pushState, setPushState] = useState(webPushState);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -143,6 +147,21 @@ function UserMenu() {
           ))}
         </div>
         <DropdownMenuSeparator />
+        {pushState === 'off' && (
+          <DropdownMenuItem
+            onSelect={() =>
+              void enableWebPush()
+                .then((s) => {
+                  setPushState(s);
+                  if (s === 'on') toast.success('Notifications are on for this device');
+                  else if (s === 'blocked') toast.error('Notifications are blocked in settings');
+                })
+                .catch(() => toast.error("Couldn't turn on notifications. Try again."))
+            }
+          >
+            <Bell /> Turn on notifications
+          </DropdownMenuItem>
+        )}
         {isAndroidBrowser() && (
           <DropdownMenuItem asChild>
             <a href={APK_URL}>
@@ -212,6 +231,7 @@ export function AppLayout() {
 
         <OfflineBanner />
         <PullToRefresh />
+        <IosInstallBanner />
         <main
           id="main"
           className="mx-auto w-full max-w-7xl flex-1 px-3 pt-3.5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pb-10"
@@ -277,6 +297,14 @@ function offerUpdate(update: AppUpdate) {
 
 /** Inside the Android app: register for push and offer new APK versions (once per sign-in). */
 function useNativeApp() {
+  const navigate = useNavigate();
+  // Notification tapped while the web app is open (sent by the service worker).
+  useEffect(() => {
+    const go = (e: Event) => navigate((e as CustomEvent<string>).detail);
+    window.addEventListener('atq:navigate', go);
+    void refreshWebPush();
+    return () => window.removeEventListener('atq:navigate', go);
+  }, [navigate]);
   useEffect(() => {
     if (!isNativeApp()) return;
     void registerPush();

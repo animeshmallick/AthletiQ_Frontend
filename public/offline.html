@@ -118,7 +118,10 @@
       <div class="hint" id="status">We'll reconnect automatically when you're back online.</div>
     </main>
     <script>
-      var APP = 'https://www.edupilots.in/';
+      // On the website (service worker) retry the same page; in the Android app go to the site.
+      var APP = /edupilots\.in$/.test(location.hostname)
+        ? location.href
+        : 'https://www.edupilots.in/';
       function retry() {
         document.getElementById('status').textContent = 'Connecting…';
         window.location.replace(APP);

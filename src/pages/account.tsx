@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/primitives';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema, passwordSchema } from '@/lib/forms';
 import { useChangePassword, useUpdateProfile } from '@/lib/queries';
+import { NotificationsCard } from '@/components/notifications';
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, 'Enter your name').max(120),
@@ -147,6 +148,7 @@ export function AccountPage() {
       <PageHeader title="Account" />
       <div className="space-y-4 sm:space-y-6">
         <ProfileCard />
+        <NotificationsCard />
         <PasswordCard />
       </div>
     </div>
