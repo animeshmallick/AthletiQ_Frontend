@@ -139,6 +139,9 @@ export function Select({
       el.dispatchEvent(new Event('change', { bubbles: true })); // fires onChange / RHF
       setDomValue(el.value);
     }
+    // Focus returns to the field right away (so the next key press works), and again after the
+    // popover/sheet has finished closing in case it moved focus.
+    triggerRef.current?.focus();
     requestAnimationFrame(() => triggerRef.current?.focus());
   }
 

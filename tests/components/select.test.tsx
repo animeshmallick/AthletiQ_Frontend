@@ -56,8 +56,12 @@ describe('Select', () => {
     // Cherry is disabled, so the last reachable option is Banana.
     expect(screen.getByText('banana')).toBeInTheDocument();
     // Type-ahead jumps to the first option starting with the letter.
+    const trigger = screen.getByRole('combobox', { name: 'Fruit' });
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
     await user.keyboard('{ArrowDown}');
-    await screen.findByRole('listbox');
+    const reopened = await screen.findByRole('listbox');
+    await waitFor(() => expect(reopened).toHaveFocus());
     await user.keyboard('a{Enter}');
     expect(screen.getByText('apple')).toBeInTheDocument();
   });
