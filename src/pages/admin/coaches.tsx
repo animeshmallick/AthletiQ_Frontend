@@ -30,7 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/overlays';
-import { Badge, Card, Input, NativeSelect } from '@/components/ui/primitives';
+import { Badge, Card, Input, Select } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { formatInstant } from '@/lib/format';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema } from '@/lib/forms';
@@ -141,10 +141,10 @@ function UserDialog({
           </Field>
           {!user && (
             <Field label="Role">
-              <NativeSelect {...form.register('role')}>
+              <Select {...form.register('role')}>
                 <option value="coach">Coach — runs batches</option>
                 <option value="admin">Admin — manages the academy</option>
-              </NativeSelect>
+              </Select>
             </Field>
           )}
         </form>

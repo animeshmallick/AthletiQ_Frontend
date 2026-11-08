@@ -13,15 +13,16 @@ import {
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
-import { Badge, Card, NativeSelect } from '@/components/ui/primitives';
+import { Badge, Card, Select } from '@/components/ui/primitives';
 import { money, weekdaysLabel } from '@/lib/format';
-import { useBatches, useStudents } from '@/lib/queries';
+import { useBatches, usePrefetchStudent, useStudents } from '@/lib/queries';
 import { StudentFormDialog } from './forms';
 
 export function StudentsPage() {
   const user = useUser();
   const isAdmin = user.role === 'admin';
   const navigate = useNavigate();
+  const prefetch = usePrefetchStudent();
   const [params, setParams] = useSearchParams();
   const [creating, setCreating] = useState(false);
   const batches = useBatches({});
@@ -74,7 +75,7 @@ export function StudentsPage() {
           placeholder="Search name, ID, phone or guardian…"
           className="lg:w-96"
         />
-        <NativeSelect
+        <Select
           value={q.batchId}
           onChange={(e) => set({ batch: e.target.value })}
           className="lg:w-64"
@@ -86,8 +87,8 @@ export function StudentsPage() {
               {b.name}
             </option>
           ))}
-        </NativeSelect>
-        <NativeSelect
+        </Select>
+        <Select
           value={q.dues}
           onChange={(e) => set({ dues: e.target.value })}
           className="lg:w-48"
@@ -96,7 +97,7 @@ export function StudentsPage() {
           <option value="">Any fee status</option>
           <option value="outstanding">With unpaid fees</option>
           <option value="overdue">Overdue fees</option>
-        </NativeSelect>
+        </Select>
         <Segmented
           ariaLabel="Status"
           value={q.status}
@@ -161,6 +162,8 @@ export function StudentsPage() {
                         <div className="min-w-0">
                           <Link
                             to={`/students/${s.id}`}
+                            onPointerEnter={() => prefetch(s.id)}
+                            onTouchStart={() => prefetch(s.id)}
                             className="font-medium hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -215,6 +218,8 @@ export function StudentsPage() {
               <Link
                 key={s.id}
                 to={`/students/${s.id}`}
+                onPointerEnter={() => prefetch(s.id)}
+                onTouchStart={() => prefetch(s.id)}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40"
               >
                 <Avatar name={s.fullName} />

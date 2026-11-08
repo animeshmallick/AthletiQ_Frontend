@@ -1,7 +1,7 @@
 import { ScrollText } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyState, ErrorState, ListSkeleton, PageHeader, Pagination } from '@/components/common';
-import { Card, NativeSelect } from '@/components/ui/primitives';
+import { Card, Select } from '@/components/ui/primitives';
 import { formatInstant } from '@/lib/format';
 import { useAuditLogs } from '@/lib/queries';
 
@@ -35,7 +35,7 @@ export function AuditLogPage() {
         title="Audit log"
         description="Every sensitive change — payments, fee changes, transfers and access — with who did it and when."
       />
-      <NativeSelect
+      <Select
         value={entityType}
         onChange={(e) => (setEntityType(e.target.value), setPage(1))}
         className="mb-4 sm:w-64"
@@ -47,7 +47,7 @@ export function AuditLogPage() {
             {humanize(t)}
           </option>
         ))}
-      </NativeSelect>
+      </Select>
       {q.isPending ? (
         <ListSkeleton rows={8} />
       ) : q.isError ? (

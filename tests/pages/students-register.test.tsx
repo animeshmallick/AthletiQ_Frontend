@@ -2,7 +2,16 @@ import { RegisterPage } from '@/pages/public/register';
 import { StudentDetailPage } from '@/pages/students/detail';
 import { StudentsPage } from '@/pages/students/list';
 import { batch, studentDetail, studentListItem } from '../fixtures';
-import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
+import {
+  adminUser,
+  coachUser,
+  mockApi,
+  renderPage,
+  screen,
+  waitFor,
+  chooseOption,
+  selectValue,
+} from '../utils';
 
 const page = (items = [studentListItem]) => ({
   data: items,
@@ -58,15 +67,15 @@ describe('StudentsPage', () => {
 
     await user.type(await screen.findByLabelText(/full name/i), 'Kabir Singh');
     await user.type(screen.getByLabelText(/mobile \(whatsapp\)/i), '9876501234');
-    await user.selectOptions(screen.getByLabelText(/^batch/i), 'b1');
+    await chooseOption(user, screen.getByLabelText(/^batch/i), 'b1');
     for (const d of ['Monday', 'Wednesday', 'Friday'])
       await user.click(screen.getByRole('button', { name: d }));
     // 3 training days → the 3-day plan is suggested.
-    await waitFor(() => expect(screen.getByLabelText(/fee plan/i)).toHaveValue('p3'));
+    await waitFor(() => expect(selectValue(screen.getByLabelText(/fee plan/i))).toBe('p3'));
     expect(screen.getByText('₹2,500')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Thursday' }));
     await user.click(screen.getByRole('button', { name: 'Saturday' }));
-    await waitFor(() => expect(screen.getByLabelText(/fee plan/i)).toHaveValue('p5'));
+    await waitFor(() => expect(selectValue(screen.getByLabelText(/fee plan/i))).toBe('p5'));
 
     await user.click(screen.getByRole('button', { name: 'Register student' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/students/s9'));
@@ -168,7 +177,7 @@ describe('RegisterPage (public)', () => {
 
     await user.type(screen.getByLabelText(/student’s full name/i), 'Diya Kapoor');
     await user.type(screen.getByLabelText(/mobile \(whatsapp\)/i), '9876501234');
-    await user.selectOptions(screen.getByLabelText(/preferred batch/i), 'b1');
+    await chooseOption(user, screen.getByLabelText(/preferred batch/i), 'b1');
     expect(screen.getByRole('button', { name: 'Tuesday' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Monday' }));
     await user.click(screen.getByRole('checkbox'));

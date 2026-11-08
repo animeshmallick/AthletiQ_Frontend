@@ -33,9 +33,9 @@ export function DialogContent({
       <Overlay />
       <D.Content
         className={cn(
-          'fixed z-50 flex max-h-[92dvh] w-full flex-col gap-4 overflow-y-auto border bg-card p-5 shadow-xl outline-none data-[state=closed]:animate-out data-[state=open]:animate-in',
+          'fixed z-50 flex max-h-[92dvh] w-full flex-col gap-3 overflow-y-auto border bg-card p-4 pt-5 shadow-e3 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in sm:gap-4 sm:p-5',
           // Bottom sheet on phones, centred dialog on larger screens.
-          'inset-x-0 bottom-0 rounded-t-2xl pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl',
+          'inset-x-0 bottom-0 rounded-t-3xl pb-[max(1rem,env(safe-area-inset-bottom))] before:absolute before:top-2 before:left-1/2 before:h-1.5 before:w-10 before:-translate-x-1/2 before:rounded-full before:bg-muted-foreground/25 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:before:hidden',
           className,
         )}
         {...props}

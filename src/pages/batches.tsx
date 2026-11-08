@@ -42,7 +42,7 @@ import {
   CardHeader,
   CardTitle,
   Input,
-  NativeSelect,
+  Select,
   Skeleton,
 } from '@/components/ui/primitives';
 import { formatDate, formatTimeRange, weekdaysLabel, WEEKDAYS } from '@/lib/format';
@@ -144,24 +144,24 @@ export function BatchDialog({
             error={e.coachId?.message}
             hint={batch ? 'Reassigning moves all students to the new coach.' : undefined}
           >
-            <NativeSelect {...register('coachId')}>
+            <Select {...register('coachId')}>
               <option value="">Select…</option>
               {coaches.data?.data.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           </Field>
           <Field label="Location" required error={e.locationId?.message}>
-            <NativeSelect {...register('locationId')}>
+            <Select {...register('locationId')}>
               <option value="">Select…</option>
               {locations.data?.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           </Field>
           <Field label="Runs on" required error={e.weekdays?.message} className="sm:col-span-2">
             <Controller

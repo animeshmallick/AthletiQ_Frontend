@@ -9,7 +9,7 @@
 :root {
   --radius: 0.75rem;
 
-  --background: oklch(0.985 0.002 247);
+  --background: oklch(0.972 0.005 264);
   --foreground: oklch(0.21 0.034 264.7);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.034 264.7);
@@ -48,6 +48,14 @@
   --chart-3: oklch(0.769 0.165 70.1);
   --chart-4: oklch(0.645 0.246 16.4);
   --chart-5: oklch(0.623 0.188 259.8);
+
+  /* Material-style elevation: soft, layered, slightly tinted. */
+  --e1: 0 1px 2px oklch(0.21 0.034 264.7 / 0.05), 0 1px 3px oklch(0.21 0.034 264.7 / 0.06);
+  --e2:
+    0 2px 4px -1px oklch(0.21 0.034 264.7 / 0.06), 0 6px 16px -4px oklch(0.21 0.034 264.7 / 0.1);
+  --e3:
+    0 -4px 12px -4px oklch(0.21 0.034 264.7 / 0.08), 0 16px 40px -8px oklch(0.21 0.034 264.7 / 0.2);
+  --shimmer: oklch(1 0 0 / 0.65);
 }
 
 .dark {
@@ -79,6 +87,12 @@
   --sidebar: oklch(0.17 0.022 264);
   --sidebar-accent: oklch(0.25 0.03 264);
   --sidebar-border: oklch(0.25 0.03 264);
+
+  /* Shadows barely read on dark surfaces; lean on borders and a faint lift instead. */
+  --e1: 0 1px 2px oklch(0 0 0 / 0.3);
+  --e2: 0 2px 6px oklch(0 0 0 / 0.35), 0 8px 24px -6px oklch(0 0 0 / 0.45);
+  --e3: 0 16px 48px -8px oklch(0 0 0 / 0.6);
+  --shimmer: oklch(1 0 0 / 0.06);
 }
 
 @theme inline {
@@ -125,6 +139,35 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
+  --shadow-e1: var(--e1);
+  --shadow-e2: var(--e2);
+  --shadow-e3: var(--e3);
+
+  --animate-page: page-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  --animate-rise: rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.985);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+
   --animate-in: enter 150ms ease-out;
   --animate-out: exit 120ms ease-in forwards;
 
@@ -146,11 +189,19 @@
   * {
     @apply border-border outline-ring/50;
   }
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
   html {
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    /* Our own pull-to-refresh replaces the browser reload gesture. */
+    overscroll-behavior-y: none;
   }
   /* No double-tap-to-zoom delay on controls (faster taps on phones). */
   a,

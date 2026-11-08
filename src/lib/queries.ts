@@ -234,11 +234,18 @@ export const useStudents = (q: Query) =>
     placeholderData: keepPreviousData,
   });
 
-export const useStudent = (id: string) =>
-  useQuery({
-    queryKey: keys.student(id),
-    queryFn: () => api.get<StudentDetail>(`/students/${id}`),
-  });
+const studentQuery = (id: string) => ({
+  queryKey: keys.student(id),
+  queryFn: () => api.get<StudentDetail>(`/students/${id}`),
+});
+
+export const useStudent = (id: string) => useQuery(studentQuery(id));
+
+/** Warms the student detail cache on intent (touch/hover) so the page opens with data. */
+export function usePrefetchStudent() {
+  const qc = useQueryClient();
+  return (id: string) => void qc.prefetchQuery({ ...studentQuery(id), staleTime: 30_000 });
+}
 
 function useStudentMutation<B>(fn: (body: B) => Promise<StudentDetail>) {
   const qc = useQueryClient();

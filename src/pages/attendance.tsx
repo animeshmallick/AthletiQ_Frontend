@@ -369,7 +369,7 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
 
       {/* Sticky save bar */}
       {editable && changed.length > 0 && (
-        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 px-4 lg:bottom-6 lg:left-64">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 animate-rise px-3 lg:bottom-6 lg:left-64">
           <div className="mx-auto flex max-w-xl items-center gap-3 rounded-2xl border bg-card p-3 shadow-xl">
             <p className="flex-1 text-sm">
               <span className="font-semibold">{changed.length}</span> unsaved change

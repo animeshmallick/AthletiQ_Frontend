@@ -1,4 +1,12 @@
-import { AlertTriangle, ChevronLeft, ChevronRight, RefreshCw, Search, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  RefreshCw,
+  Search,
+  X,
+} from 'lucide-react';
 import {
   cloneElement,
   isValidElement,
@@ -9,6 +17,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { Link } from 'react-router';
 import { errorMessage } from '@/lib/api';
 import type { AttendanceStatus, InvoiceDisplayStatus } from '@/lib/types';
 import { initials } from '@/lib/format';
@@ -38,11 +47,17 @@ export function PageHeader({
   back?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-3.5 flex flex-col gap-2.5 sm:mb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
       <div className="min-w-0">
         {back}
-        <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        <h1 className="truncate text-[22px] leading-tight font-bold tracking-tight sm:text-2xl">
+          {title}
+        </h1>
+        {description && (
+          <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground sm:mt-1 sm:text-sm">
+            {description}
+          </p>
+        )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -65,17 +80,21 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-12 text-center',
+        'flex flex-col items-center justify-center rounded-2xl bg-muted/45 px-6 py-9 text-center sm:py-12',
         className,
       )}
     >
       {icon && (
-        <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground [&_svg]:size-6">
+        <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-card text-primary shadow-e1 [&_svg]:size-6">
           {icon}
         </div>
       )}
-      <h3 className="font-medium">{title}</h3>
-      {description && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>}
+      <h3 className="text-[15px] font-semibold">{title}</h3>
+      {description && (
+        <p className="mt-1 max-w-sm text-[13px] leading-snug text-muted-foreground sm:text-sm">
+          {description}
+        </p>
+      )}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -119,6 +138,25 @@ export function ListSkeleton({ rows = 5, className }: { rows?: number; className
   );
 }
 
+const STAT_TONES = {
+  default: { chip: 'bg-primary/12 text-primary', glow: 'bg-primary/20', bar: 'bg-primary' },
+  success: { chip: 'bg-success/14 text-success', glow: 'bg-success/20', bar: 'bg-success' },
+  warning: {
+    chip: 'bg-warning/22 text-warning-foreground dark:text-warning',
+    glow: 'bg-warning/25',
+    bar: 'bg-warning',
+  },
+  destructive: {
+    chip: 'bg-destructive/12 text-destructive',
+    glow: 'bg-destructive/18',
+    bar: 'bg-destructive',
+  },
+} as const;
+
+/**
+ * KPI tile: tinted icon chip, big number, one-line hint, and a soft colour glow so tiles read at a
+ * glance. With `to`, the whole tile is a link (with press feedback) to the matching list.
+ */
 export function StatCard({
   label,
   value,
@@ -126,43 +164,86 @@ export function StatCard({
   icon,
   tone = 'default',
   loading,
+  to,
 }: {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
   icon?: ReactNode;
-  tone?: 'default' | 'success' | 'warning' | 'destructive';
+  tone?: keyof typeof STAT_TONES;
   loading?: boolean;
+  to?: string;
 }) {
-  const tones = {
-    default: 'bg-primary/10 text-primary',
-    success: 'bg-success/12 text-success',
-    warning: 'bg-warning/18 text-warning-foreground dark:text-warning',
-    destructive: 'bg-destructive/10 text-destructive',
-  };
-  return (
-    <Card className="p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+  const t = STAT_TONES[tone];
+  const body = (
+    <Card
+      className={cn(
+        'relative h-full overflow-hidden p-3 sm:p-4',
+        to && 'transition-[transform,box-shadow] duration-150 hover:shadow-e2 active:scale-[0.98]',
+      )}
+    >
+      <div
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute -top-10 -right-10 size-28 rounded-full blur-2xl',
+          t.glow,
+        )}
+      />
+      <div className="relative flex min-w-0 items-center gap-2">
         {icon && (
           <div
             className={cn(
-              'flex size-8 items-center justify-center rounded-lg [&_svg]:size-4',
-              tones[tone],
+              'flex size-7 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4',
+              t.chip,
             )}
           >
             {icon}
           </div>
         )}
+        <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground sm:text-[13px]">
+          {label}
+        </p>
+        {to && <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground/60" />}
       </div>
       {loading ? (
-        <Skeleton className="mt-2 h-8 w-24" />
+        <Skeleton className="mt-2.5 h-6 w-20" />
       ) : (
-        <p className="tabular mt-1 text-2xl font-semibold tracking-tight">{value}</p>
+        <p className="tabular relative mt-2 truncate text-[22px] leading-none font-bold tracking-tight sm:text-2xl">
+          {value}
+        </p>
       )}
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      {hint && (
+        <p className="relative mt-1.5 truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
+          {hint}
+        </p>
+      )}
     </Card>
   );
+  return to ? (
+    <Link to={to} aria-label={label} className="block rounded-2xl focus-visible:outline-2">
+      {body}
+    </Link>
+  ) : (
+    body
+  );
+}
+
+const AVATAR_TONES = [
+  'bg-indigo-500/12 text-indigo-700 dark:text-indigo-300',
+  'bg-emerald-500/14 text-emerald-700 dark:text-emerald-300',
+  'bg-amber-500/18 text-amber-800 dark:text-amber-300',
+  'bg-rose-500/12 text-rose-700 dark:text-rose-300',
+  'bg-sky-500/14 text-sky-700 dark:text-sky-300',
+  'bg-violet-500/12 text-violet-700 dark:text-violet-300',
+  'bg-teal-500/14 text-teal-700 dark:text-teal-300',
+  'bg-orange-500/14 text-orange-700 dark:text-orange-300',
+];
+
+/** Same name → same colour, everywhere. */
+function avatarTone(name: string) {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_TONES[h % AVATAR_TONES.length];
 }
 
 export function Avatar({ name, className }: { name: string; className?: string }) {
@@ -170,7 +251,8 @@ export function Avatar({ name, className }: { name: string; className?: string }
     <span
       aria-hidden
       className={cn(
-        'inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary',
+        'inline-flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+        avatarTone(name),
         className,
       )}
     >
@@ -221,7 +303,12 @@ export function Field({
       </Label>
       {control}
       {error ? (
-        <p id={messageId} role="alert" className="text-xs font-medium text-destructive">
+        <p
+          id={messageId}
+          role="alert"
+          className="flex items-start gap-1.5 text-xs font-medium text-destructive"
+        >
+          <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
           {error}
         </p>
       ) : (
@@ -245,21 +332,17 @@ export function MoneyInput({
   onChange: (paise: number | null) => void;
 }) {
   return (
-    <div className="relative">
-      <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
-        ₹
-      </span>
-      <Input
-        inputMode="decimal"
-        className="tabular pl-7"
-        value={value === null || value === undefined ? '' : String(value / 100)}
-        onChange={(e) => {
-          const raw = e.target.value.replace(/[^\d.]/g, '');
-          onChange(raw === '' ? null : Math.round(Number(raw) * 100));
-        }}
-        {...props}
-      />
-    </div>
+    <Input
+      leading="₹"
+      inputMode="decimal"
+      className="tabular"
+      value={value === null || value === undefined ? '' : String(value / 100)}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^\d.]/g, '');
+        onChange(raw === '' ? null : Math.round(Number(raw) * 100));
+      }}
+      {...props}
+    />
   );
 }
 

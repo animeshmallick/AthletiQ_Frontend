@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
   Input,
-  NativeSelect,
+  Select,
   Textarea,
 } from '@/components/ui/primitives';
 import { ApiError, errorMessage } from '@/lib/api';
@@ -109,7 +109,7 @@ function FieldInput({
       );
     case 'select':
       return (
-        <NativeSelect
+        <Select
           value={(value as string) ?? ''}
           onChange={(e) => onChange(e.target.value || undefined)}
           disabled={disabled}
@@ -120,7 +120,7 @@ function FieldInput({
               {o.label}
             </option>
           ))}
-        </NativeSelect>
+        </Select>
       );
     case 'multiselect': {
       const arr = Array.isArray(value) ? (value as string[]) : [];
@@ -324,7 +324,7 @@ export function FeedbackFormPage() {
       </div>
 
       {canEdit && (
-        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 px-4 lg:bottom-6 lg:left-64">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 animate-rise px-3 lg:bottom-6 lg:left-64">
           <div className="mx-auto flex max-w-3xl items-center justify-end gap-2 rounded-2xl border bg-card p-3 shadow-xl">
             {!submitted && (
               <Button

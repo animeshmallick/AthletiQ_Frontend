@@ -291,9 +291,10 @@ function AdminToday() {
         </h1>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         <StatCard
           label="Collected this month"
+          to="/finance"
           icon={<Wallet />}
           tone="success"
           loading={finance.isPending}
@@ -302,6 +303,7 @@ function AdminToday() {
         />
         <StatCard
           label="Billed this month"
+          to="/finance"
           icon={<IndianRupee />}
           loading={finance.isPending}
           value={t ? money(t.billed) : '—'}
@@ -309,6 +311,7 @@ function AdminToday() {
         />
         <StatCard
           label="Outstanding"
+          to="/invoices?status=open"
           icon={<Clock />}
           tone="warning"
           loading={finance.isPending}
@@ -317,6 +320,7 @@ function AdminToday() {
         />
         <StatCard
           label="Overdue"
+          to="/invoices?status=overdue"
           icon={<AlertTriangle />}
           tone="destructive"
           loading={finance.isPending}

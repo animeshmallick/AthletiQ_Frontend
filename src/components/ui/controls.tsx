@@ -12,7 +12,7 @@ export function TabsList({ className, ...props }: ComponentProps<typeof T.List>)
   return (
     <T.List
       className={cn(
-        'inline-flex h-10 w-fit max-w-full items-center gap-1 overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground',
+        'flex w-full flex-wrap items-center gap-1 rounded-xl bg-muted p-1 text-muted-foreground sm:inline-flex sm:w-fit sm:max-w-full sm:flex-nowrap',
         className,
       )}
       {...props}
@@ -24,7 +24,7 @@ export function TabsTrigger({ className, ...props }: ComponentProps<typeof T.Tri
   return (
     <T.Trigger
       className={cn(
-        'inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap transition-all hover:text-foreground disabled:opacity-50 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm [&_svg]:size-4',
+        'inline-flex h-8 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium whitespace-nowrap transition-all hover:text-foreground disabled:opacity-50 data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-e1 sm:flex-none sm:px-3 sm:text-sm [&_svg]:size-4',
         className,
       )}
       {...props}
@@ -84,14 +84,14 @@ export function Segmented<V extends string>({
       value={value}
       onValueChange={(v) => v && onChange(v as V)}
       aria-label={ariaLabel}
-      className={cn('inline-flex rounded-lg bg-muted p-1', className)}
+      className={cn('inline-flex rounded-xl bg-muted p-1', className)}
     >
       {options.map((o) => (
         <TG.Item
           key={o.value}
           value={o.value}
           className={cn(
-            'inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap text-muted-foreground transition-all hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm',
+            'inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg font-medium whitespace-nowrap text-muted-foreground transition-all hover:text-foreground data-[state=on]:bg-card data-[state=on]:font-semibold data-[state=on]:text-foreground data-[state=on]:shadow-e1',
             size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-sm',
             o.className,
           )}

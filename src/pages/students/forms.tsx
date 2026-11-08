@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/overlays';
-import { Input, NativeSelect, Separator, Textarea } from '@/components/ui/primitives';
+import { Input, Select, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { formatTimeRange, isoWeekday, money, today, weekdaysLabel } from '@/lib/format';
 import {
@@ -133,7 +133,7 @@ export function EnrollmentFields({
           control={control}
           name="batchId"
           render={({ field }) => (
-            <NativeSelect
+            <Select
               id="batchId"
               {...field}
               value={field.value as string}
@@ -146,7 +146,7 @@ export function EnrollmentFields({
                   {b.capacity ? ` (${b.memberCount}/${b.capacity})` : ''}
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           )}
         />
       </Field>
@@ -177,14 +177,14 @@ export function EnrollmentFields({
           control={control}
           name="feePlanId"
           render={({ field }) => (
-            <NativeSelect id="feePlanId" {...field} value={field.value as string}>
+            <Select id="feePlanId" {...field} value={field.value as string}>
               <option value="">Select a plan…</option>
               {plans.data?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} · {money(p.monthlyFee)}/mo
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           )}
         />
       </Field>
@@ -312,12 +312,12 @@ function ProfileFields({
         <Input id="dob" type="date" max={today()} {...register('dateOfBirth')} />
       </Field>
       <Field label="Gender" htmlFor="gender">
-        <NativeSelect id="gender" {...register('gender')}>
+        <Select id="gender" {...register('gender')}>
           <option value="">—</option>
           <option value="female">Female</option>
           <option value="male">Male</option>
           <option value="other">Other</option>
-        </NativeSelect>
+        </Select>
       </Field>
       <Field label="Address" htmlFor="address" className="sm:col-span-2">
         <Textarea id="address" rows={2} {...register('address')} />
@@ -505,13 +505,13 @@ function FeeOnlyFields({
           control={control}
           name="feePlanId"
           render={({ field }) => (
-            <NativeSelect id="feePlanId" {...field} value={field.value as string}>
+            <Select id="feePlanId" {...field} value={field.value as string}>
               {plans.data?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} · {money(p.monthlyFee)}/mo
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           )}
         />
       </Field>
@@ -608,13 +608,13 @@ export function TransferDialog({
               control={control}
               name="batchId"
               render={({ field }) => (
-                <NativeSelect {...field}>
+                <Select {...field}>
                   {batches.data?.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
                     </option>
                   ))}
-                </NativeSelect>
+                </Select>
               )}
             />
           </Field>
@@ -719,7 +719,7 @@ export function MakeupDialog({
               control={control}
               name="batchId"
               render={({ field }) => (
-                <NativeSelect {...field}>
+                <Select {...field}>
                   <option value="">Select a batch…</option>
                   {batches.data
                     ?.filter((b) => b.id !== student.currentEnrollment?.batchId)
@@ -729,7 +729,7 @@ export function MakeupDialog({
                         {weekdaysLabel(b.weekdays)}
                       </option>
                     ))}
-                </NativeSelect>
+                </Select>
               )}
             />
           </Field>
@@ -912,14 +912,14 @@ export function RejoinDialog({
             <Input type="date" min={student.leftOn ?? undefined} {...register('rejoinDate')} />
           </Field>
           <Field label="Batch" required error={formState.errors.batchId?.message}>
-            <NativeSelect {...register('batchId')}>
+            <Select {...register('batchId')}>
               <option value="">Select a batch…</option>
               {batches.data?.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           </Field>
           <Field label="Training days" required error={formState.errors.trainingDays?.message}>
             <Controller
@@ -935,13 +935,13 @@ export function RejoinDialog({
             />
           </Field>
           <Field label="Fee plan" required error={formState.errors.feePlanId?.message}>
-            <NativeSelect {...register('feePlanId')}>
+            <Select {...register('feePlanId')}>
               {plans.data?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} · {money(p.monthlyFee)}/mo
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           </Field>
         </form>
         <DialogFooter>

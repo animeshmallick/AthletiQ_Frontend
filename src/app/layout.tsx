@@ -1,5 +1,5 @@
 import { Download, Ellipsis, KeyRound, LogOut, Monitor, Moon, Sun, WifiOff } from 'lucide-react';
-import { Suspense, useState, useSyncExternalStore } from 'react';
+import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { Avatar } from '@/components/common';
@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils';
 import { useAuth, useUser } from './auth';
 import { useInstallPrompt } from './install';
 import { navFor, tabsFor, type NavItem } from './nav';
+import { preloadRoute, preloadWhenIdle } from './pages';
+import { PullToRefresh } from './pull-to-refresh';
 import { useTheme, type Theme } from './theme';
 
 function Logo({ className }: { className?: string }) {
@@ -146,6 +148,7 @@ export function AppLayout() {
   const items = navFor(user.role);
   const tabs = tabsFor(user.role);
   const [moreOpen, setMoreOpen] = useState(false);
+  usePreloadOnIntent(tabs.map((t) => t.to));
   const location = useLocation();
   // "More" lights up when the current screen isn't one of the tabs.
   const onTab = tabs.some((t) =>
@@ -162,19 +165,22 @@ export function AppLayout() {
 
       <div className="flex min-w-0 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center gap-3 border-b bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-[calc(3.25rem+env(safe-area-inset-top))] items-center gap-3 border-b border-border/60 bg-background/85 px-3.5 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:h-[calc(3.5rem+env(safe-area-inset-top))] sm:px-6">
           <Logo className="lg:hidden" />
           <div className="flex-1" />
           <UserMenu />
         </header>
 
         <OfflineBanner />
+        <PullToRefresh />
         <main
           id="main"
-          className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pb-10"
+          className="mx-auto w-full max-w-7xl flex-1 px-3 pt-3.5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pb-10"
         >
           <Suspense fallback={<PageFallback />} key={location.pathname}>
-            <Outlet />
+            <div className="animate-page">
+              <Outlet />
+            </div>
           </Suspense>
         </main>
 
@@ -222,10 +228,35 @@ export function AppLayout() {
   );
 }
 
+/**
+ * Fetches a page's code before navigation: when any in-app link is touched, hovered or focused,
+ * and the main tabs once the app is idle. Makes tab switches instant on slow mobile data.
+ */
+function usePreloadOnIntent(idlePaths: string[]) {
+  const key = idlePaths.join('|');
+  useEffect(() => {
+    preloadWhenIdle(key.split('|'));
+    const onIntent = (e: Event) => {
+      const a = (e.target as Element | null)?.closest?.('a[href]');
+      if (!(a instanceof HTMLAnchorElement) || a.origin !== window.location.origin) return;
+      preloadRoute(a.pathname);
+    };
+    const opts = { passive: true, capture: true } as const;
+    document.addEventListener('pointerover', onIntent, opts);
+    document.addEventListener('touchstart', onIntent, opts);
+    document.addEventListener('focusin', onIntent, opts);
+    return () => {
+      document.removeEventListener('pointerover', onIntent, opts);
+      document.removeEventListener('touchstart', onIntent, opts);
+      document.removeEventListener('focusin', onIntent, opts);
+    };
+  }, [key]);
+}
+
 function tabClass(active: boolean) {
   return cn(
-    'flex min-h-14 min-w-0 cursor-pointer flex-col items-center justify-center gap-1 pt-2 pb-1.5 text-[11px] font-medium text-muted-foreground transition-colors active:bg-muted/60',
-    active && 'text-primary',
+    'flex min-h-14 min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 pt-1.5 pb-1 text-[11px] font-medium text-muted-foreground transition-colors',
+    active && 'font-semibold text-foreground',
   );
 }
 
@@ -234,7 +265,7 @@ function TabIcon({ icon: Icon, active }: { icon: NavItem['icon']; active: boolea
     <span
       className={cn(
         'flex h-7 w-12 items-center justify-center rounded-full transition-colors',
-        active && 'bg-primary/12',
+        active && 'bg-primary/12 text-primary',
       )}
     >
       <Icon className="size-5" strokeWidth={active ? 2.25 : 2} />

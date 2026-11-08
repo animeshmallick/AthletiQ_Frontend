@@ -159,3 +159,22 @@ function SignedIn({ children }: { children: ReactElement }) {
 }
 
 export { screen, waitFor };
+
+/** Opens a Select (custom picker) and chooses the option with the given value. */
+export async function chooseOption(
+  user: ReturnType<typeof userEvent.setup>,
+  trigger: HTMLElement,
+  value: string,
+) {
+  await user.click(trigger);
+  const option = await waitFor(() => {
+    const el = document.querySelector<HTMLElement>(`[role="option"][data-value="${value}"]`);
+    if (!el) throw new Error(`option ${value} not found`);
+    return el;
+  });
+  await user.click(option);
+}
+
+/** Current value of a Select, given its trigger (e.g. from getByLabelText). */
+export const selectValue = (trigger: HTMLElement) =>
+  trigger.closest('[data-slot="select"]')?.querySelector('select')?.value;

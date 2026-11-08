@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { Field } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Segmented, WeekdayPicker } from '@/components/ui/controls';
-import { Card, Input, NativeSelect, Textarea } from '@/components/ui/primitives';
+import { Card, Input, Select, Textarea } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { formatTimeRange, weekdaysLabel } from '@/lib/format';
 import {
@@ -139,12 +139,12 @@ function StudentForm({
           <Input id="s-dob" type="date" {...register('dateOfBirth')} />
         </Field>
         <Field label="Gender" htmlFor="s-gender">
-          <NativeSelect id="s-gender" {...register('gender')}>
+          <Select id="s-gender" {...register('gender')}>
             <option value="">Prefer not to say</option>
             <option value="female">Female</option>
             <option value="male">Male</option>
             <option value="other">Other</option>
-          </NativeSelect>
+          </Select>
         </Field>
         <Field label="Parent / guardian name" htmlFor="s-guardian">
           <Input id="s-guardian" {...register('guardianName')} />
@@ -187,14 +187,14 @@ function StudentForm({
       <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
         <p className="text-sm font-medium">Training preference</p>
         <Field label="Preferred batch" htmlFor="s-batch">
-          <NativeSelect id="s-batch" {...register('preferredBatchId')}>
+          <Select id="s-batch" {...register('preferredBatchId')}>
             <option value="">No preference — the academy will suggest one</option>
             {options?.batches.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name} · {b.location.name} · {formatTimeRange(b.startTime, b.endTime)}
               </option>
             ))}
-          </NativeSelect>
+          </Select>
         </Field>
         <Field
           label="Preferred days"

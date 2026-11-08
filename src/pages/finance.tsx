@@ -23,7 +23,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  NativeSelect,
+  Select,
 } from '@/components/ui/primitives';
 import {
   addMonths,
@@ -113,7 +113,7 @@ export function FinancePage() {
           ]}
         />
         {isAdmin && (
-          <NativeSelect
+          <Select
             value={coachId}
             onChange={(e) => setCoachId(e.target.value)}
             className="lg:w-56"
@@ -125,9 +125,9 @@ export function FinancePage() {
                 {c.name}
               </option>
             ))}
-          </NativeSelect>
+          </Select>
         )}
-        <NativeSelect
+        <Select
           value={batchId}
           onChange={(e) => setBatchId(e.target.value)}
           className="lg:w-56"
@@ -139,7 +139,7 @@ export function FinancePage() {
               {b.name}
             </option>
           ))}
-        </NativeSelect>
+        </Select>
         <p className="text-sm text-muted-foreground lg:ml-auto">
           {formatDate(range.from)} – {formatDate(range.to)}
         </p>

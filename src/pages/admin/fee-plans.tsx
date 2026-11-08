@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/overlays';
-import { Badge, Card, Input, NativeSelect } from '@/components/ui/primitives';
+import { Badge, Card, Input, Select } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { money } from '@/lib/format';
 import { useFeePlans, useSaveFeePlan } from '@/lib/queries';
@@ -74,13 +74,13 @@ function PlanDialog({ plan, onClose }: { plan?: FeePlan; onClose: () => void }) 
             />
           </Field>
           <Field label="Days per week" required>
-            <NativeSelect value={days} onChange={(e) => setDays(Number(e.target.value))}>
+            <Select value={days} onChange={(e) => setDays(Number(e.target.value))}>
               {[1, 2, 3, 4, 5, 6, 7].map((d) => (
                 <option key={d} value={d}>
                   {d} day{d > 1 ? 's' : ''}
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           </Field>
           <Field label="Monthly fee" required>
             <MoneyInput value={fee} onChange={setFee} />

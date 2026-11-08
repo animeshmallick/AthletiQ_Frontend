@@ -7,7 +7,7 @@ import { useBatches } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
-import { Input, NativeSelect, Skeleton } from './ui/primitives';
+import { Input, Select, Skeleton } from './ui/primitives';
 
 /** Prev / date / next control for day-based screens. */
 export function DateStepper({
@@ -81,7 +81,7 @@ export function BatchSelect({
 }) {
   if (loading) return <Skeleton className={cn('h-10 w-64', className)} />;
   return (
-    <NativeSelect
+    <Select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn('w-full sm:w-72', className)}
@@ -95,7 +95,7 @@ export function BatchSelect({
           {b.coach && ` · ${b.coach.name}`}
         </option>
       ))}
-    </NativeSelect>
+    </Select>
   );
 }
 

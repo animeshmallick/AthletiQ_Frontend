@@ -1,7 +1,7 @@
 import { FeedbackPage } from '@/pages/feedback/board';
 import { FeedbackFormPage } from '@/pages/feedback/form';
 import { template } from '../fixtures';
-import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
+import { adminUser, coachUser, mockApi, renderPage, screen, waitFor, chooseOption } from '../utils';
 
 const report = (overrides: Record<string, unknown> = {}) => ({
   student: { id: 's1', code: 'ATQ-0001', fullName: 'Anya Rao' },
@@ -38,7 +38,7 @@ describe('FeedbackFormPage', () => {
 
     await user.click(screen.getByRole('radio', { name: '5' }));
     expect(screen.getByText('Excellent')).toBeInTheDocument();
-    await user.selectOptions(screen.getByRole('combobox'), 'improving');
+    await chooseOption(user, screen.getByRole('combobox'), 'improving');
     await user.type(screen.getAllByRole('textbox')[0]!, 'Great footwork');
     await user.type(screen.getAllByRole('textbox')[1]!, 'Calm');
     await user.click(screen.getByRole('checkbox'));

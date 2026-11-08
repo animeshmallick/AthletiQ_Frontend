@@ -6,7 +6,7 @@ import { StudentDetailPage } from '@/pages/students/detail';
 import { StudentsPage } from '@/pages/students/list';
 import { TodayPage } from '@/pages/today';
 import { batch, invoiceDetail, sheet, studentDetail, studentListItem } from '../fixtures';
-import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
+import { adminUser, coachUser, mockApi, renderPage, screen, waitFor, chooseOption } from '../utils';
 
 const route = '/attendance?batch=b1&date=2026-03-09';
 
@@ -191,7 +191,7 @@ describe('student lifecycle', () => {
       user: coachUser,
     });
     await screen.findAllByText('Anya Rao');
-    await user.selectOptions(screen.getByLabelText('Filter by fees'), 'overdue');
+    await chooseOption(user, screen.getByLabelText('Filter by fees'), 'overdue');
     await waitFor(() => {
       const last = api.find('GET /students').at(-1)!;
       expect(last.query.get('dues')).toBe('overdue');

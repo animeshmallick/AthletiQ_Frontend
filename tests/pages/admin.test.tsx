@@ -6,7 +6,16 @@ import { LocationsPage } from '@/pages/admin/locations';
 import { RegistrationsPage } from '@/pages/admin/registrations';
 import { SettingsPage } from '@/pages/admin/settings';
 import { batch } from '../fixtures';
-import { adminUser, coachUser, mockApi, renderPage, screen, sessionFor, waitFor } from '../utils';
+import {
+  adminUser,
+  coachUser,
+  mockApi,
+  renderPage,
+  screen,
+  sessionFor,
+  waitFor,
+  chooseOption,
+} from '../utils';
 
 const settings = {
   id: 1,
@@ -186,7 +195,7 @@ describe('FeePlansPage', () => {
     expect(await screen.findByText('4 students', { exact: false })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /new plan/i }));
     await user.type(screen.getByLabelText(/^name/i), '5 days');
-    await user.selectOptions(screen.getByLabelText(/days per week/i), '5');
+    await chooseOption(user, screen.getByLabelText(/days per week/i), '5');
     await user.type(screen.getByLabelText(/monthly fee/i), '3500');
     await user.click(screen.getByRole('button', { name: 'Create plan' }));
     await waitFor(() =>

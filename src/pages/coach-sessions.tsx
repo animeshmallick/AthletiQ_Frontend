@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/overlays';
-import { Badge, Card, Input, NativeSelect, Textarea } from '@/components/ui/primitives';
+import { Badge, Card, Input, Select, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import {
   addDays,
@@ -173,7 +173,7 @@ export function CoachSessionsPage() {
         </Field>
         {isAdmin && (
           <Field label="Coach">
-            <NativeSelect
+            <Select
               value={coachId}
               onChange={(e) => setCoachId(e.target.value)}
               className="lg:w-56"
@@ -184,7 +184,7 @@ export function CoachSessionsPage() {
                   {c.name}
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           </Field>
         )}
         <Segmented

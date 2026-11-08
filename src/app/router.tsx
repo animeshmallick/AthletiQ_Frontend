@@ -1,37 +1,34 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation, useRouteError } from 'react-router';
 import { Button } from '@/components/ui/button';
 import type { Role } from '@/lib/types';
 import { useAuth } from './auth';
 import { AppLayout, PageFallback } from './layout';
-
-/** Lazily loads a named page export (code-split per route). */
-const page = <T,>(loader: () => Promise<T>, name: keyof T) =>
-  lazy(async () => ({ default: (await loader())[name] as React.ComponentType }));
-
-const LoginPage = page(() => import('@/pages/auth/login'), 'LoginPage');
-const AcceptInvitePage = page(() => import('@/pages/auth/token-password'), 'AcceptInvitePage');
-const ResetPasswordPage = page(() => import('@/pages/auth/token-password'), 'ResetPasswordPage');
-const RegisterPage = page(() => import('@/pages/public/register'), 'RegisterPage');
-const TodayPage = page(() => import('@/pages/today'), 'TodayPage');
-const AttendancePage = page(() => import('@/pages/attendance'), 'AttendancePage');
-const LessonPlansPage = page(() => import('@/pages/lesson-plans'), 'LessonPlansPage');
-const FeedbackPage = page(() => import('@/pages/feedback/board'), 'FeedbackPage');
-const FeedbackFormPage = page(() => import('@/pages/feedback/form'), 'FeedbackFormPage');
-const StudentsPage = page(() => import('@/pages/students/list'), 'StudentsPage');
-const StudentDetailPage = page(() => import('@/pages/students/detail'), 'StudentDetailPage');
-const InvoicesPage = page(() => import('@/pages/invoices'), 'InvoicesPage');
-const FinancePage = page(() => import('@/pages/finance'), 'FinancePage');
-const BatchesPage = page(() => import('@/pages/batches'), 'BatchesPage');
-const BatchDetailPage = page(() => import('@/pages/batches'), 'BatchDetailPage');
-const CoachesPage = page(() => import('@/pages/admin/coaches'), 'CoachesPage');
-const RegistrationsPage = page(() => import('@/pages/admin/registrations'), 'RegistrationsPage');
-const CoachSessionsPage = page(() => import('@/pages/coach-sessions'), 'CoachSessionsPage');
-const LocationsPage = page(() => import('@/pages/admin/locations'), 'LocationsPage');
-const FeePlansPage = page(() => import('@/pages/admin/fee-plans'), 'FeePlansPage');
-const SettingsPage = page(() => import('@/pages/admin/settings'), 'SettingsPage');
-const AuditLogPage = page(() => import('@/pages/admin/audit-log'), 'AuditLogPage');
-const AccountPage = page(() => import('@/pages/account'), 'AccountPage');
+import {
+  LoginPage,
+  AcceptInvitePage,
+  ResetPasswordPage,
+  RegisterPage,
+  TodayPage,
+  AttendancePage,
+  LessonPlansPage,
+  FeedbackPage,
+  FeedbackFormPage,
+  StudentsPage,
+  StudentDetailPage,
+  InvoicesPage,
+  FinancePage,
+  BatchesPage,
+  BatchDetailPage,
+  CoachesPage,
+  RegistrationsPage,
+  CoachSessionsPage,
+  LocationsPage,
+  FeePlansPage,
+  SettingsPage,
+  AuditLogPage,
+  AccountPage,
+} from './pages';
 
 function FullScreenLoader() {
   return (

@@ -37,7 +37,7 @@ import {
   DropdownMenuTrigger,
   SheetContent,
 } from '@/components/ui/overlays';
-import { Badge, Input, NativeSelect, Separator, Textarea } from '@/components/ui/primitives';
+import { Badge, Input, Select, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage, requestBlob } from '@/lib/api';
 import { formatDate, formatInstant, money, PAYMENT_MODE_LABELS, today } from '@/lib/format';
 import { nullIfEmpty } from '@/lib/forms';
@@ -97,13 +97,13 @@ function MarkPaidDialog({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Payment mode" required>
-            <NativeSelect value={mode} onChange={(e) => setMode(e.target.value)}>
+            <Select value={mode} onChange={(e) => setMode(e.target.value)}>
               {Object.entries(PAYMENT_MODE_LABELS).map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}
                 </option>
               ))}
-            </NativeSelect>
+            </Select>
           </Field>
           <Field label="Paid on" required>
             <Input
