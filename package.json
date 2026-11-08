@@ -31,7 +31,6 @@
     "@firebase/app": "^0.16.5",
     "@firebase/messaging": "^0.13.3",
     "@hookform/resolvers": "^7.0.3",
-    "@sentry/react": "^11.11.0",
     "@tanstack/react-query": "^5.107.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
