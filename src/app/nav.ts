@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarDays,
   CalendarCheck2,
   ClipboardList,
   Cog,
@@ -40,6 +41,14 @@ export const NAV: NavItem[] = [
     group: 'main',
   },
   {
+    to: '/calendar',
+    label: 'Calendar',
+    icon: CalendarDays,
+    roles: ['coach', 'admin'],
+    tabs: ['coach', 'admin'],
+    group: 'main',
+  },
+  {
     to: '/attendance',
     label: 'Attendance',
     tabs: ['coach'],
@@ -59,7 +68,6 @@ export const NAV: NavItem[] = [
   {
     to: '/feedback',
     label: 'Feedback',
-    tabs: ['coach'],
     icon: MessageSquareText,
     roles: ['coach', 'admin'],
     group: 'main',
@@ -74,18 +82,24 @@ export const NAV: NavItem[] = [
   },
   {
     to: '/invoices',
+    label: 'Fees',
+    icon: IndianRupee,
+    roles: ['coach'],
+    group: 'main',
+  },
+  {
+    to: '/invoices',
     label: 'Invoices',
     tabs: ['admin'],
     icon: IndianRupee,
-    roles: ['coach', 'admin'],
+    roles: ['admin'],
     group: 'main',
   },
   {
     to: '/finance',
     label: 'Finance',
     icon: BarChart3,
-    roles: ['coach', 'admin'],
-    tabs: ['admin'],
+    roles: ['admin'],
     group: 'main',
   },
 

@@ -48,6 +48,7 @@ export const keys = {
   students: (q?: Query) => ['students', q ?? {}] as const,
   student: (id: string) => ['students', 'detail', id] as const,
   attendanceOverview: (date: string) => ['attendance', 'overview', date] as const,
+  calendar: (from: string, to: string) => ['attendance', 'calendar', from, to] as const,
   attendanceSession: (batchId: string, date: string) =>
     ['attendance', 'session', batchId, date] as const,
   studentAttendance: (id: string, q: Query) => ['attendance', 'student', id, q] as const,
@@ -304,6 +305,20 @@ export function useCancelMakeup(studentId: string) {
 }
 
 // ─── Attendance ──────────────────────────────────────────────────────────────
+
+/** Week (or longer) of day overviews for the calendar. */
+export const useCalendar = (from: string, to: string) =>
+  useQuery({
+    queryKey: keys.calendar(from, to),
+    queryFn: () =>
+      api.get<{
+        from: string;
+        to: string;
+        today: string;
+        days: { date: string; sessions: DayOverviewSession[] }[];
+      }>('/attendance/calendar', { from, to }),
+    placeholderData: (prev) => prev, // keep the grid while moving between weeks
+  });
 
 export const useAttendanceOverview = (date: string) =>
   useQuery({

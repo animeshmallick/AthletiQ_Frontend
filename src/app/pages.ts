@@ -41,6 +41,9 @@ export const FeedbackPage = page(m6, 'FeedbackPage');
 export const FeedbackFormPage = page(m7, 'FeedbackFormPage');
 export const StudentsPage = page(m8, 'StudentsPage');
 export const StudentDetailPage = page(m9, 'StudentDetailPage');
+export const FeesPage = page(() => import('@/pages/fees'), 'FeesPage');
+const calendarModule = () => import('@/pages/calendar');
+export const CalendarPage = page(calendarModule, 'CalendarPage');
 export const InvoicesPage = page(m10, 'InvoicesPage');
 export const FinancePage = page(m11, 'FinancePage');
 export const BatchesPage = page(m12, 'BatchesPage');
@@ -56,6 +59,7 @@ export const AccountPage = page(m20, 'AccountPage');
 
 const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/$/, m3],
+  [/^\/calendar$/, calendarModule],
   [/^\/attendance$/, m4],
   [/^\/lesson-plans$/, m5],
   [/^\/feedback$/, m6],

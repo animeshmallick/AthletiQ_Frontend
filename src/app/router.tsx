@@ -17,7 +17,6 @@ import {
   FeedbackFormPage,
   StudentsPage,
   StudentDetailPage,
-  InvoicesPage,
   FinancePage,
   BatchesPage,
   BatchDetailPage,
@@ -29,6 +28,8 @@ import {
   SettingsPage,
   AuditLogPage,
   AccountPage,
+  CalendarPage,
+  FeesPage,
 } from './pages';
 
 function FullScreenLoader() {
@@ -37,6 +38,13 @@ function FullScreenLoader() {
       <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
     </div>
   );
+}
+
+/** Coaches see finance inside their Fees page; admins get the full Finance page. */
+function FinanceRoute() {
+  const { user } = useAuth();
+  if (user?.role === 'coach') return <Navigate to="/invoices?view=insights" replace />;
+  return <FinancePage />;
 }
 
 /** Signed-in area. Unauthenticated users are sent to /login and returned afterwards. */
@@ -130,14 +138,15 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           { index: true, element: <TodayPage /> },
+          { path: 'calendar', element: <CalendarPage /> },
           { path: 'attendance', element: <AttendancePage /> },
           { path: 'lesson-plans', element: <LessonPlansPage /> },
           { path: 'feedback', element: <FeedbackPage /> },
           { path: 'feedback/:studentId/:weekStart', element: <FeedbackFormPage /> },
           { path: 'students', element: <StudentsPage /> },
           { path: 'students/:id', element: <StudentDetailPage /> },
-          { path: 'invoices', element: <InvoicesPage /> },
-          { path: 'finance', element: <FinancePage /> },
+          { path: 'invoices', element: <FeesPage /> },
+          { path: 'finance', element: <FinanceRoute /> },
           { path: 'batches', element: <BatchesPage /> },
           { path: 'batches/:id', element: <BatchDetailPage /> },
           { path: 'coach-sessions', element: <CoachSessionsPage /> },

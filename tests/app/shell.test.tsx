@@ -62,6 +62,10 @@ describe('navigation', () => {
     const coach = navFor('coach').map((n) => n.to);
     const admin = navFor('admin').map((n) => n.to);
     expect(coach).not.toContain('/settings');
+    // Coaches get one Fees page (invoices + insights) instead of separate Invoices/Finance pages.
+    expect(navFor('coach').find((n) => n.to === '/invoices')?.label).toBe('Fees');
+    expect(coach).not.toContain('/finance');
+    expect(navFor('admin').find((n) => n.to === '/invoices')?.label).toBe('Invoices');
     expect(coach).not.toContain('/registrations');
     expect(admin).toEqual(
       expect.arrayContaining(['/settings', '/registrations', '/coaches', '/fee-plans']),
@@ -93,7 +97,7 @@ describe('route guards', () => {
     await boot('/', adminUser);
     const user = userEvent.setup();
     const tabbar = await screen.findByRole('navigation', { name: 'Quick navigation' });
-    expect(tabbar).toHaveTextContent('Finance');
+    expect(tabbar).toHaveTextContent('Calendar');
     await user.click(screen.getByRole('button', { name: 'More' }));
     const sheet = await screen.findByRole('dialog', { name: 'All screens' });
     const audit = Array.from(sheet.querySelectorAll('a')).find(

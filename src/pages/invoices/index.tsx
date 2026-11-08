@@ -27,7 +27,7 @@ const TABS = [
   { value: 'all', label: 'All' },
 ] as const;
 
-export function InvoicesPage() {
+export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const user = useUser();
   const [params, setParams] = useSearchParams();
   const status = params.get('status') ?? 'open';
@@ -56,31 +56,33 @@ export function InvoicesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Invoices"
-        description="Prepaid: the first invoice is created when a student is accepted, then automatically at the start of each month."
-        actions={
-          user.role === 'admin' && (
-            <Button
-              variant="outline"
-              loading={runJob.isPending}
-              onClick={() =>
-                runJob.mutate(undefined, {
-                  onSuccess: (r) =>
-                    r.ran
-                      ? toast.success(
-                          `Billing run complete — ${r.stats?.invoicesCreated ?? 0} new invoice(s)`,
-                        )
-                      : toast.info(r.reason ?? 'Billing is already running'),
-                  onError: (e) => toast.error(errorMessage(e)),
-                })
-              }
-            >
-              <Play /> Run billing now
-            </Button>
-          )
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Invoices"
+          description="Prepaid: the first invoice is created when a student is accepted, then automatically at the start of each month."
+          actions={
+            user.role === 'admin' && (
+              <Button
+                variant="outline"
+                loading={runJob.isPending}
+                onClick={() =>
+                  runJob.mutate(undefined, {
+                    onSuccess: (r) =>
+                      r.ran
+                        ? toast.success(
+                            `Billing run complete — ${r.stats?.invoicesCreated ?? 0} new invoice(s)`,
+                          )
+                        : toast.info(r.reason ?? 'Billing is already running'),
+                    onError: (e) => toast.error(errorMessage(e)),
+                  })
+                }
+              >
+                <Play /> Run billing now
+              </Button>
+            )
+          }
+        />
+      )}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Segmented

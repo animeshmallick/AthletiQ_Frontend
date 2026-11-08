@@ -76,7 +76,7 @@ const PIE_COLORS = [
   '#94a3b8',
 ];
 
-export function FinancePage() {
+export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
   const user = useUser();
   const isAdmin = user.role === 'admin';
   const [preset, setPreset] = useState<Preset>('month');
@@ -91,14 +91,16 @@ export function FinancePage() {
 
   return (
     <div>
-      <PageHeader
-        title="Finance"
-        description={
-          isAdmin
-            ? 'Billing and collections across the academy.'
-            : 'Billing and collections for your students.'
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Finance"
+          description={
+            isAdmin
+              ? 'Billing and collections across the academy.'
+              : 'Billing and collections for your students.'
+          }
+        />
+      )}
 
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
         <Segmented
