@@ -13,7 +13,7 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
 import { EmptyState, ErrorState, PageHeader } from '@/components/common';
@@ -37,6 +37,27 @@ import { cn } from '@/lib/utils';
 type View = 'week' | 'day';
 
 const HOUR_PX = 56; // height of one hour in the grid
+
+/**
+ * Caps a scroll area so it ends just above the phone tab bar (and the screen edge), so the
+ * last hours of the day are never hidden behind the bottom navigation.
+ */
+function useFitAboveTabBar(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      const tabBar = document.querySelector<HTMLElement>('nav[aria-label="Quick navigation"]');
+      const barH = tabBar?.offsetHeight ?? 0; // 0 when hidden (desktop)
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const available = window.innerHeight - top - barH - 12;
+      el.style.maxHeight = `${Math.max(240, available)}px`;
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [ref]);
+}
 const minutes = (t: string) => {
   const [h = 0, m = 0] = t.split(':').map(Number);
   return h * 60 + m;
@@ -326,6 +347,7 @@ function WeekGrid({
 }) {
   const height = (endHour - startHour) * HOUR_PX;
   const scroller = useRef<HTMLDivElement>(null);
+  useFitAboveTabBar(scroller);
   const firstStart = Math.min(
     ...days.flatMap((d) => d.sessions.map((s) => minutes(s.batch.startTime))),
     24 * 60,
@@ -364,7 +386,7 @@ function WeekGrid({
         </div>
       </div>
       <div ref={scroller} className="max-h-[70dvh] overflow-y-auto overscroll-contain">
-        <div className="flex pt-2.5">
+        <div className="flex pt-2.5 pb-3">
           <TimeGutter startHour={startHour} endHour={endHour} />
           <div className="relative grid flex-1 grid-cols-7" style={{ height }}>
             <HourLines startHour={startHour} endHour={endHour} />

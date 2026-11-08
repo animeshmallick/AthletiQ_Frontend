@@ -99,14 +99,14 @@ describe('route guards', () => {
     const tabbar = await screen.findByRole('navigation', { name: 'Quick navigation' });
     expect(tabbar).toHaveTextContent('Calendar');
     await user.click(screen.getByRole('button', { name: 'More' }));
-    const sheet = await screen.findByRole('dialog', { name: 'More' });
+    const sheet = await screen.findByRole('dialog', { name: 'Menu' });
     const audit = Array.from(sheet.querySelectorAll('a')).find(
       (a) => a.textContent === 'Audit log',
     );
     expect(audit).toBeDefined();
     await user.click(audit!);
     await waitFor(() => expect(router.state.location.pathname).toBe('/audit-log'));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'More' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull());
   });
 
   it('offers "Install app" when the browser allows installing', async () => {

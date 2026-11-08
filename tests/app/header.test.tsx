@@ -138,7 +138,7 @@ describe('app header', () => {
       await screen.findByRole('button', { name: 'Nothing needs attention' }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'More' }));
-    const sheet = await screen.findByRole('dialog', { name: 'More' });
+    const sheet = await screen.findByRole('dialog', { name: 'Menu' });
     const deployments = within(sheet).getByRole('region', { name: 'Deployments' });
     await waitFor(() => expect(deployments).toHaveTextContent('abc1234 · Ship it'));
     expect(deployments).toHaveTextContent(/Deployed just now/);

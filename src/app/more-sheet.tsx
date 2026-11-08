@@ -70,9 +70,9 @@ export function MoreSheet({
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background/95 px-4 pt-5 pb-3 backdrop-blur">
         <div className="min-w-0 flex-1">
-          <DialogTitle className="text-lg">More</DialogTitle>
+          <DialogTitle className="text-lg">Menu</DialogTitle>
           <DialogDescription className="text-xs">
-            Every screen, your account and settings
+            All screens, your account and settings
           </DialogDescription>
         </div>
         <DialogClose className="flex size-9 cursor-pointer items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:text-foreground active:scale-95">
@@ -109,7 +109,7 @@ export function MoreSheet({
                 {label}
               </h3>
               {key === 'main' ? (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-1.5">
                   {group.map((item) => {
                     const active = isActive(item.to, pathname);
                     return (
@@ -120,23 +120,23 @@ export function MoreSheet({
                         onClick={onNavigate}
                         onPointerDown={() => preloadRoute(item.to)}
                         className={cn(
-                          'relative flex flex-col items-center gap-1.5 rounded-2xl border bg-card px-1 py-3 text-center shadow-e1 transition-transform active:scale-[0.97]',
+                          'relative flex flex-col items-center gap-1 rounded-xl border bg-card px-0.5 py-2 text-center shadow-e1 transition-transform active:scale-[0.97]',
                           active && 'border-primary/50 bg-primary/5',
                         )}
                       >
                         <span
                           className={cn(
-                            'flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary',
+                            'flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary',
                             active && 'bg-primary text-primary-foreground',
                           )}
                         >
-                          <item.icon className="size-5" />
+                          <item.icon className="size-4.5" />
                         </span>
-                        <span className="w-full truncate text-[12px] leading-tight font-medium">
+                        <span className="w-full truncate text-[11px] leading-tight font-medium">
                           {item.short ?? item.label}
                         </span>
                         {!!counts[item.to] && (
-                          <span className="absolute top-1.5 right-1.5">
+                          <span className="absolute top-0.5 right-0.5">
                             <CountBadge n={counts[item.to]} />
                           </span>
                         )}
