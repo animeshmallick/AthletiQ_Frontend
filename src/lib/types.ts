@@ -158,6 +158,9 @@ export interface AttendanceSheet {
   isScheduledDay: boolean;
   cancelled: { reason: string; cancelledAt: string } | null;
   editable: boolean;
+  /** Coach hasn't checked in to this session yet (attendance stays locked until they do). */
+  needsCheckIn?: boolean;
+  lockedReason?: string | null;
   students: (RosterEntry & {
     status: AttendanceStatus | null;
     note: string | null;

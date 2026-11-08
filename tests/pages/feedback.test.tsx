@@ -30,7 +30,9 @@ describe('FeedbackFormPage', () => {
     });
 
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
-    expect(screen.getByText('Attended').previousSibling).toHaveTextContent('2');
+    // Attendance is filled in automatically: 2 of 3 sessions attended.
+    expect(screen.getByText('2/3')).toBeInTheDocument();
+    expect(screen.getByText('67%')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /send report/i }));
     expect(await screen.findAllByText('Required')).toHaveLength(3);

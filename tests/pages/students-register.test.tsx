@@ -68,7 +68,11 @@ describe('StudentsPage', () => {
     await user.type(await screen.findByLabelText(/full name/i), 'Kabir Singh');
     await user.type(screen.getByLabelText(/mobile \(whatsapp\)/i), '9876501234');
     await chooseOption(user, screen.getByLabelText(/^batch/i), 'b1');
-    for (const d of ['Monday', 'Wednesday', 'Friday'])
+    // Choosing the batch pre-selects the days it runs (Mon–Sat)…
+    for (const d of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])
+      expect(screen.getByRole('button', { name: d })).toHaveAttribute('aria-pressed', 'true');
+    // …and the admin trims them to the student's three days.
+    for (const d of ['Tuesday', 'Thursday', 'Saturday'])
       await user.click(screen.getByRole('button', { name: d }));
     // 3 training days → the 3-day plan is suggested.
     await waitFor(() => expect(selectValue(screen.getByLabelText(/fee plan/i))).toBe('p3'));

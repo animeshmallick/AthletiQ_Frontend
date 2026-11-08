@@ -62,3 +62,16 @@ export const trainingDaysSchema = z
 
 /** Empty string → null for optional text fields sent to the API. */
 export const nullIfEmpty = (v: string | null | undefined) => (v && v.trim() ? v.trim() : null);
+
+/**
+ * Training days when a batch is chosen: keep the days the student already has that the batch runs;
+ * if none fit, use the batch's own days (at most MAX_TRAINING_DAYS).
+ */
+export function daysForBatch(batchWeekdays: number[], current: number[] = []): number[] {
+  const kept = current.filter((d) => batchWeekdays.includes(d)).sort((a, b) => a - b);
+  if (kept.length) return kept;
+  return [...batchWeekdays].sort((a, b) => a - b).slice(0, MAX_TRAINING_DAYS);
+}
+
+export const sameDays = (a: number[] = [], b: number[] = []) =>
+  a.length === b.length && a.every((d, i) => d === b[i]);

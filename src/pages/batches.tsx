@@ -11,7 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -26,7 +26,7 @@ import {
   Progress,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { Switch, WeekdayPicker } from '@/components/ui/controls';
+import { Checkbox, Switch, WeekdayPicker } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -107,9 +107,19 @@ export function BatchDialog({
   });
   const { register, control, handleSubmit, formState, reset } = form;
   const e = formState.errors;
+  const [applyToStudents, setApplyToStudents] = useState(false);
   useEffect(() => {
     if (!open) reset();
   }, [open, reset]);
+  // Closing the dialog (any way) clears the one-off "apply to students" choice.
+  const close = (o: boolean) => {
+    if (!o) setApplyToStudents(false);
+    onOpenChange(o);
+  };
+  const watchedDays = useWatch({ control, name: 'weekdays' });
+  const daysChanged =
+    !!batch && [...watchedDays].sort().join() !== [...batch.weekdays].sort().join();
+  const canApply = daysChanged && batch!.memberCount > 0;
 
   const onSubmit = handleSubmit(async (v) => {
     try {
@@ -117,16 +127,23 @@ export function BatchDialog({
         id: batch?.id,
         ...v,
         capacity: v.capacity ? Number(v.capacity) : null,
+        ...(canApply && applyToStudents ? { applyDaysToStudents: true } : {}),
       });
-      toast.success(batch ? 'Batch updated' : 'Batch created');
-      onOpenChange(false);
+      toast.success(
+        batch
+          ? canApply && applyToStudents
+            ? `Batch updated · ${plural(batch.memberCount, 'student')} now train on the new days`
+            : 'Batch updated'
+          : 'Batch created',
+      );
+      close(false);
     } catch (err) {
       applyServerErrors(err, form.setError, 'Could not save batch');
     }
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{batch ? 'Edit batch' : 'New batch'}</DialogTitle>
@@ -172,6 +189,24 @@ export function BatchDialog({
               )}
             />
           </Field>
+          {canApply && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-primary/25 bg-accent/50 p-3 sm:col-span-2">
+              <Checkbox
+                checked={applyToStudents}
+                onCheckedChange={(c) => setApplyToStudents(c === true)}
+                className="mt-0.5"
+              />
+              <span className="text-[13px] leading-snug">
+                <span className="font-semibold">
+                  Also update all {plural(batch!.memberCount, 'student')} in this batch
+                </span>
+                <span className="mt-0.5 block text-muted-foreground">
+                  Their training days become {weekdaysLabel([...watchedDays].sort((a, b) => a - b))}{' '}
+                  from today. History is kept and fees don&apos;t change.
+                </span>
+              </span>
+            </label>
+          )}
           <Field label="Starts" required error={e.startTime?.message}>
             <Input type="time" {...register('startTime')} />
           </Field>
@@ -194,7 +229,7 @@ export function BatchDialog({
           )}
         </form>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => close(false)}>
             Cancel
           </Button>
           <Button type="submit" form="batch-form" loading={formState.isSubmitting}>

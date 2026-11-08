@@ -1,12 +1,13 @@
 import {
-  ArrowDown,
-  ArrowUp,
   Archive,
   ArchiveRestore,
+  ArrowDown,
+  ArrowUp,
   Check,
   ClipboardList,
   Copy,
   Library,
+  Lock,
   Plus,
   Save,
   Settings2,
@@ -884,23 +885,45 @@ export function LessonPlansPage() {
           <WeekStrip batchId={batchId} date={date} onPick={setDate} />
           <h2 className="mb-3 text-lg font-semibold">
             {formatLongDate(date)}
-            {day.data && !day.data.isSessionDay && (
-              <Badge variant="muted" className="ml-2 align-middle">
-                No regular session
+            {day.data?.cancelled ? (
+              <Badge variant="warning" className="ml-2 align-middle">
+                Cancelled
               </Badge>
+            ) : (
+              day.data &&
+              !day.data.isSessionDay && (
+                <Badge variant="muted" className="ml-2 align-middle">
+                  No session
+                </Badge>
+              )
             )}
           </h2>
+          {isCoach && day.data?.lockedReason && (
+            <div
+              role="status"
+              className="mb-3 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/12 px-3 py-2.5 text-[13px] leading-snug"
+            >
+              <Lock
+                aria-hidden
+                className="mt-0.5 size-4 shrink-0 text-warning-foreground dark:text-warning"
+              />
+              <span>
+                <b className="font-semibold">Planning is closed for this day.</b>{' '}
+                {day.data.lockedReason} Pick a highlighted day above.
+              </span>
+            </div>
+          )}
           {day.isPending ? (
             <ListSkeleton rows={4} />
           ) : day.isError ? (
             <ErrorState error={day.error} onRetry={() => void day.refetch()} />
-          ) : (
+          ) : isCoach && day.data.lockedReason && !day.data.plan ? null : (
             <PlanEditor
               key={`${batchId}:${date}`}
               batchId={batchId}
               date={date}
               plan={day.data.plan}
-              readOnly={!isCoach}
+              readOnly={!isCoach || !!day.data.lockedReason}
               libraryCoachId={batch?.coach.id ?? ''}
             />
           )}

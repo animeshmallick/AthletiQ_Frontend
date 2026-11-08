@@ -45,7 +45,8 @@ function ApproveStudentDialog({ reg, onClose }: { reg: Registration; onClose: ()
     defaultValues: {
       joiningDate: today(),
       batchId: reg.preferredBatch?.id ?? '',
-      trainingDays: reg.preferredDays ?? [],
+      // Filled from the chosen batch's days (see EnrollmentFields).
+      trainingDays: [],
       feePlanId: '',
       customMonthlyFee: null,
       monthlyDiscount: 0,
@@ -75,7 +76,30 @@ function ApproveStudentDialog({ reg, onClose }: { reg: Registration; onClose: ()
             {reg.preferredDays?.length ? ` on ${weekdaysLabel(reg.preferredDays)}.` : ''}
           </DialogDescription>
         </DialogHeader>
-        <form id="approve-form" onSubmit={onSubmit} noValidate>
+        <form id="approve-form" onSubmit={onSubmit} noValidate className="space-y-3">
+          {reg.preferredDays?.length ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl bg-accent/60 px-3 py-2 text-[13px]">
+              <span className="text-muted-foreground">
+                Asked for <b className="text-foreground">{weekdaysLabel(reg.preferredDays)}</b>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="tonal"
+                onClick={() =>
+                  form.setValue(
+                    'trainingDays',
+                    [...reg.preferredDays!].sort((a, b) => a - b),
+                    {
+                      shouldValidate: true,
+                    },
+                  )
+                }
+              >
+                Use these days
+              </Button>
+            </div>
+          ) : null}
           <EnrollmentFields
             control={form.control as unknown as Control<EnrollmentValues & Record<string, unknown>>}
             setValue={form.setValue as never}

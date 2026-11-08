@@ -492,6 +492,8 @@ export const usePlanDay = (batchId: string | undefined, date: string) =>
         batch: { id: string; name: string };
         date: string;
         isSessionDay: boolean;
+        cancelled?: string | null;
+        lockedReason?: string | null;
         plan: LessonPlan | null;
       }>('/lessons/plans/day', { batchId, date }),
     enabled: Boolean(batchId),
@@ -590,6 +592,9 @@ export const useFeedbackReport = (studentId: string, weekStart: string) =>
         feedback: WeeklyFeedback | null;
         attendance: AttendanceSummary;
         editable: boolean;
+        /** Feedback opens only after the week ends. */
+        weekCompleted?: boolean;
+        opensOn?: string;
       }>(`/feedback/students/${studentId}/weeks/${weekStart}`),
   });
 

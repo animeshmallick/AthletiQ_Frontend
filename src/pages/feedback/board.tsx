@@ -90,7 +90,8 @@ export function FeedbackPage() {
               variant="outline"
               size="icon-sm"
               aria-label="Next week"
-              disabled={weekStart >= thisWeek}
+              // Feedback is written once a week is over, so the newest week is last week.
+              disabled={weekStart >= lastWeek}
               onClick={() => setWeek(addDays(weekStart, 7))}
             >
               <ChevronRight />

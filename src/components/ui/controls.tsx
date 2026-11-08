@@ -132,16 +132,22 @@ export function WeekdayPicker({
       className="flex flex-wrap gap-1.5"
     >
       {WEEKDAYS.map((d) => {
-        const off = allowed !== undefined && !allowed.includes(d.value);
+        const outside = allowed !== undefined && !allowed.includes(d.value);
+        const selected = value.includes(d.value);
+        const off = outside && !selected;
         return (
           <TG.Item
             key={d.value}
             value={String(d.value)}
             disabled={off}
-            aria-label={d.long}
+            aria-label={
+              outside && selected ? `${d.long} (batch doesn't run, tap to remove)` : d.long
+            }
+            data-outside={outside && selected ? '' : undefined}
             className={cn(
               'h-9 w-11 cursor-pointer rounded-lg border text-sm font-medium transition-all hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-35 data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
               invalid && 'border-destructive',
+              'data-outside:border-destructive data-outside:bg-destructive data-outside:text-white',
             )}
           >
             {d.short}

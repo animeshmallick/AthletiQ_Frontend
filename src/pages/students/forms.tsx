@@ -30,6 +30,8 @@ import {
   optionalPhoneSchema,
   phoneSchema,
   trainingDaysSchema,
+  daysForBatch,
+  sameDays,
 } from '@/lib/forms';
 import {
   useBatches,
@@ -89,14 +91,11 @@ export function EnrollmentFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days?.length, plans.data]);
 
-  // Drop days the newly selected batch doesn't run.
+  // When a batch is chosen, training days follow it (pre-filled with the batch's days).
   useEffect(() => {
-    if (batch && days?.some((d) => !batch.weekdays.includes(d))) {
-      setValue(
-        'trainingDays',
-        days.filter((d) => batch.weekdays.includes(d)),
-      );
-    }
+    if (!batch) return;
+    const next = daysForBatch(batch.weekdays, days);
+    if (!sameDays(next, days)) setValue('trainingDays', next, { shouldValidate: !!days?.length });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch?.id]);
 
@@ -558,6 +557,20 @@ const transferSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
+/** Keeps a dialog's training days valid for the selected batch whenever the batch changes. */
+function useDaysFollowBatch(
+  batch: { id: string; weekdays: number[] } | undefined,
+  days: number[],
+  setDays: (d: number[]) => void,
+) {
+  useEffect(() => {
+    if (!batch) return;
+    const next = daysForBatch(batch.weekdays, days);
+    if (!sameDays(next, days)) setDays(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batch?.id]);
+}
+
 export function TransferDialog({
   student,
   open,
@@ -582,6 +595,10 @@ export function TransferDialog({
   const selectedBatchId = useWatch({ control, name: 'batchId' });
   const batch = batches.data?.find((b) => b.id === selectedBatchId);
   const sameBatch = selectedBatchId === student.currentEnrollment?.batchId;
+  const transferDays = useWatch({ control, name: 'trainingDays' });
+  useDaysFollowBatch(batch, transferDays, (d) =>
+    form.setValue('trainingDays', d, { shouldValidate: true, shouldDirty: true }),
+  );
 
   const onSubmit = handleSubmit(async (v) => {
     try {
@@ -876,6 +893,10 @@ export function RejoinDialog({
   const { control, register, handleSubmit, formState } = form;
   const selectedBatchId = useWatch({ control, name: 'batchId' });
   const batch = batches.data?.find((b) => b.id === selectedBatchId);
+  const rejoinDays = useWatch({ control, name: 'trainingDays' });
+  useDaysFollowBatch(batch, rejoinDays, (d) =>
+    form.setValue('trainingDays', d, { shouldValidate: true, shouldDirty: true }),
+  );
 
   const onSubmit = handleSubmit(async (v) => {
     try {

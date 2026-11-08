@@ -4,6 +4,7 @@ import {
   CheckCheck,
   CloudRain,
   Lock,
+  MapPin,
   RotateCcw,
   Save,
   StickyNote,
@@ -45,6 +46,7 @@ import {
 import type { AttendanceStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/app/native';
+import { Link } from 'react-router';
 
 const STATUSES: AttendanceStatus[] = ['present', 'late', 'absent', 'excused'];
 
@@ -271,11 +273,36 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
 
   return (
     <div className="space-y-4">
-      {!editable && (
-        <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground">
-          <Lock className="size-4" /> This session is locked for editing. Admins can correct older
-          records.
+      {data.needsCheckIn ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/25 bg-accent/60 px-3.5 py-3"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+            <MapPin className="size-4.5" />
+          </span>
+          <span className="min-w-0 flex-1 text-[13px] leading-snug">
+            <b className="block text-sm font-semibold">Check in to mark attendance</b>
+            <span className="text-muted-foreground">
+              Attendance unlocks once you check in at the batch location.
+            </span>
+          </span>
+          {date === today() && (
+            <Button size="sm" asChild className="w-full sm:w-auto">
+              <Link to="/">
+                <MapPin /> Check in now
+              </Link>
+            </Button>
+          )}
         </div>
+      ) : (
+        !editable && (
+          <div className="flex items-center gap-2 rounded-xl border bg-muted/50 px-3 py-2.5 text-[13px] text-muted-foreground">
+            <Lock className="size-4 shrink-0" />
+            {data.lockedReason ??
+              'This session is locked for editing. Admins can correct older records.'}
+          </div>
+        )
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">

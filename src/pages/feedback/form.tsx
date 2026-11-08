@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
-import { ErrorState, ListSkeleton, PageHeader } from '@/components/common';
+import { ErrorState, ListSkeleton, PageHeader, Progress } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Switch } from '@/components/ui/controls';
 import {
@@ -17,7 +17,7 @@ import {
   Textarea,
 } from '@/components/ui/primitives';
 import { ApiError, errorMessage } from '@/lib/api';
-import { addDays, formatDate, formatShortDate } from '@/lib/format';
+import { addDays, formatDate, formatLongDate, formatShortDate } from '@/lib/format';
 import { useFeedbackReport, useSaveFeedback } from '@/lib/queries';
 import type { AttendanceSummary, FeedbackField } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -155,25 +155,46 @@ function FieldInput({
 
 function AttendanceSnapshot({ a }: { a: AttendanceSummary }) {
   const attended = a.present + a.late;
+  const pct = a.scheduled ? Math.round((attended / a.scheduled) * 100) : null;
   const items = [
-    { label: 'Sessions', value: a.scheduled },
-    { label: 'Attended', value: attended, className: 'text-success' },
+    { label: 'Present', value: a.present, className: 'text-success' },
+    { label: 'Late', value: a.late },
     { label: 'Absent', value: a.absent, className: 'text-destructive' },
     { label: 'Excused', value: a.excused },
   ];
   return (
-    <div className="grid grid-cols-4 gap-2 rounded-xl border bg-muted/30 p-3 text-center">
-      {items.map((i) => (
-        <div key={i.label}>
-          <p className={cn('tabular text-xl font-semibold', i.className)}>{i.value}</p>
-          <p className="text-xs text-muted-foreground">{i.label}</p>
+    <div className="space-y-3">
+      <div>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[15px] font-semibold">
+            Attended{' '}
+            <span className="tabular text-xl font-bold">
+              {attended}/{a.scheduled}
+            </span>{' '}
+            <span className="text-muted-foreground">sessions</span>
+          </p>
+          {pct !== null && <span className="tabular text-sm font-semibold">{pct}%</span>}
         </div>
-      ))}
-      {a.unmarked > 0 && (
-        <p className="col-span-4 text-xs text-muted-foreground">
-          {a.unmarked} session(s) not marked yet
-        </p>
-      )}
+        <Progress
+          value={pct ?? 0}
+          label="Attendance this week"
+          tone={pct !== null && pct >= 75 ? 'success' : 'warning'}
+          className="mt-2 h-2"
+        />
+      </div>
+      <div className="grid grid-cols-4 gap-2 rounded-xl border bg-muted/30 p-2.5 text-center">
+        {items.map((i) => (
+          <div key={i.label}>
+            <p className={cn('tabular text-xl font-semibold', i.className)}>{i.value}</p>
+            <p className="text-xs text-muted-foreground">{i.label}</p>
+          </div>
+        ))}
+        {a.unmarked > 0 && (
+          <p className="col-span-4 text-xs text-muted-foreground">
+            {a.unmarked} session(s) not marked yet
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -201,7 +222,7 @@ export function FeedbackFormPage() {
   if (report.isError)
     return <ErrorState error={report.error} onRetry={() => void report.refetch()} />;
 
-  const { template, feedback, attendance, editable, student } = report.data;
+  const { template, feedback, attendance, editable, student, weekCompleted, opensOn } = report.data;
   const canEdit = editable && user.role === 'coach';
   const submitted = feedback?.status === 'submitted';
   const fields = template.sections.flatMap((s) => s.fields);
@@ -268,7 +289,9 @@ export function FeedbackFormPage() {
           <Lock className="size-4" />{' '}
           {user.role === 'admin'
             ? 'Reports are written by the student’s coach.'
-            : 'This report is locked — it was due by the end of the following week.'}
+            : weekCompleted === false && opensOn
+              ? `This week isn’t over yet. Feedback opens on ${formatLongDate(opensOn)}.`
+              : 'This report is locked — it was due by the end of the following week.'}
         </div>
       )}
 
