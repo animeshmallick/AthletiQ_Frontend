@@ -108,6 +108,10 @@ export function Select({
   const listId = `${id}-list`;
   const sheet = useSheet();
   const [open, setOpen] = useState(false);
+  const openRef = useRef(open);
+  useLayoutEffect(() => {
+    openRef.current = open;
+  }, [open]);
   const selectRef = useRef<HTMLSelectElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const options = useMemo(() => collect(children), [children]);
@@ -143,7 +147,10 @@ export function Select({
     // Focus returns to the field right away (so the next key press works), and again after the
     // popover/sheet has finished closing in case it moved focus.
     triggerRef.current?.focus();
-    requestAnimationFrame(() => triggerRef.current?.focus());
+    // Skip the late re-focus if the list was reopened meanwhile (fast keyboard users).
+    requestAnimationFrame(() => {
+      if (!openRef.current) triggerRef.current?.focus();
+    });
   }
 
   // A required field with only one real choice (no meaningful "All…" option): select it and lock.
