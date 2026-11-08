@@ -187,3 +187,14 @@ export function downloadUpdate(url = APK_URL) {
 export function isAndroidBrowser() {
   return !isNativeApp() && /Android/i.test(navigator.userAgent);
 }
+
+/** A light tap of feedback for quick repeated actions (marking attendance, pull-to-refresh). */
+export function haptic() {
+  if (isNativeApp()) {
+    void import('@capacitor/haptics')
+      .then(({ Haptics, ImpactStyle }) => Haptics.impact({ style: ImpactStyle.Light }))
+      .catch(() => {});
+  } else {
+    navigator.vibrate?.(8);
+  }
+}

@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { haptic } from './native';
 
 const TRIGGER = 72; // px of pull needed to refresh
 const MAX = 110;
@@ -54,7 +55,7 @@ export function PullToRefresh() {
       start.current = null;
       if (pullRef.current >= TRIGGER) {
         setRefreshing(true);
-        navigator.vibrate?.(8);
+        haptic();
         void qc
           .refetchQueries({ type: 'active' })
           .finally(() => setTimeout(() => setRefreshing(false), 300));

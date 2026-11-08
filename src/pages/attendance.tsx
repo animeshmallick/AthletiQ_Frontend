@@ -44,6 +44,7 @@ import {
 } from '@/lib/queries';
 import type { AttendanceStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { haptic } from '@/app/native';
 
 const STATUSES: AttendanceStatus[] = ['present', 'late', 'absent', 'excused'];
 
@@ -76,7 +77,10 @@ function StatusToggle({
             aria-label={meta.label}
             title={meta.label}
             disabled={disabled}
-            onClick={() => onChange(s)}
+            onClick={() => {
+              haptic();
+              onChange(s);
+            }}
             className={cn(
               'h-10 min-w-0 cursor-pointer rounded-xl border px-1 text-[13px] font-semibold transition-all active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-20 sm:text-sm',
               active
