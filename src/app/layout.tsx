@@ -1,6 +1,6 @@
-import { KeyRound, LogOut, Menu, Monitor, Moon, Sun } from 'lucide-react';
+import { KeyRound, LogOut, Menu, Monitor, Moon, Sun, WifiOff } from 'lucide-react';
 import { Dialog as D } from 'radix-ui';
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useSyncExternalStore } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { Avatar } from '@/components/common';
 import { Button } from '@/components/ui/button';
@@ -169,6 +169,7 @@ export function AppLayout() {
           <UserMenu />
         </header>
 
+        <OfflineBanner />
         <main
           id="main"
           className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pb-10"
@@ -202,6 +203,32 @@ export function AppLayout() {
           ))}
         </nav>
       </div>
+    </div>
+  );
+}
+
+/** Warns when the device is offline (common at grounds with patchy mobile data). */
+function OfflineBanner() {
+  const online = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener('online', cb);
+      window.addEventListener('offline', cb);
+      return () => {
+        window.removeEventListener('online', cb);
+        window.removeEventListener('offline', cb);
+      };
+    },
+    () => navigator.onLine,
+    () => true,
+  );
+  if (online) return null;
+  return (
+    <div
+      role="status"
+      className="flex items-center justify-center gap-2 bg-warning px-4 py-2 text-sm font-medium text-warning-foreground"
+    >
+      <WifiOff className="size-4" /> You're offline. Changes will fail until your connection is
+      back.
     </div>
   );
 }

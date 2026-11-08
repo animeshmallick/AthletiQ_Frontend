@@ -15,7 +15,7 @@ const FEATURES = [
   {
     icon: IndianRupee,
     title: 'Billing on autopilot',
-    text: 'Invoices generated on each student’s cycle, shared on WhatsApp.',
+    text: 'Prepaid monthly invoices on each student’s cycle, shared on WhatsApp.',
   },
 ];
 

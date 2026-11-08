@@ -3,6 +3,7 @@ import {
   ArrowRight,
   CalendarCheck2,
   CheckCircle2,
+  CloudRain,
   ClipboardList,
   Clock,
   IndianRupee,
@@ -151,7 +152,13 @@ function CoachSessionCard({
             </span>
           </p>
         </div>
-        <CheckInButton item={item} />
+        {item.cancelled ? (
+          <Badge variant="muted" className="h-8 px-3">
+            <CloudRain /> Cancelled · {item.cancelled}
+          </Badge>
+        ) : (
+          <CheckInButton item={item} />
+        )}
       </div>
       <div className="grid grid-cols-2 border-t text-sm">
         <Link
@@ -388,26 +395,36 @@ function AdminToday() {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge
-                        variant={s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'}
-                      >
-                        <Users /> {s.marked}/{s.expectedStudents}
-                      </Badge>
-                      <Badge variant={s.hasLessonPlan ? 'success' : 'muted'}>
-                        <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'No plan'}
-                      </Badge>
-                      <Badge
-                        variant={
-                          s.coachSession
-                            ? s.coachSession.flagged
-                              ? 'warning'
-                              : 'success'
-                            : 'muted'
-                        }
-                      >
-                        <MapPin />{' '}
-                        {s.coachSession ? formatClock(s.coachSession.checkInAt) : 'Not in'}
-                      </Badge>
+                      {s.cancelled ? (
+                        <Badge variant="muted">
+                          <CloudRain /> Cancelled · {s.cancelled}
+                        </Badge>
+                      ) : (
+                        <>
+                          <Badge
+                            variant={
+                              s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'
+                            }
+                          >
+                            <Users /> {s.marked}/{s.expectedStudents}
+                          </Badge>
+                          <Badge variant={s.hasLessonPlan ? 'success' : 'muted'}>
+                            <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'No plan'}
+                          </Badge>
+                          <Badge
+                            variant={
+                              s.coachSession
+                                ? s.coachSession.flagged
+                                  ? 'warning'
+                                  : 'success'
+                                : 'muted'
+                            }
+                          >
+                            <MapPin />{' '}
+                            {s.coachSession ? formatClock(s.coachSession.checkInAt) : 'Not in'}
+                          </Badge>
+                        </>
+                      )}
                     </div>
                   </li>
                 ))}

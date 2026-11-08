@@ -10,11 +10,13 @@ import {
   MoreHorizontal,
   Pencil,
   Phone,
+  Trash2,
   UserMinus,
+  UserPlus,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import {
   CartesianGrid,
   Legend,
@@ -31,6 +33,7 @@ import {
   ATTENDANCE_META,
   AttendanceBadge,
   Avatar,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   InvoiceStatusBadge,
@@ -65,6 +68,7 @@ import {
 } from '@/lib/format';
 import {
   useCancelMakeup,
+  useDeleteStudent,
   useFeedbackHistory,
   useFeedbackTrends,
   useInvoices,
@@ -74,7 +78,13 @@ import {
 import type { StudentDetail } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { InvoiceSheet } from '../invoices/sheet';
-import { LeaveDialog, MakeupDialog, StudentFormDialog, TransferDialog } from './forms';
+import {
+  LeaveDialog,
+  MakeupDialog,
+  RejoinDialog,
+  StudentFormDialog,
+  TransferDialog,
+} from './forms';
 
 const CHART_COLORS = [
   'var(--chart-1)',
@@ -285,8 +295,10 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
               <span className="tabular">{money(s.effectiveFee.total)}</span>
             </div>
             <p className="pt-1 text-xs text-muted-foreground">
-              Billed on day {Number(s.joiningDate.slice(8))} of every month (joined{' '}
-              {formatDate(s.joiningDate)}).
+              Billed on day {Number((s.billingAnchorDate ?? s.joiningDate).slice(8))} of every month{' '}
+              {s.billingAnchorDate
+                ? `(rejoined ${formatDate(s.billingAnchorDate)}).`
+                : `(joined ${formatDate(s.joiningDate)}).`}
             </p>
           </CardContent>
         </Card>
@@ -381,7 +393,7 @@ function InvoicesTab({ id }: { id: string }) {
     return (
       <EmptyState
         title="No invoices yet"
-        description="The first invoice is generated when the student completes their first month."
+        description="Fees are prepaid: the first invoice is created when the student is accepted, then at the start of each month."
       />
     );
   return (
@@ -513,7 +525,11 @@ export function StudentDetailPage() {
   const user = useUser();
   const isAdmin = user.role === 'admin';
   const q = useStudent(id);
-  const [dialog, setDialog] = useState<'edit' | 'transfer' | 'makeup' | 'leave' | null>(null);
+  const [dialog, setDialog] = useState<
+    'edit' | 'transfer' | 'makeup' | 'leave' | 'rejoin' | 'delete' | null
+  >(null);
+  const deleteStudent = useDeleteStudent();
+  const navigate = useNavigate();
 
   if (q.isPending)
     return (
@@ -567,10 +583,18 @@ export function StudentDetailPage() {
                   <DropdownMenuItem destructive onSelect={() => setDialog('leave')}>
                     <UserMinus /> Mark as left
                   </DropdownMenuItem>
+                  <DropdownMenuItem destructive onSelect={() => setDialog('delete')}>
+                    <Trash2 /> Delete record
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
           </div>
+        )}
+        {!active && isAdmin && (
+          <Button onClick={() => setDialog('rejoin')}>
+            <UserPlus /> Rejoin
+          </Button>
         )}
       </div>
 
@@ -624,6 +648,30 @@ export function StudentDetailPage() {
       {isAdmin && dialog === 'leave' && (
         <LeaveDialog open onOpenChange={(o) => !o && setDialog(null)} student={s} />
       )}
+      {isAdmin && dialog === 'rejoin' && (
+        <RejoinDialog open onOpenChange={(o) => !o && setDialog(null)} student={s} />
+      )}
+      <ConfirmDialog
+        open={dialog === 'delete'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title={`Delete ${s.fullName}?`}
+        description="Only for records created by mistake (e.g. duplicates). Students with invoices, attendance or feedback are kept — mark them as left instead."
+        confirmLabel="Delete permanently"
+        destructive
+        loading={deleteStudent.isPending}
+        onConfirm={() =>
+          deleteStudent.mutate(s.id, {
+            onSuccess: () => {
+              toast.success('Student deleted');
+              navigate('/students', { replace: true });
+            },
+            onError: (e) => {
+              setDialog(null);
+              toast.error('Could not delete', { description: errorMessage(e) });
+            },
+          })
+        }
+      />
       {dialog === 'makeup' && (
         <MakeupDialog open onOpenChange={(o) => !o && setDialog(null)} student={s} />
       )}

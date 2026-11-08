@@ -5,6 +5,7 @@ import {
   FileText,
   MessageCircle,
   MoreHorizontal,
+  Percent,
   RotateCcw,
   Undo2,
   Wallet,
@@ -20,6 +21,7 @@ import {
   Field,
   InvoiceStatusBadge,
   ListSkeleton,
+  MoneyInput,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +42,7 @@ import { errorMessage, requestBlob } from '@/lib/api';
 import { formatDate, formatInstant, money, PAYMENT_MODE_LABELS, today } from '@/lib/format';
 import { nullIfEmpty } from '@/lib/forms';
 import {
+  useAdjustInvoice,
   useCancelInvoice,
   useInvoice,
   useMarkPaid,
@@ -143,6 +146,72 @@ function MarkPaidDialog({
   );
 }
 
+/** Admin: one-off concession on this invoice only (the student's regular fee is unchanged). */
+function AdjustDialog({ invoice, onClose }: { invoice: InvoiceDetail; onClose: () => void }) {
+  const adjust = useAdjustInvoice(invoice.id);
+  const [discount, setDiscount] = useState<number | null>(invoice.discountAmount);
+  const [reason, setReason] = useState('');
+  const total = Math.max(0, invoice.baseAmount - (discount ?? 0));
+  const invalid = discount === null || discount > invoice.baseAmount || reason.trim().length < 3;
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Adjust invoice</DialogTitle>
+          <DialogDescription>
+            A one-off discount on {invoice.number} only. The student's monthly fee doesn't change.
+          </DialogDescription>
+        </DialogHeader>
+        <Field
+          label="Discount on this invoice"
+          required
+          hint={`Fee before discount: ${money(invoice.baseAmount)}`}
+        >
+          <MoneyInput value={discount} onChange={setDiscount} />
+        </Field>
+        <Field label="Reason" required hint="Recorded in the audit log.">
+          <Textarea
+            rows={2}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Missed two weeks due to injury"
+          />
+        </Field>
+        <div className="rounded-xl bg-accent px-4 py-3 text-accent-foreground">
+          <p className="text-xs font-medium">New amount</p>
+          <p className="tabular text-xl font-semibold">{money(total)}</p>
+          {total === 0 && <p className="text-xs">A fully waived invoice is marked as settled.</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={invalid}
+            loading={adjust.isPending}
+            onClick={() =>
+              adjust.mutate(
+                { discountAmount: discount ?? 0, reason: reason.trim() },
+                {
+                  onSuccess: () => {
+                    toast.success('Invoice adjusted');
+                    onClose();
+                  },
+                  onError: (e) =>
+                    toast.error('Could not adjust invoice', { description: errorMessage(e) }),
+                },
+              )
+            }
+          >
+            Save adjustment
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function PaymentRow({
   p,
   invoiceId,
@@ -233,6 +302,7 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
   const cancel = useCancelInvoice(inv.id);
   const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   async function openPdf(download: boolean) {
@@ -393,6 +463,16 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
         </Button>
         {isAdmin && inv.status === 'due' && (
           <Button
+            variant="outline"
+            size="icon"
+            aria-label="Adjust amount"
+            onClick={() => setAdjusting(true)}
+          >
+            <Percent />
+          </Button>
+        )}
+        {isAdmin && inv.status === 'due' && (
+          <Button
             variant="ghost"
             size="icon"
             aria-label="Cancel invoice"
@@ -405,6 +485,7 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
       </div>
 
       <MarkPaidDialog invoice={inv} open={paying} onOpenChange={setPaying} />
+      {adjusting && <AdjustDialog invoice={inv} onClose={() => setAdjusting(false)} />}
       <ConfirmDialog
         open={cancelling}
         onOpenChange={setCancelling}

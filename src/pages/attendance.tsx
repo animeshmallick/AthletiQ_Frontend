@@ -2,6 +2,7 @@ import {
   CalendarCheck2,
   CalendarX2,
   CheckCheck,
+  CloudRain,
   Lock,
   RotateCcw,
   Save,
@@ -13,6 +14,7 @@ import { toast } from 'sonner';
 import {
   ATTENDANCE_META,
   Avatar,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   ListSkeleton,
@@ -26,13 +28,20 @@ import { errorMessage } from '@/lib/api';
 import {
   addMonths,
   endOfMonth,
+  formatLongDate,
   formatShortDate,
   isoWeekday,
   startOfMonth,
   today,
   WEEKDAYS,
 } from '@/lib/format';
-import { useAttendanceSheet, useRegister, useSaveAttendance } from '@/lib/queries';
+import {
+  useAttendanceSheet,
+  useCancelSession,
+  useRegister,
+  useRestoreSession,
+  useSaveAttendance,
+} from '@/lib/queries';
 import type { AttendanceStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -80,6 +89,84 @@ function StatusToggle({
   );
 }
 
+/** Marks a session as not happening (rain, holiday…) — it then doesn't count as an absence. */
+function CancelSessionButton({ batchId, date }: { batchId: string; date: string }) {
+  const cancel = useCancelSession();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground"
+        onClick={() => setOpen(true)}
+      >
+        <CloudRain /> Cancel session
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Cancel this session?"
+        description={`No attendance will be taken for ${formatLongDate(date)}. Students won't be marked absent and it won't count in weekly reports. Fees are not affected.`}
+        confirmLabel="Cancel session"
+        destructive
+        requireReason
+        reasonLabel="Reason (e.g. heavy rain, holiday)"
+        loading={cancel.isPending}
+        onConfirm={(reason) =>
+          cancel.mutate(
+            { batchId, date, reason },
+            {
+              onSuccess: () => {
+                toast.success('Session cancelled');
+                setOpen(false);
+              },
+              onError: (e) =>
+                toast.error('Could not cancel session', { description: errorMessage(e) }),
+            },
+          )
+        }
+      />
+    </>
+  );
+}
+
+function CancelledBanner({
+  batchId,
+  date,
+  reason,
+}: {
+  batchId: string;
+  date: string;
+  reason: string;
+}) {
+  const restore = useRestoreSession();
+  return (
+    <EmptyState
+      icon={<CloudRain />}
+      title="Session cancelled"
+      description={reason}
+      action={
+        <Button
+          variant="outline"
+          loading={restore.isPending}
+          onClick={() =>
+            restore.mutate(
+              { batchId, date },
+              {
+                onSuccess: () => toast.success('Session restored'),
+                onError: (e) => toast.error(errorMessage(e)),
+              },
+            )
+          }
+        >
+          <RotateCcw /> Restore session
+        </Button>
+      }
+    />
+  );
+}
+
 function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
   const sheet = useAttendanceSheet(batchId, date);
   const save = useSaveAttendance();
@@ -121,6 +208,10 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
   if (sheet.isError) return <ErrorState error={sheet.error} onRetry={() => void sheet.refetch()} />;
   const data = sheet.data;
   const editable = data.editable;
+  const nothingMarked = data.students.every((s) => s.status === null);
+
+  if (data.cancelled)
+    return <CancelledBanner batchId={batchId} date={date} reason={data.cancelled.reason} />;
 
   if (!data.isScheduledDay && data.students.length === 0) {
     return (
@@ -137,6 +228,7 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
         icon={<Users />}
         title="No students expected"
         description="Nobody in this batch trains on this day, and no makeups are booked."
+        action={data.isScheduledDay && <CancelSessionButton batchId={batchId} date={date} />}
       />
     );
   }
@@ -193,7 +285,10 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
           {counts.unmarked > 0 && <Badge variant="muted">Unmarked {counts.unmarked}</Badge>}
         </div>
         {editable && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {nothingMarked && data.isScheduledDay && (
+              <CancelSessionButton batchId={batchId} date={date} />
+            )}
             <Button variant="outline" size="sm" onClick={() => markAll('present', true)}>
               <CheckCheck /> Rest present
             </Button>
@@ -377,6 +472,13 @@ function MonthlyRegister({ batchId }: { batchId: string }) {
                               className={cn('text-xs font-bold', ATTENDANCE_META[m].className)}
                             >
                               {ATTENDANCE_META[m].short}
+                            </span>
+                          ) : reg.data.cancelled[d] ? (
+                            <span
+                              title={`${formatShortDate(d)}: cancelled — ${reg.data.cancelled[d]}`}
+                              className="text-xs text-muted-foreground"
+                            >
+                              ✕
                             </span>
                           ) : (
                             <span className="text-muted-foreground/40">·</span>

@@ -30,6 +30,7 @@ export const sheet = (overrides: Partial<AttendanceSheet> = {}): AttendanceSheet
   batch: { id: 'b1', name: 'Morning U-12', startTime: '06:00:00', endTime: '08:00:00' },
   date: '2026-03-09',
   isScheduledDay: true,
+  cancelled: null,
   editable: true,
   students: [
     {
@@ -138,6 +139,8 @@ export const studentDetail: StudentDetail = {
   customMonthlyFee: null,
   monthlyDiscount: 20_000,
   billingStartsOn: '2026-01-10',
+  billingAnchorDate: null,
+  cycleOffset: 0,
   feePlan: { id: 'p1', name: '3 days', monthlyFee: 250_000, daysPerWeek: 3 },
   effectiveFee: { base: 250_000, discount: 20_000, total: 230_000 },
   currentEnrollment: {

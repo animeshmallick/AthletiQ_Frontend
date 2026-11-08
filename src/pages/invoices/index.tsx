@@ -58,7 +58,7 @@ export function InvoicesPage() {
     <div>
       <PageHeader
         title="Invoices"
-        description="Generated automatically at midnight when each student completes a month."
+        description="Prepaid: the first invoice is created when a student is accepted, then automatically at the start of each month."
         actions={
           user.role === 'admin' && (
             <Button

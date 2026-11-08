@@ -30,12 +30,15 @@ export function StudentsPage() {
     search: params.get('q') ?? '',
     status: (params.get('status') ?? 'active') as 'active' | 'left' | 'all',
     batchId: params.get('batch') ?? '',
+    dues: (params.get('dues') ?? '') as '' | 'outstanding' | 'overdue',
     page: Number(params.get('page') ?? 1),
   };
   const students = useStudents({
     search: q.search || undefined,
     status: q.status === 'all' ? undefined : q.status,
     batchId: q.batchId || undefined,
+    dues: q.dues || undefined,
+    sort: q.dues ? 'dues' : undefined,
     page: q.page,
     pageSize: 25,
   });
@@ -83,6 +86,16 @@ export function StudentsPage() {
               {b.name}
             </option>
           ))}
+        </NativeSelect>
+        <NativeSelect
+          value={q.dues}
+          onChange={(e) => set({ dues: e.target.value })}
+          className="lg:w-48"
+          aria-label="Filter by fees"
+        >
+          <option value="">Any fee status</option>
+          <option value="outstanding">With unpaid fees</option>
+          <option value="overdue">Overdue fees</option>
         </NativeSelect>
         <Segmented
           ariaLabel="Status"

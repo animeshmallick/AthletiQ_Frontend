@@ -56,7 +56,7 @@ function ApproveStudentDialog({ reg, onClose }: { reg: Registration; onClose: ()
     try {
       await review.mutateAsync({ id: reg.id, action: 'approve', body: v });
       toast.success(`${reg.fullName} enrolled`, {
-        description: 'Billing starts from the joining date.',
+        description: 'Their first month’s invoice has been generated.',
       });
       onClose();
     } catch (err) {

@@ -91,10 +91,12 @@ function WeekStrip({
             className={cn(
               'flex cursor-pointer flex-col items-center gap-1 rounded-xl border bg-card py-2 transition-all hover:border-primary/50',
               selected && 'border-primary ring-2 ring-primary/20',
-              info && !info.isSessionDay && 'opacity-50',
+              info && (!info.isSessionDay || info.cancelled) && 'opacity-50',
+              info?.cancelled && 'line-through',
             )}
             aria-pressed={selected}
-            aria-label={formatLongDate(d)}
+            aria-label={`${formatLongDate(d)}${info?.cancelled ? ` (cancelled: ${info.cancelled})` : ''}`}
+            title={info?.cancelled ? `Cancelled: ${info.cancelled}` : undefined}
           >
             <span className="text-[11px] font-medium text-muted-foreground uppercase">
               {WEEKDAYS[i]?.short}

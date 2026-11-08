@@ -354,6 +354,7 @@ export const useRegister = (q: { batchId?: string; from: string; to: string }) =
       api.get<{
         batch: { id: string; name: string };
         dates: string[];
+        cancelled: Record<string, string>;
         students: {
           studentId: string;
           fullName: string;
@@ -466,6 +467,7 @@ export const usePlanCalendar = (q: { batchId?: string; from: string; to: string 
         days: {
           date: string;
           isSessionDay: boolean;
+          cancelled: string | null;
           planId: string | null;
           filledCells: number;
           totalCells: number;
@@ -783,3 +785,50 @@ export function useRunInvoiceJob() {
     onSuccess: () => invalidate(keys.jobRuns, ['invoices'], ['finance']),
   });
 }
+
+// ─── Session cancellations, rejoin, delete, invoice adjustments ──────────────
+
+export function useCancelSession() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ batchId, date, reason }: { batchId: string; date: string; reason: string }) =>
+      api.post(`/batches/${batchId}/cancellations`, { date, reason }),
+    onSuccess: () =>
+      invalidate(['attendance'], ['coach-sessions'], ['lessons', 'calendar'], ['feedback']),
+  });
+}
+
+export function useRestoreSession() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ batchId, date }: { batchId: string; date: string }) =>
+      api.delete(`/batches/${batchId}/cancellations/${date}`),
+    onSuccess: () =>
+      invalidate(['attendance'], ['coach-sessions'], ['lessons', 'calendar'], ['feedback']),
+  });
+}
+
+export const useRejoinStudent = (id: string) =>
+  useStudentMutation(
+    (body: {
+      rejoinDate: string;
+      batchId: string;
+      trainingDays: number[];
+      feePlanId?: string;
+      customMonthlyFee?: number | null;
+      monthlyDiscount?: number;
+    }) => api.post<StudentDetail>(`/students/${id}/rejoin`, body),
+  );
+
+export function useDeleteStudent() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/students/${id}`),
+    onSuccess: () => invalidate(['students'], ['batches']),
+  });
+}
+
+export const useAdjustInvoice = (id: string) =>
+  useInvoiceMutation((body: { discountAmount: number; reason: string }) =>
+    api.post<InvoiceDetail>(`/invoices/${id}/adjust`, body),
+  );

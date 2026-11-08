@@ -36,6 +36,7 @@ import {
   useBookMakeup,
   useCreateStudent,
   useFeePlans,
+  useRejoinStudent,
   useStudentLeave,
   useTransferStudent,
   useUpdateStudent,
@@ -408,7 +409,9 @@ export function StudentFormDialog({
             customMonthlyFee: v.customMonthlyFee,
             monthlyDiscount: v.monthlyDiscount,
           });
-      toast.success(editing ? 'Student updated' : `${saved.fullName} registered (${saved.code})`);
+      toast.success(editing ? 'Student updated' : `${saved.fullName} registered (${saved.code})`, {
+        description: editing ? undefined : 'Their first month’s invoice has been generated.',
+      });
       onOpenChange(false);
       onSaved?.(saved);
     } catch (err) {
@@ -792,8 +795,9 @@ export function LeaveDialog({
         <DialogHeader>
           <DialogTitle>Mark {student.fullName} as left</DialogTitle>
           <DialogDescription>
-            They’ll be removed from their batch after the last day. Only complete billing months up
-            to that day are invoiced; existing invoices stay as they are.
+            They’ll be removed from their batch after the last day and no further months are
+            invoiced. Fees are prepaid, so the current month is already billed — cancel, adjust or
+            refund that invoice if needed.
           </DialogDescription>
         </DialogHeader>
         <form id="leave-form" onSubmit={onSubmit} className="space-y-4">
@@ -835,5 +839,120 @@ export function SectionTitle({ children }: { children: ReactNode }) {
     <h3 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
       {children}
     </h3>
+  );
+}
+
+// ─── Rejoin ──────────────────────────────────────────────────────────────────
+
+const rejoinSchema = z.object({
+  rejoinDate: z.string().min(1, 'Pick the rejoin date'),
+  batchId: z.string().min(1, 'Pick a batch'),
+  trainingDays: trainingDaysSchema,
+  feePlanId: z.string().min(1, 'Pick a fee plan'),
+});
+
+export function RejoinDialog({
+  student,
+  open,
+  onOpenChange,
+}: {
+  student: StudentDetail;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const rejoin = useRejoinStudent(student.id);
+  const batches = useBatches({ active: 'true' });
+  const plans = useFeePlans({ active: 'true' });
+  const last = student.enrollmentHistory[0];
+  const form = useForm<z.infer<typeof rejoinSchema>>({
+    resolver: zodResolver(rejoinSchema),
+    defaultValues: {
+      rejoinDate: today(),
+      batchId: last?.batchId ?? '',
+      trainingDays: last?.trainingDays ?? [],
+      feePlanId: student.feePlanId,
+    },
+  });
+  const { control, register, handleSubmit, formState } = form;
+  const selectedBatchId = useWatch({ control, name: 'batchId' });
+  const batch = batches.data?.find((b) => b.id === selectedBatchId);
+
+  const onSubmit = handleSubmit(async (v) => {
+    try {
+      await rejoin.mutateAsync({
+        ...v,
+        feePlanId: v.feePlanId === student.feePlanId ? undefined : v.feePlanId,
+      });
+      toast.success(`${student.fullName} is back!`, {
+        description: 'Billing restarts from the rejoin date.',
+      });
+      onOpenChange(false);
+    } catch (err) {
+      applyServerErrors(err, form.setError, 'Could not rejoin student');
+    }
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Rejoin {student.fullName}</DialogTitle>
+          <DialogDescription>
+            Billing restarts from the rejoin date, which becomes the new monthly invoice day.
+            Earlier invoices stay as they are.
+          </DialogDescription>
+        </DialogHeader>
+        <form id="rejoin-form" onSubmit={onSubmit} noValidate className="space-y-4">
+          <Field
+            label="Rejoin date"
+            required
+            error={formState.errors.rejoinDate?.message}
+            hint={student.leftOn ? `Left on ${student.leftOn}.` : undefined}
+          >
+            <Input type="date" min={student.leftOn ?? undefined} {...register('rejoinDate')} />
+          </Field>
+          <Field label="Batch" required error={formState.errors.batchId?.message}>
+            <NativeSelect {...register('batchId')}>
+              <option value="">Select a batch…</option>
+              {batches.data?.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field label="Training days" required error={formState.errors.trainingDays?.message}>
+            <Controller
+              control={control}
+              name="trainingDays"
+              render={({ field }) => (
+                <WeekdayPicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  allowed={batch?.weekdays}
+                />
+              )}
+            />
+          </Field>
+          <Field label="Fee plan" required error={formState.errors.feePlanId?.message}>
+            <NativeSelect {...register('feePlanId')}>
+              {plans.data?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} · {money(p.monthlyFee)}/mo
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" form="rejoin-form" loading={formState.isSubmitting}>
+            Rejoin student
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

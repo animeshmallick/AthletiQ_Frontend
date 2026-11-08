@@ -133,6 +133,8 @@ export interface StudentDetail {
   customMonthlyFee: number | null;
   monthlyDiscount: number;
   billingStartsOn: string;
+  billingAnchorDate: string | null;
+  cycleOffset: number;
   feePlan: { id: string; name: string; monthlyFee: number; daysPerWeek: number };
   effectiveFee: { base: number; discount: number; total: number };
   currentEnrollment: Enrollment | null;
@@ -154,6 +156,7 @@ export interface AttendanceSheet {
   batch: { id: string; name: string; startTime: string; endTime: string };
   date: string;
   isScheduledDay: boolean;
+  cancelled: { reason: string; cancelledAt: string } | null;
   editable: boolean;
   students: (RosterEntry & {
     status: AttendanceStatus | null;
@@ -207,6 +210,7 @@ export interface DayOverviewSession {
   attendanceComplete: boolean;
   hasLessonPlan: boolean;
   coachSession: { checkInAt: string; checkOutAt: string | null; flagged: boolean } | null;
+  cancelled: string | null;
 }
 
 export interface TodaySession {
@@ -220,6 +224,7 @@ export interface TodaySession {
     radiusMeters: number;
   };
   session: CoachSession | null;
+  cancelled: string | null;
 }
 
 export interface LibraryItem {

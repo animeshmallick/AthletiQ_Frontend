@@ -60,6 +60,10 @@ tests/          Jest suites: lib, components, pages, app shell (fetch-level API 
 
 ## Deployment (AWS Amplify)
 
+The full production guide, covering backend and frontend, is in
+[AthletiQ_Backend/deploy.md](https://github.com/animeshmallick/AthletiQ_Backend/blob/mainline/deploy.md).
+In short:
+
 1. Connect this repository; Amplify uses `amplify.yml`.
 2. Set `VITE_API_URL` and `VITE_MAPBOX_TOKEN` in _Environment variables_.
 3. Add the SPA rewrite in _Rewrites and redirects_:
