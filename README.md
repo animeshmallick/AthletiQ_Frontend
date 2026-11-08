@@ -29,7 +29,7 @@ the httpOnly refresh cookie works without any CORS configuration.
 
 | Variable            | Where    | Purpose                                                                                                                                                                       |
 | ------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_API_URL`      | build    | API origin in production (e.g. `https://api.example.com`). Empty = same origin.                                                                                               |
+| `VITE_API_URL`      | build    | API origin. Production builds default to `https://api.edupilots.in` (`.env.production`); empty in dev = Vite proxy.                                                           |
 | `VITE_MAPBOX_TOKEN` | build    | Public Mapbox token (`pk.*`) for the location picker and check-in maps. Restrict it to your domains in the Mapbox dashboard. Without it, maps fall back to coordinate inputs. |
 | `API_PROXY_TARGET`  | dev only | Backend URL for the Vite proxy (default `http://localhost:4000`).                                                                                                             |
 
@@ -64,12 +64,17 @@ The full production guide, covering backend and frontend, is in
 [AthletiQ_Backend/deploy.md](https://github.com/animeshmallick/AthletiQ_Backend/blob/mainline/deploy.md).
 In short:
 
+The app is served at **https://www.edupilots.in** (the root `edupilots.in` redirects to `www`) and calls the API
+at **https://api.edupilots.in**.
+
 1. Connect this repository; Amplify uses `amplify.yml`.
-2. Set `VITE_API_URL` and `VITE_MAPBOX_TOKEN` in _Environment variables_.
+2. Set `VITE_MAPBOX_TOKEN` in _Environment variables_. `VITE_API_URL` already defaults to
+   `https://api.edupilots.in` via `.env.production`; set it in Amplify only to override.
 3. Add the SPA rewrite in _Rewrites and redirects_:
    source `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>`,
    target `/index.html`, type `200 (Rewrite)`.
-4. On the backend set `CORS_ORIGINS` to the Amplify domain, `COOKIE_SECURE=true`, and
-   `COOKIE_CROSS_SITE=true` if the API is on a different site.
+4. Add the custom domain **edupilots.in** in Amplify: map `www` to `mainline` and redirect the root to `www`.
+5. On the backend set `CORS_ORIGINS=https://www.edupilots.in`, `APP_URL=https://www.edupilots.in`,
+   `COOKIE_SECURE=true` and `COOKIE_CROSS_SITE=false` (both sites share `edupilots.in`).
 
 Security and caching headers are defined in `customHttp.yml`.

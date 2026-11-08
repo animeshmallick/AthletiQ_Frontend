@@ -1,0 +1,4 @@
+# www.edupilots.in — only the public registration page should appear in search results.
+User-agent: *
+Allow: /register
+Disallow: /
