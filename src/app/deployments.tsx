@@ -139,7 +139,7 @@ export function DeploymentsInfo({ className }: { className?: string }) {
               {r.server?.uptime ? ` · up ${r.server.uptime}` : ''}
             </span>
             {r.push && r.push !== 'enabled' && (
-              <span className="block text-amber-300">Push notifications {r.push}</span>
+              <span className="block text-amber-500">Push notifications {r.push}</span>
             )}
           </>
         )}

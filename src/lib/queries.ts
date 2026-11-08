@@ -922,3 +922,59 @@ export function useReviewMakeup() {
     onSuccess: () => invalidate(['makeups'], ['me', 'tasks'], ['students'], ['attendance']),
   });
 }
+
+// ─── Dashboard insights ─────────────────────────────────────────────────────
+
+export interface Dashboard {
+  today: string;
+  people: {
+    activeStudents: number;
+    newThisMonth: number;
+    leftThisMonth: number;
+    activeCoaches: number;
+    activeBatches: number;
+    fillRate: number | null;
+  };
+  attendance: {
+    rate30d: number | null;
+    attended: number;
+    absent: number;
+    trend: { date: string; rate: number | null }[];
+  };
+  myMonth: { sessions: number; hours: number; onTimeRate: number | null; flagged: number } | null;
+  feedback: { total: number; submitted: number; draft: number; pending: number } | null;
+  batchHealth: {
+    id: string;
+    name: string;
+    coachName: string;
+    enrolled: number;
+    capacity: number | null;
+    fill: number | null;
+    attendanceRate: number | null;
+  }[];
+  coaches: {
+    id: string;
+    name: string;
+    batches: number;
+    students: number;
+    sessions: number;
+    hours: number;
+    onTimeRate: number | null;
+    flagged: number;
+  }[];
+  needsAttention: {
+    studentId: string;
+    fullName: string;
+    attended: number;
+    counted: number;
+    rate: number;
+  }[];
+  birthdays: { studentId: string; fullName: string; inDays: number; turning: number }[];
+}
+
+export const useDashboard = () =>
+  useQuery({
+    queryKey: ['dashboard'] as const,
+    queryFn: () => api.get<Dashboard>('/dashboard'),
+    staleTime: 60_000,
+  });

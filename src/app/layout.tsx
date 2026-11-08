@@ -23,8 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Dialog,
-  DialogContent,
-  DialogTitle,
 } from '@/components/ui/overlays';
 import { Skeleton } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils';
@@ -39,6 +37,7 @@ import { enableWebPush, refreshWebPush, webPushState } from './web-push';
 import { useTheme, type Theme } from './theme';
 import { AppHeader, BrandMark } from './header';
 import { DeploymentsInfo } from './deployments';
+import { MoreSheet } from './more-sheet';
 import { useTasks } from '@/lib/queries';
 import { startAppUpdate } from './app-update';
 
@@ -285,11 +284,12 @@ export function AppLayout() {
               <TabIcon icon={Ellipsis} active={!onTab || moreOpen} badge={moreCount} />
               More
             </button>
-            <DialogContent className="gap-3 bg-sidebar text-sidebar-foreground [&>button]:text-sidebar-muted">
-              <DialogTitle className="text-base">All screens</DialogTitle>
-              <SidebarNav items={items} counts={counts} onNavigate={() => setMoreOpen(false)} />
-              {user.role === 'admin' && <DeploymentsInfo className="mt-2" />}
-            </DialogContent>
+            <MoreSheet
+              items={items}
+              tabs={tabs}
+              counts={counts}
+              onNavigate={() => setMoreOpen(false)}
+            />
           </Dialog>
         </nav>
         <ScrollRestoration />

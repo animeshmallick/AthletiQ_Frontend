@@ -54,6 +54,7 @@ import {
 } from '@/lib/queries';
 import type { DayOverviewSession, TodaySession } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { AdminInsights, CoachInsights } from './today-insights';
 
 function greeting() {
   const h = Number(
@@ -267,6 +268,8 @@ function CoachToday() {
           </div>
         )}
       </section>
+
+      <CoachInsights />
     </div>
   );
 }
@@ -484,6 +487,8 @@ function AdminToday() {
           </CardContent>
         </Card>
       </div>
+
+      <AdminInsights />
     </div>
   );
 }

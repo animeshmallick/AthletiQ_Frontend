@@ -322,3 +322,83 @@ describe('InvoicesPage', () => {
     expect(await screen.findByText(/Nothing overdue/)).toBeInTheDocument();
   });
 });
+
+describe('Today insights', () => {
+  const dashboard = {
+    today: '2026-03-09',
+    people: {
+      activeStudents: 42,
+      newThisMonth: 3,
+      leftThisMonth: 1,
+      activeCoaches: 4,
+      activeBatches: 6,
+      fillRate: 70,
+    },
+    attendance: {
+      rate30d: 82,
+      attended: 82,
+      absent: 18,
+      trend: Array.from({ length: 14 }, (_, i) => ({
+        date: `2026-02-${String(24 + i > 28 ? i - 4 : 24 + i).padStart(2, '0')}`,
+        rate: i % 3 ? 80 : null,
+      })),
+    },
+    myMonth: null,
+    feedback: null,
+    batchHealth: [
+      {
+        id: 'b1',
+        name: 'Morning U-12',
+        coachName: 'Kavya',
+        enrolled: 12,
+        capacity: 16,
+        fill: 75,
+        attendanceRate: 55,
+      },
+    ],
+    coaches: [
+      {
+        id: 'c1',
+        name: 'Kavya Iyer',
+        batches: 2,
+        students: 20,
+        sessions: 9,
+        hours: 13.5,
+        onTimeRate: 89,
+        flagged: 0,
+      },
+    ],
+    needsAttention: [
+      { studentId: 's9', fullName: 'Arjun Mehta', attended: 1, counted: 6, rate: 17 },
+    ],
+    birthdays: [{ studentId: 's3', fullName: 'Riya Shah', inDays: 0, turning: 12 }],
+  };
+
+  it('shows academy insights to admins', async () => {
+    mockApi({ 'GET /dashboard': () => dashboard });
+    await renderPage(<TodayPage />, { user: adminUser });
+    expect(await screen.findByText('Active students')).toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText('+3 joined · 1 left this month')).toBeInTheDocument();
+    expect(screen.getByText('Kavya Iyer')).toBeInTheDocument();
+    expect(screen.getByText('Morning U-12')).toBeInTheDocument();
+    expect(screen.getByText('Arjun Mehta')).toBeInTheDocument();
+    expect(screen.getByText('Riya Shah')).toBeInTheDocument();
+  });
+
+  it('shows a coach their month', async () => {
+    mockApi({
+      'GET /dashboard': () => ({
+        ...dashboard,
+        coaches: [],
+        myMonth: { sessions: 9, hours: 13.5, onTimeRate: 89, flagged: 0 },
+        feedback: { total: 12, submitted: 10, draft: 1, pending: 1 },
+      }),
+    });
+    await renderPage(<TodayPage />, { user: coachUser });
+    expect(await screen.findByText('My month')).toBeInTheDocument();
+    expect(screen.getByText('10/12')).toBeInTheDocument();
+    expect(screen.getByText('2 still to send')).toBeInTheDocument();
+    expect(screen.getByText('89%')).toBeInTheDocument();
+  });
+});
