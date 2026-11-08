@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react';
+import { act, render, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { __setInstallEvent, isStandalone } from '@/app/install';
 import { RouterProvider } from 'react-router';
@@ -121,8 +121,10 @@ describe('route guards', () => {
         }),
       ),
     );
-    await user.click(await screen.findByRole('button', { name: 'Account menu' }));
-    await user.click(await screen.findByRole('menuitem', { name: /Install app/ }));
+    // The profile picture opens the Menu drawer, which holds the app actions.
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Menu' });
+    await user.click(within(sheet).getByRole('button', { name: /Install app/ }));
     expect(prompt).toHaveBeenCalled();
     expect(isStandalone()).toBe(false);
   });

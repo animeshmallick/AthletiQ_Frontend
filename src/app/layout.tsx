@@ -1,40 +1,17 @@
-import {
-  Bell,
-  Download,
-  Ellipsis,
-  KeyRound,
-  LogOut,
-  Monitor,
-  Moon,
-  RefreshCw,
-  Smartphone,
-  Sun,
-  WifiOff,
-} from 'lucide-react';
+import { Ellipsis, WifiOff } from 'lucide-react';
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
-import { toast } from 'sonner';
 import { Avatar } from '@/components/common';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Dialog,
-} from '@/components/ui/overlays';
+import { Dialog } from '@/components/ui/overlays';
 import { Skeleton } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils';
-import { useAuth, useUser } from './auth';
+import { useUser } from './auth';
 import { IosInstallBanner } from '@/components/notifications';
-import { useInstallPrompt } from './install';
-import { APK_URL, checkForAppUpdate, isAndroidBrowser, isNativeApp, registerPush } from './native';
+import { checkForAppUpdate, isNativeApp, registerPush } from './native';
 import { navFor, tabsFor, type NavItem } from './nav';
 import { preloadRoute, preloadWhenIdle } from './pages';
 import { PullToRefresh } from './pull-to-refresh';
-import { enableWebPush, refreshWebPush, webPushState } from './web-push';
-import { useTheme, type Theme } from './theme';
+import { refreshWebPush } from './web-push';
 import { AppHeader, BrandMark } from './header';
 import { DeploymentsInfo } from './deployments';
 import { MoreSheet } from './more-sheet';
@@ -96,109 +73,6 @@ function SidebarNav({
   );
 }
 
-const THEME_OPTIONS: { value: Theme; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'System', icon: Monitor },
-];
-
-function UserMenu() {
-  const user = useUser();
-  const { logout } = useAuth();
-  const { theme, setTheme } = useTheme();
-  const navigate = useNavigate();
-  const install = useInstallPrompt();
-  const [pushState, setPushState] = useState(webPushState);
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          className="flex cursor-pointer items-center gap-2 rounded-full p-0.5 transition-opacity hover:opacity-80"
-          aria-label="Account menu"
-        >
-          <Avatar name={user.name} />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-60">
-        <DropdownMenuLabel className="font-normal">
-          <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
-          <p className="truncate text-xs">{user.email}</p>
-          <p className="mt-1 text-xs capitalize">{user.role}</p>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Theme</DropdownMenuLabel>
-        <div className="grid grid-cols-3 gap-1 px-1 pb-1">
-          {THEME_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              onClick={() => setTheme(o.value)}
-              aria-pressed={theme === o.value}
-              className={cn(
-                'flex cursor-pointer flex-col items-center gap-1 rounded-lg border py-2 text-xs transition-colors hover:bg-accent',
-                theme === o.value && 'border-primary bg-accent text-accent-foreground',
-              )}
-            >
-              <o.icon className="size-4" />
-              {o.label}
-            </button>
-          ))}
-        </div>
-        <DropdownMenuSeparator />
-        {pushState === 'off' && (
-          <DropdownMenuItem
-            onSelect={() =>
-              void enableWebPush()
-                .then((s) => {
-                  setPushState(s);
-                  if (s === 'on') toast.success('Notifications are on for this device');
-                  else if (s === 'blocked') toast.error('Notifications are blocked in settings');
-                })
-                .catch(() => toast.error("Couldn't turn on notifications. Try again."))
-            }
-          >
-            <Bell /> Turn on notifications
-          </DropdownMenuItem>
-        )}
-        {isAndroidBrowser() && (
-          <DropdownMenuItem asChild>
-            <a href={APK_URL}>
-              <Smartphone /> Get the Android app
-            </a>
-          </DropdownMenuItem>
-        )}
-        {isNativeApp() && (
-          <DropdownMenuItem
-            onSelect={() =>
-              void checkForAppUpdate(true).then((u) =>
-                u
-                  ? void startAppUpdate(u, { interactive: true })
-                  : toast.success('You have the latest version of the app'),
-              )
-            }
-          >
-            <RefreshCw /> Check for app update
-          </DropdownMenuItem>
-        )}
-        {install && !isAndroidBrowser() && (
-          <DropdownMenuItem
-            onSelect={() =>
-              void install().then((ok) => ok && toast.success('AthletiQ installed on this device'))
-            }
-          >
-            <Download /> Install app
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onSelect={() => navigate('/account')}>
-          <KeyRound /> Account & password
-        </DropdownMenuItem>
-        <DropdownMenuItem destructive onSelect={() => void logout().then(() => navigate('/login'))}>
-          <LogOut /> Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export function AppLayout() {
   const user = useUser();
   const items = navFor(user.role);
@@ -236,7 +110,19 @@ export function AppLayout() {
 
       <div className="flex min-w-0 flex-col">
         {/* Top bar */}
-        <AppHeader userMenu={<UserMenu />} />
+        <AppHeader
+          userMenu={
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              className="flex cursor-pointer items-center rounded-full p-0.5 transition-opacity hover:opacity-80 active:scale-95"
+              aria-label="Open menu"
+              aria-haspopup="dialog"
+            >
+              <Avatar name={user.name} />
+            </button>
+          }
+        />
 
         <OfflineBanner />
         <PullToRefresh />
@@ -273,25 +159,25 @@ export function AppLayout() {
               )}
             </NavLink>
           ))}
-          <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
-            <button
-              type="button"
-              onClick={() => setMoreOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={moreOpen}
-              className={tabClass(!onTab || moreOpen)}
-            >
-              <TabIcon icon={Ellipsis} active={!onTab || moreOpen} badge={moreCount} />
-              More
-            </button>
-            <MoreSheet
-              items={items}
-              tabs={tabs}
-              counts={counts}
-              onNavigate={() => setMoreOpen(false)}
-            />
-          </Dialog>
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={moreOpen}
+            className={tabClass(!onTab || moreOpen)}
+          >
+            <TabIcon icon={Ellipsis} active={!onTab || moreOpen} badge={moreCount} />
+            More
+          </button>
         </nav>
+        <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
+          <MoreSheet
+            items={items}
+            tabs={tabs}
+            counts={counts}
+            onNavigate={() => setMoreOpen(false)}
+          />
+        </Dialog>
         <ScrollRestoration />
       </div>
     </div>

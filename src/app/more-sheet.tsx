@@ -2,7 +2,21 @@
  * The phone "More" sheet: profile, every screen that isn't a tab (as tiles and grouped
  * lists with task counts), appearance, sign out and — for admins — deployment status.
  */
-import { ChevronRight, LogOut, Monitor, Moon, Sun, X } from 'lucide-react';
+import {
+  Bell,
+  ChevronRight,
+  Download,
+  LogOut,
+  Monitor,
+  Moon,
+  RefreshCw,
+  Smartphone,
+  Sun,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import { Avatar } from '@/components/common';
 import {
@@ -13,7 +27,11 @@ import {
 } from '@/components/ui/overlays';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from './auth';
+import { startAppUpdate } from './app-update';
 import { DeploymentsInfo } from './deployments';
+import { useInstallPrompt } from './install';
+import { APK_URL, checkForAppUpdate, isAndroidBrowser, isNativeApp } from './native';
+import { enableWebPush, webPushState } from './web-push';
 import type { NavItem } from './nav';
 import { preloadRoute } from './pages';
 import { useTheme, type Theme } from './theme';
@@ -39,6 +57,18 @@ function CountBadge({ n }: { n?: number }) {
   );
 }
 
+const rowClass =
+  'flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors active:bg-muted/60';
+const iconClass =
+  'flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/80';
+
+interface AppAction {
+  label: string;
+  icon: LucideIcon;
+  href?: string;
+  onClick?: () => void;
+}
+
 const isActive = (to: string, path: string) => (to === '/' ? path === '/' : path.startsWith(to));
 
 export function MoreSheet({
@@ -60,6 +90,45 @@ export function MoreSheet({
   const tabPaths = new Set(tabs.map((t) => t.to));
   const rest = items.filter((i) => !tabPaths.has(i.to));
   const web = typeof __BUILD__ !== 'undefined' ? __BUILD__ : null;
+  const install = useInstallPrompt();
+  const [pushState, setPushState] = useState(webPushState);
+  const appActions: AppAction[] = [];
+  if (pushState === 'off') {
+    appActions.push({
+      label: 'Turn on notifications',
+      icon: Bell,
+      onClick: () =>
+        void enableWebPush()
+          .then((st) => {
+            setPushState(st);
+            if (st === 'on') toast.success('Notifications are on for this device');
+            else if (st === 'blocked') toast.error('Notifications are blocked in settings');
+          })
+          .catch(() => toast.error("Couldn't turn on notifications. Try again.")),
+    });
+  }
+  if (isAndroidBrowser())
+    appActions.push({ label: 'Get the Android app', icon: Smartphone, href: APK_URL });
+  if (isNativeApp()) {
+    appActions.push({
+      label: 'Check for app update',
+      icon: RefreshCw,
+      onClick: () =>
+        void checkForAppUpdate(true).then((u) =>
+          u
+            ? void startAppUpdate(u, { interactive: true })
+            : toast.success('You have the latest version of the app'),
+        ),
+    });
+  }
+  if (install && !isAndroidBrowser()) {
+    appActions.push({
+      label: 'Install app',
+      icon: Download,
+      onClick: () =>
+        void install().then((ok) => ok && toast.success('AthletiQ installed on this device')),
+    });
+  }
 
   return (
     <DialogContent
@@ -174,6 +243,42 @@ export function MoreSheet({
             </section>
           );
         })}
+
+        {/* This device: notifications, app install and updates (only what applies here) */}
+        {appActions.length > 0 && (
+          <section aria-label="App">
+            <h3 className="mb-1.5 px-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+              App
+            </h3>
+            <ul className="divide-y overflow-hidden rounded-2xl border bg-card shadow-e1">
+              {appActions.map((a) => (
+                <li key={a.label}>
+                  {a.href ? (
+                    <a href={a.href} className={rowClass}>
+                      <span className={iconClass}>
+                        <a.icon className="size-4.5" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                      <ChevronRight className="size-4 text-muted-foreground" />
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={a.onClick}
+                      className={cn(rowClass, 'w-full cursor-pointer text-left')}
+                    >
+                      <span className={iconClass}>
+                        <a.icon className="size-4.5" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                      <ChevronRight className="size-4 text-muted-foreground" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Appearance */}
         <section aria-label="Appearance">
