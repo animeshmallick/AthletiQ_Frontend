@@ -3,12 +3,16 @@ frontend:
   phases:
     preBuild:
       commands:
-        # Node version from .nvmrc
-        - nvm install && nvm use
+        # Node 26 needs libatomic, which Amplify's Amazon Linux 2023 build image doesn't ship.
+        - (command -v dnf >/dev/null && dnf install -y -q libatomic) || yum install -y -q libatomic
+        # Node version from .nvmrc. Skip nvm's default global packages (Amplify CLI, Cypress, …):
+        # this app doesn't need them, and installing them slows every build.
+        - nvm install --skip-default-packages && nvm use
+        - node -v && npm -v
         - npm ci
     build:
       commands:
-        # VITE_API_URL and VITE_MAPBOX_TOKEN come from Amplify environment variables.
+        # VITE_API_URL defaults to https://api.edupilots.in (.env.production); Amplify env vars override.
         - npm run build
   artifacts:
     baseDirectory: dist
