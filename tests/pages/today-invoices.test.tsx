@@ -275,7 +275,7 @@ describe('InvoicesPage', () => {
       route: '/invoices?invoice=i1',
       user: adminUser,
     });
-    await user.click(await screen.findByRole('button', { name: 'Payment actions' }));
+    await user.click(await screen.findByRole('button', { name: 'Reverse payment' }));
     await user.click(await screen.findByRole('menuitem', { name: /revert/i }));
     await user.type(screen.getByLabelText(/reason/i), 'Recorded twice');
     await user.click(screen.getByRole('button', { name: 'Revert payment' }));

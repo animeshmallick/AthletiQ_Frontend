@@ -45,15 +45,22 @@ export function ShareLinkDialog({
           />
           <Button
             variant="outline"
-            size="icon"
-            aria-label="Copy link"
+            className="shrink-0"
             onClick={() => {
               void navigator.clipboard.writeText(link.url);
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
             }}
           >
-            {copied ? <Check className="text-success" /> : <Copy />}
+            {copied ? (
+              <>
+                <Check className="text-success" /> Copied
+              </>
+            ) : (
+              <>
+                <Copy /> Copy
+              </>
+            )}
           </Button>
         </div>
         <DialogFooter>

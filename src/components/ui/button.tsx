@@ -52,6 +52,11 @@ export function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
+      // Icon-only buttons show their name on hover (desktop) so the symbol is never a guess.
+      title={
+        props.title ??
+        (typeof size === 'string' && size.startsWith('icon') ? props['aria-label'] : undefined)
+      }
       {...props}
     >
       {asChild ? (

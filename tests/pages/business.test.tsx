@@ -167,7 +167,7 @@ describe('student lifecycle', () => {
       extraRoutes: [{ path: '/students', element: <div>Students list</div> }],
     });
     const deleteFlow = async () => {
-      await user.click(await screen.findByRole('button', { name: 'More actions' }));
+      await user.click(await screen.findByRole('button', { name: /Manage/ }));
       await user.click(await screen.findByRole('menuitem', { name: /delete record/i }));
       await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
     };

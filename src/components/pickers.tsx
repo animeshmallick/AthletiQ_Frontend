@@ -50,9 +50,15 @@ export function DateStepper({
       >
         <ChevronRight />
       </Button>
-      <span className="ml-2 hidden text-sm font-medium text-muted-foreground sm:inline">
-        {relativeDay(value)}
-      </span>
+      {value !== today() && (max === undefined || today() <= max) ? (
+        <Button variant="ghost" size="sm" className="ml-1" onClick={() => onChange(today())}>
+          Today
+        </Button>
+      ) : (
+        <span className="ml-2 hidden text-sm font-medium text-muted-foreground sm:inline">
+          {relativeDay(value)}
+        </span>
+      )}
     </div>
   );
 }

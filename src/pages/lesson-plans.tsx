@@ -362,10 +362,10 @@ function PlanEditor({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-destructive"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => setConfirmDelete(true)}
                 >
-                  <Trash2 />
+                  <Trash2 /> Delete plan
                 </Button>
               </>
             )}
@@ -764,11 +764,11 @@ function LibraryList({ kind }: { kind: 'stages' | 'events' }) {
               </Button>
               <Button
                 variant="ghost"
-                size="icon-sm"
-                aria-label="Archive"
+                size="sm"
+                className="text-muted-foreground"
                 onClick={() => saveItem.mutate({ id: i.id, isArchived: true })}
               >
-                <Archive />
+                <Archive /> Archive
               </Button>
             </li>
           ))}

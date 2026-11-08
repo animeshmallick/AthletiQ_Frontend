@@ -4,7 +4,7 @@ import {
   Download,
   FileText,
   MessageCircle,
-  MoreHorizontal,
+  ChevronDown,
   Percent,
   RotateCcw,
   Undo2,
@@ -243,8 +243,8 @@ function PaymentRow({
           {canReverse && p.status === 'completed' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Payment actions">
-                  <MoreHorizontal />
+                <Button variant="outline" size="sm" aria-label="Reverse payment">
+                  Reverse <ChevronDown />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -428,60 +428,52 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {inv.status === 'due' && (
-          <Button variant="success" className="flex-1" onClick={() => setPaying(true)}>
-            <Wallet /> Mark as paid
-          </Button>
-        )}
-        {inv.status !== 'cancelled' && (
+      <div className="space-y-2 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="flex flex-wrap gap-2">
+          {inv.status === 'due' && (
+            <Button variant="success" className="flex-1" onClick={() => setPaying(true)}>
+              <Wallet /> Mark as paid
+            </Button>
+          )}
+          {inv.status !== 'cancelled' && (
+            <Button
+              variant="outline"
+              className="flex-1"
+              loading={share.isPending}
+              onClick={() => void whatsapp()}
+            >
+              <MessageCircle className="text-success" /> WhatsApp
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button
             variant="outline"
-            className="flex-1"
-            loading={share.isPending}
-            onClick={() => void whatsapp()}
+            size="sm"
+            loading={downloading}
+            onClick={() => void openPdf(false)}
           >
-            <MessageCircle className="text-success" /> WhatsApp
+            {!downloading && <FileText />} View PDF
           </Button>
-        )}
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Open PDF"
-          loading={downloading}
-          onClick={() => void openPdf(false)}
-        >
-          {!downloading && <FileText />}
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Download PDF"
-          onClick={() => void openPdf(true)}
-        >
-          <Download />
-        </Button>
-        {isAdmin && inv.status === 'due' && (
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Adjust amount"
-            onClick={() => setAdjusting(true)}
-          >
-            <Percent />
+          <Button variant="outline" size="sm" onClick={() => void openPdf(true)}>
+            <Download /> Download PDF
           </Button>
-        )}
-        {isAdmin && inv.status === 'due' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Cancel invoice"
-            className="text-destructive"
-            onClick={() => setCancelling(true)}
-          >
-            <Ban />
-          </Button>
-        )}
+          {isAdmin && inv.status === 'due' && (
+            <Button variant="outline" size="sm" onClick={() => setAdjusting(true)}>
+              <Percent /> Adjust amount
+            </Button>
+          )}
+          {isAdmin && inv.status === 'due' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setCancelling(true)}
+            >
+              <Ban /> Cancel invoice
+            </Button>
+          )}
+        </div>
       </div>
 
       <MarkPaidDialog invoice={inv} open={paying} onOpenChange={setPaying} />

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyRound, MoreHorizontal, Pencil, Plus, UserCheck, UserX, UsersRound } from 'lucide-react';
+import { ChevronDown, KeyRound, Pencil, Plus, UserCheck, UserX, UsersRound } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -272,8 +272,8 @@ export function CoachesPage() {
               {u.id !== me.id && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.name}`}>
-                      <MoreHorizontal />
+                    <Button variant="outline" size="sm" aria-label={`Manage ${u.name}`}>
+                      Manage <ChevronDown />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>

@@ -16,7 +16,9 @@ import {
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Segmented, WeekdayPicker } from '@/components/ui/controls';
+import { DateStepper } from '@/components/pickers';
 import { ApiError } from '@/lib/api';
+import { addDays, today } from '@/lib/format';
 
 describe('Button', () => {
   it('shows a spinner and disables itself while loading', () => {
@@ -33,6 +35,33 @@ describe('Button', () => {
       </Button>,
     );
     expect(screen.getByRole('link', { name: 'Go' })).toHaveAttribute('href', '/x');
+  });
+});
+
+describe('icon buttons', () => {
+  it('show their name as a hover tooltip', () => {
+    render(
+      <Button size="icon" aria-label="Next day">
+        &gt;
+      </Button>,
+    );
+    expect(screen.getByRole('button', { name: 'Next day' })).toHaveAttribute('title', 'Next day');
+  });
+});
+
+describe('DateStepper', () => {
+  function Harness({ start }: { start: string }) {
+    const [d, setD] = useState(start);
+    return <DateStepper value={d} onChange={setD} max={today()} />;
+  }
+
+  it('offers a one-tap jump back to today', async () => {
+    const user = userEvent.setup();
+    render(<Harness start={addDays(today(), -3)} />);
+    await user.click(screen.getByRole('button', { name: 'Today' }));
+    expect(screen.getByLabelText('Date')).toHaveValue(today());
+    expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled();
   });
 });
 

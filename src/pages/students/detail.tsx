@@ -7,13 +7,12 @@ import {
   Mail,
   MapPin,
   MessageCircle,
-  MoreHorizontal,
+  ChevronDown,
   Pencil,
   Phone,
   Trash2,
   UserMinus,
   UserPlus,
-  X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -176,8 +175,10 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
                   {canManage && (
                     <Button
                       variant="ghost"
-                      size="icon-sm"
-                      aria-label="Cancel makeup"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`Cancel makeup on ${formatShortDate(m.date)}`}
+                      loading={cancelMakeup.isPending && cancelMakeup.variables === m.id}
                       onClick={() =>
                         cancelMakeup.mutate(m.id, {
                           onSuccess: () => toast.success('Makeup cancelled'),
@@ -185,7 +186,7 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
                         })
                       }
                     >
-                      <X />
+                      Cancel
                     </Button>
                   )}
                 </div>
@@ -569,8 +570,8 @@ export function StudentDetailPage() {
             {isAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" aria-label="More actions">
-                    <MoreHorizontal />
+                  <Button variant="outline">
+                    Manage <ChevronDown />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>

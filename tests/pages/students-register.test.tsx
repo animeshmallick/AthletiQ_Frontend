@@ -118,7 +118,7 @@ describe('StudentDetailPage', () => {
     expect(screen.getByText('Asthma')).toBeInTheDocument();
     expect(screen.getAllByText('₹2,300').length).toBeGreaterThan(0);
     expect(screen.getByText(/Billed on day 10 of every month/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Manage/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Attendance' }));
     expect(await screen.findByText('100%')).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('StudentDetailPage', () => {
       user: coachUser,
     });
     expect(await screen.findByRole('heading', { name: 'Anya Rao' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Manage/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^makeup$/i })).toBeInTheDocument();
   });
 });
