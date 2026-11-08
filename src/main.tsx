@@ -17,3 +17,6 @@ createRoot(document.getElementById('root')!).render(
     </Providers>
   </StrictMode>,
 );
+
+// Fade out the animated launch screen from index.html once the first frame is painted.
+requestAnimationFrame(() => (window as { atqReady?: () => void }).atqReady?.());

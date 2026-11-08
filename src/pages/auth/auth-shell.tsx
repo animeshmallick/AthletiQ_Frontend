@@ -1,5 +1,6 @@
 import { CalendarCheck2, ClipboardList, IndianRupee } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { BrandMark } from '@/components/brand-mark';
 
 const FEATURES = [
   {
@@ -35,9 +36,7 @@ export function AuthShell({
         <div className="pointer-events-none absolute -top-32 -right-32 size-96 rounded-full bg-primary/30 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -left-20 size-96 rounded-full bg-chart-2/20 blur-3xl" />
         <div className="relative flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground">
-            A
-          </div>
+          <BrandMark className="size-9 rounded-xl" />
           <span className="text-lg font-semibold">AthletiQ</span>
         </div>
         <div className="relative max-w-md space-y-8">
@@ -64,9 +63,7 @@ export function AuthShell({
       <div className="flex items-center justify-center px-5 py-12 sm:px-8">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground">
-              A
-            </div>
+            <BrandMark className="size-9 rounded-xl" />
             <span className="text-lg font-semibold">AthletiQ</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>

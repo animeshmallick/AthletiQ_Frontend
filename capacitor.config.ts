@@ -30,9 +30,9 @@ const config: CapacitorConfig = {
       initialViewportFitValueHint: 'cover',
     },
     SplashScreen: {
-      launchShowDuration: 1200,
+      launchShowDuration: 1000,
       launchAutoHide: true,
-      launchFadeOutDuration: 250,
+      launchFadeOutDuration: 200,
       backgroundColor: '#4f46e5',
       showSpinner: false,
       androidScaleType: 'CENTER_CROP',

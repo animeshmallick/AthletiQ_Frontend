@@ -32,29 +32,9 @@ import { navFor } from './nav';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/primitives';
 
-const GLYPH = 'M9 23 15.2 8.5h1.6L23 23h-3.3l-1.3-3.2h-5l-1.3 3.2H9Zm5.4-6h3l-1.5-3.9L14.4 17Z';
+import { BrandMark } from '@/components/brand-mark';
 
-/** The AthletiQ mark: gradient tile with the glyph and a soft highlight. */
-export function BrandMark({ className }: { className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        'relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-linear-to-br from-indigo-500 via-primary to-violet-600 shadow-e1 ring-1 ring-white/20 ring-inset',
-        'after:absolute after:inset-0 after:-translate-x-full after:bg-linear-to-r after:from-transparent after:via-white/35 after:to-transparent after:transition-transform after:duration-700 group-hover:after:translate-x-full',
-        className,
-      )}
-    >
-      <svg viewBox="0 0 32 32" className="size-[1.35rem] drop-shadow-sm">
-        <path
-          d={GLYPH}
-          fill="#fff"
-          transform="translate(16 15.75) scale(1.05) translate(-16 -15.75)"
-        />
-      </svg>
-    </span>
-  );
-}
+export { BrandMark };
 
 function useScrolled(threshold = 8) {
   const [scrolled, setScrolled] = useState(false);

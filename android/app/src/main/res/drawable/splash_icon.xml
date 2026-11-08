@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static splash icon (Android 11 and older); Android 12+ uses the animated drawable-v31 version. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <group
+        android:pivotX="512"
+        android:pivotY="512"
+        android:scaleX="0.62"
+        android:scaleY="0.62">
+        <path android:pathData="M214,452 H330 M170,536 H318 M232,620 H316"
+            android:strokeColor="#FFFFFF" android:strokeAlpha="0.6"
+            android:strokeWidth="30" android:strokeLineCap="round" />
+        <path android:pathData="M330,772 L548,254 L736,772"
+            android:strokeColor="#FFFFFF" android:strokeWidth="116"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M390,640 C500,628 640,580 796,444"
+            android:strokeColor="#FBBF24" android:strokeWidth="66"
+            android:strokeLineCap="round" />
+        <path android:pathData="M826,262 l17,43 43,17 -43,17 -17,43 -17,-43 -43,-17 43,-17z"
+            android:fillColor="#FBBF24" />
+    </group>
+</vector>
