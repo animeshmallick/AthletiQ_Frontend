@@ -156,3 +156,42 @@ describe('Select', () => {
     }
   });
 });
+
+describe('Select with a single choice', () => {
+  it('pre-selects and locks a required field that has only one option', async () => {
+    const onChange = jest.fn();
+    render(
+      <Select
+        aria-label="Batch"
+        aria-required
+        defaultValue=""
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">Select a batch…</option>
+        <option value="b1">Morning</option>
+      </Select>,
+    );
+    const trigger = screen.getByRole('combobox', { name: 'Batch' });
+    await waitFor(() => expect(trigger).toHaveTextContent('Morning'));
+    expect(onChange).toHaveBeenCalledWith('b1');
+    expect(trigger).toBeDisabled();
+    expect(trigger).toHaveAttribute('title', 'Only one option available');
+  });
+
+  it('leaves filters with an "All" option and optional fields alone', () => {
+    render(
+      <>
+        <Select aria-label="Filter" aria-required defaultValue="">
+          <option value="">All batches</option>
+          <option value="b1">Morning</option>
+        </Select>
+        <Select aria-label="Optional" defaultValue="">
+          <option value="">Select…</option>
+          <option value="b1">Morning</option>
+        </Select>
+      </>,
+    );
+    expect(screen.getByRole('combobox', { name: 'Filter' })).toBeEnabled();
+    expect(screen.getByRole('combobox', { name: 'Optional' })).toBeEnabled();
+  });
+});

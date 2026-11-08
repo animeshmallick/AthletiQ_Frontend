@@ -232,6 +232,20 @@
     /* Our own pull-to-refresh replaces the browser reload gesture. */
     overscroll-behavior-y: none;
   }
+  /* iOS Safari gives date/time inputs a fixed minimum width that can overflow small screens. */
+  @supports (-webkit-touch-callout: none) {
+    input[type='date'],
+    input[type='time'] {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 0;
+    }
+  }
+  /* Never scroll sideways: anything too wide is clipped (clip, unlike hidden, keeps sticky headers). */
+  html,
+  body {
+    overflow-x: clip;
+  }
   /* No double-tap-to-zoom delay on controls (faster taps on phones). */
   a,
   button,

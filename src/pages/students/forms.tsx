@@ -44,6 +44,8 @@ import {
   useUpdateStudent,
 } from '@/lib/queries';
 import type { StudentDetail } from '@/lib/types';
+import { useUser } from '@/app/auth';
+import { AlertTriangle } from 'lucide-react';
 
 // ─── Shared enrollment & fee fields ──────────────────────────────────────────
 
@@ -698,7 +700,13 @@ export function MakeupDialog({
   });
   const { control, register, handleSubmit, formState, setError } = form;
   const [selectedBatchId, date] = useWatch({ control, name: ['batchId', 'date'] });
+  const me = useUser();
+  const isAdmin = me.role === 'admin';
+  // Coaches book only in batches they coach; admins in any batch.
+  const bookable = (batches.data ?? []).filter((b) => isAdmin || b.coach.id === me.id);
   const batch = batches.data?.find((b) => b.id === selectedBatchId);
+  const homeCoachId = student.currentEnrollment?.coachId;
+  const otherCoach = isAdmin && !!batch && !!homeCoachId && batch.coach.id !== homeCoachId;
   const runs = !batch || !date || batch.weekdays.includes(isoWeekday(date));
 
   const onSubmit = handleSubmit(async (v) => {
@@ -713,7 +721,9 @@ export function MakeupDialog({
         missedDate: v.missedDate || null,
         reason: nullIfEmpty(v.reason),
       });
-      toast.success('Makeup session booked');
+      toast.success(isAdmin ? 'Makeup session booked' : 'Makeup requested', {
+        description: isAdmin ? undefined : 'An admin will approve it. You’ll get a notification.',
+      });
       onOpenChange(false);
       form.reset();
     } catch (err) {
@@ -728,6 +738,7 @@ export function MakeupDialog({
           <DialogTitle>Book a makeup session</DialogTitle>
           <DialogDescription>
             {student.fullName} will appear on that batch’s attendance for one day only.
+            {!isAdmin && ' Requests are approved by an admin.'}
           </DialogDescription>
         </DialogHeader>
         <form id="makeup-form" onSubmit={onSubmit} noValidate className="space-y-4">
@@ -738,18 +749,30 @@ export function MakeupDialog({
               render={({ field }) => (
                 <Select {...field}>
                   <option value="">Select a batch…</option>
-                  {batches.data
-                    ?.filter((b) => b.id !== student.currentEnrollment?.batchId)
-                    .map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} · {formatTimeRange(b.startTime, b.endTime)} ·{' '}
-                        {weekdaysLabel(b.weekdays)}
-                      </option>
-                    ))}
+                  {bookable.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} · {formatTimeRange(b.startTime, b.endTime)} ·{' '}
+                      {weekdaysLabel(b.weekdays)}
+                    </option>
+                  ))}
                 </Select>
               )}
             />
           </Field>
+          {otherCoach && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/12 px-3 py-2 text-[13px] leading-snug"
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-foreground dark:text-warning" />
+              <span>
+                <b className="font-semibold">Different coach.</b> This session is with{' '}
+                {batch!.coach.name}, not {student.fullName}’s usual coach (
+                {student.currentEnrollment?.coachName}). {batch!.coach.name} will see them on the
+                attendance list that day.
+              </span>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
               label="Makeup date"

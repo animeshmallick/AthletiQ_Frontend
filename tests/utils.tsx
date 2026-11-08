@@ -166,6 +166,9 @@ export async function chooseOption(
   trigger: HTMLElement,
   value: string,
 ) {
+  // Required fields with a single choice are pre-selected and locked.
+  const native = trigger.closest('[data-slot="select"]')?.querySelector('select');
+  if ((trigger as HTMLButtonElement).disabled && native?.value === value) return;
   await user.click(trigger);
   const option = await waitFor(() => {
     const el = document.querySelector<HTMLElement>(`[role="option"][data-value="${value}"]`);

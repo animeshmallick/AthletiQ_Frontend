@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, MapPin, ShieldAlert, ShieldCheck, Timer } from 'lucide-react';
+import { CheckCircle2, Clock, LogOut, MapPin, ShieldAlert, ShieldCheck, Timer } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
@@ -33,12 +33,90 @@ import {
   today,
 } from '@/lib/format';
 import {
+  type CoachSessionRow,
+  useAdminCheckOut,
   useCoachSessions,
   useLocations,
   useReviewSession,
   useUsers,
-  type CoachSessionRow,
 } from '@/lib/queries';
+
+/** "2026-03-09T11:30" in IST for a datetime-local input. */
+function istLocal(d: Date) {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour === '24' ? '00' : p.hour}:${p.minute}`;
+}
+
+function CheckOutDialog({ session, onClose }: { session: CoachSessionRow; onClose: () => void }) {
+  const checkOut = useAdminCheckOut();
+  const [at, setAt] = useState(() => istLocal(new Date()));
+  const [reason, setReason] = useState('');
+  const min = istLocal(new Date(session.checkInAt));
+  const submit = () =>
+    checkOut.mutate(
+      {
+        id: session.id,
+        at: new Date(`${at}:00+05:30`).toISOString(),
+        reason: reason.trim() || null,
+      },
+      {
+        onSuccess: () => {
+          toast.success(`${session.coach.name} checked out`);
+          onClose();
+        },
+        onError: (e) => toast.error(errorMessage(e)),
+      },
+    );
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Check out {session.coach.name}</DialogTitle>
+          <DialogDescription>
+            {session.batch.name} · checked in at {formatClock(session.checkInAt)}. Use this when the
+            coach forgot to check out.
+          </DialogDescription>
+        </DialogHeader>
+        <Field label="Check-out time (IST)" required>
+          <Input
+            type="datetime-local"
+            value={at}
+            min={min}
+            max={istLocal(new Date())}
+            onChange={(e) => e.target.value && setAt(e.target.value)}
+          />
+        </Field>
+        <Field label="Reason" hint="Shown on the session and to the coach.">
+          <Input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Forgot to check out after the session"
+          />
+        </Field>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button loading={checkOut.isPending} onClick={submit}>
+            <LogOut /> Check out
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function ReviewDialog({ session, onClose }: { session: CoachSessionRow; onClose: () => void }) {
   const review = useReviewSession();
@@ -137,6 +215,7 @@ export function CoachSessionsPage() {
   const [to, setTo] = useState(today());
   const [coachId, setCoachId] = useState('');
   const [reviewing, setReviewing] = useState<CoachSessionRow | null>(null);
+  const [closing, setClosing] = useState<CoachSessionRow | null>(null);
   const coaches = useUsers({ role: 'coach', pageSize: 100 });
   const q = useCoachSessions({
     from,
@@ -287,6 +366,16 @@ export function CoachSessionsPage() {
                 </span>
                 <span className="sm:block">{formatDuration(r.durationMinutes)}</span>
               </p>
+              {isAdmin && !r.checkOutAt && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="col-span-2 sm:order-last"
+                  onClick={() => setClosing(r)}
+                >
+                  <LogOut /> Check out
+                </Button>
+              )}
               {isAdmin && r.flagged && !r.reviewedAt && (
                 <Button
                   size="sm"
@@ -302,6 +391,7 @@ export function CoachSessionsPage() {
         </Card>
       )}
       {reviewing && <ReviewDialog session={reviewing} onClose={() => setReviewing(null)} />}
+      {closing && <CheckOutDialog session={closing} onClose={() => setClosing(null)} />}
     </div>
   );
 }

@@ -110,6 +110,8 @@ export interface Makeup {
   batchId: string;
   batchName: string;
   startTime: string;
+  /** Coach requests wait for an admin. */
+  status?: 'pending' | 'approved';
 }
 
 export interface StudentDetail {

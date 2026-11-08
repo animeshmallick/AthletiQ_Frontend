@@ -8,7 +8,7 @@
  * It keeps a hidden native <select> as the source of truth, so it works unchanged with
  * react-hook-form `register()`, controlled `value`/`onChange`, form submission and `<option>` children.
  */
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, Lock, Search } from 'lucide-react';
 import { Dialog as D, Popover as P } from 'radix-ui';
 import {
   Children,
@@ -131,7 +131,7 @@ export function Select({
     else if (ref) (ref as { current: HTMLSelectElement | null }).current = el;
   };
 
-  function pick(value: string) {
+  function pick(value: string, { focus = true } = {}) {
     const el = selectRef.current;
     setOpen(false);
     if (el && el.value !== value) {
@@ -139,11 +139,29 @@ export function Select({
       el.dispatchEvent(new Event('change', { bubbles: true })); // fires onChange / RHF
       setDomValue(el.value);
     }
+    if (!focus) return;
     // Focus returns to the field right away (so the next key press works), and again after the
     // popover/sheet has finished closing in case it moved focus.
     triggerRef.current?.focus();
     requestAnimationFrame(() => triggerRef.current?.focus());
   }
+
+  // A required field with only one real choice (no meaningful "All…" option): select it and lock.
+  const ariaRequired = selectProps['aria-required'];
+  const required = !!selectProps.required || ariaRequired === true || ariaRequired === 'true';
+  const real = options.filter((o) => o.value !== '' && !o.disabled);
+  const empty = options.find((o) => o.value === '');
+  const onlyChoice =
+    required && !selectProps.multiple && real.length === 1 && (!empty || isPlaceholder(empty))
+      ? real[0]!
+      : null;
+  const locked = !!onlyChoice || !!disabled;
+  useEffect(() => {
+    // Syncing the hidden <select> (and the form) to the only possible choice is the point here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (onlyChoice && current !== onlyChoice.value) pick(onlyChoice.value, { focus: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onlyChoice?.value, current]);
 
   function onTriggerKey(e: KeyboardEvent) {
     if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) {
@@ -173,7 +191,8 @@ export function Select({
       aria-labelledby={ariaLabelledBy}
       aria-invalid={ariaInvalid}
       aria-describedby={ariaDescribedBy}
-      disabled={disabled}
+      disabled={locked}
+      title={onlyChoice ? 'Only one option available' : undefined}
       onClick={() => setOpen((o) => !o)}
       onKeyDown={onTriggerKey}
       className={cn(
@@ -190,13 +209,17 @@ export function Select({
       >
         {selected?.label ?? ''}
       </span>
-      <ChevronDown
-        aria-hidden
-        className={cn(
-          'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
-          open && 'rotate-180',
-        )}
-      />
+      {onlyChoice ? (
+        <Lock aria-hidden className="size-3.5 shrink-0 text-muted-foreground/70" />
+      ) : (
+        <ChevronDown
+          aria-hidden
+          className={cn(
+            'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+        />
+      )}
     </button>
   );
 
@@ -212,7 +235,7 @@ export function Select({
   );
 
   return (
-    <div className={cn('relative w-full', className)} data-slot="select">
+    <div className={cn('relative w-full max-w-full min-w-0', className)} data-slot="select">
       <select
         ref={setRefs}
         tabIndex={-1}

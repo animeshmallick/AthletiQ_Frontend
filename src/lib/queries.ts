@@ -445,6 +445,16 @@ export function useReviewSession() {
   });
 }
 
+/** Admin: close a session a coach forgot to check out of. */
+export function useAdminCheckOut() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, at, reason }: { id: string; at?: string; reason?: string | null }) =>
+      api.post(`/coach-sessions/${id}/check-out`, { at, reason }),
+    onSuccess: () => invalidate(['coach-sessions'], ['attendance'], ['me', 'tasks']),
+  });
+}
+
 // ─── Lessons ─────────────────────────────────────────────────────────────────
 
 export const useLibrary = (kind: 'stages' | 'events', q: Query = {}) =>
@@ -869,3 +879,46 @@ export const useTasks = () =>
     refetchInterval: 60_000,
     staleTime: 20_000,
   });
+
+// ─── Makeup requests (admin) ────────────────────────────────────────────────
+
+export interface MakeupRequest {
+  id: string;
+  date: string;
+  missedDate: string | null;
+  reason: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  student: { id: string; code: string; fullName: string };
+  batch: { id: string; name: string; startTime: string; endTime: string };
+  batchCoach: { id: string; name: string };
+  homeBatch: { id: string | null; name: string | null } | null;
+  homeCoach: { id: string | null; name: string | null } | null;
+  requestedBy: { id: string | null; name: string | null } | null;
+  /** The session is with a different coach than the student's regular one. */
+  otherCoach: boolean;
+}
+
+export const useMakeupRequests = (status: string) =>
+  useQuery({
+    queryKey: ['makeups', status] as const,
+    queryFn: () => api.get<MakeupRequest[]>('/makeups', { status }),
+  });
+
+export function useReviewMakeup() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({
+      id,
+      action,
+      reason,
+    }: {
+      id: string;
+      action: 'approve' | 'reject';
+      reason?: string;
+    }) => api.post(`/makeups/${id}/${action}`, action === 'reject' ? { reason } : undefined),
+    onSuccess: () => invalidate(['makeups'], ['me', 'tasks'], ['students'], ['attendance']),
+  });
+}

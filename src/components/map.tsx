@@ -193,18 +193,45 @@ export function StaticMap({
   reading?: LatLng | null;
   className?: string;
 }) {
+  const [failed, setFailed] = useState(false);
   if (!hasMapbox) return null;
   const pins = [`pin-s+4f46e5(${center.longitude},${center.latitude})`];
   if (reading) pins.push(`pin-s-p+ef4444(${reading.longitude},${reading.latitude})`);
   const zoom = radiusMeters && radiusMeters > 500 ? 13 : 15;
   const style = document.documentElement.classList.contains('dark') ? 'dark-v11' : 'streets-v12';
-  const src = `https://api.mapbox.com/styles/v1/mapbox/${style}/static/${pins.join(',')}/${reading ? 'auto' : `${center.longitude},${center.latitude},${zoom}`}/600x300@2x?padding=40&access_token=${MAPBOX_TOKEN}`;
+  // Mapbox only accepts "padding" with an auto-fitted view; with a fixed centre it rejects the request.
+  const view = reading ? 'auto' : `${center.longitude},${center.latitude},${zoom}`;
+  const params = reading ? 'padding=40&' : '';
+  const src = `https://api.mapbox.com/styles/v1/mapbox/${style}/static/${pins.join(',')}/${view}/600x300@2x?${params}access_token=${MAPBOX_TOKEN}`;
+  if (failed) {
+    return (
+      <a
+        href={`https://www.google.com/maps?q=${center.latitude},${center.longitude}`}
+        target="_blank"
+        rel="noreferrer"
+        className={cn(
+          'flex aspect-[2/1] w-full flex-col items-center justify-center gap-1 rounded-xl border bg-muted/50 text-[12px] text-muted-foreground',
+          className,
+        )}
+      >
+        <MapPin className="size-5 text-primary" />
+        <span className="tabular">
+          {center.latitude.toFixed(5)}, {center.longitude.toFixed(5)}
+        </span>
+        <span className="font-medium text-primary">Open in Google Maps</span>
+      </a>
+    );
+  }
   return (
     <img
       src={src}
       alt="Map of the location"
       loading="lazy"
-      className={cn('h-auto w-full rounded-xl border object-cover', className)}
+      onError={() => setFailed(true)}
+      className={cn(
+        'aspect-[2/1] h-auto w-full rounded-xl border bg-muted object-cover',
+        className,
+      )}
     />
   );
 }

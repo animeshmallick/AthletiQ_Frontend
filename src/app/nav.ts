@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarPlus,
   CalendarDays,
   CalendarCheck2,
   ClipboardList,
@@ -115,6 +116,13 @@ export const NAV: NavItem[] = [
     to: '/registrations',
     label: 'Registrations',
     icon: UserPlus,
+    roles: ['admin'],
+    group: 'manage',
+  },
+  {
+    to: '/makeups',
+    label: 'Makeup requests',
+    icon: CalendarPlus,
     roles: ['admin'],
     group: 'manage',
   },

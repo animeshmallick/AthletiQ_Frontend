@@ -291,12 +291,13 @@ export function Field({
       ? cloneElement(child as ReactElement<Record<string, unknown>>, {
           id,
           'aria-describedby': error || hint ? messageId : undefined,
+          ...(required ? { 'aria-required': true } : {}),
           ...(error ? { 'aria-invalid': true } : {}),
         })
       : children;
 
   return (
-    <div className={cn('grid gap-1.5', className)}>
+    <div className={cn('grid min-w-0 gap-1.5', className)}>
       <Label htmlFor={id}>
         {label}
         {required && <span className="ml-0.5 text-destructive">*</span>}

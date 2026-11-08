@@ -42,6 +42,7 @@ export const FeedbackFormPage = page(m7, 'FeedbackFormPage');
 export const StudentsPage = page(m8, 'StudentsPage');
 export const StudentDetailPage = page(m9, 'StudentDetailPage');
 export const FeesPage = page(() => import('@/pages/fees'), 'FeesPage');
+export const MakeupsPage = page(() => import('@/pages/admin/makeups'), 'MakeupsPage');
 const calendarModule = () => import('@/pages/calendar');
 export const CalendarPage = page(calendarModule, 'CalendarPage');
 export const InvoicesPage = page(m10, 'InvoicesPage');

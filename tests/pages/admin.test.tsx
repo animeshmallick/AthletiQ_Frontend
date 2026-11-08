@@ -1,3 +1,4 @@
+import { within } from '@testing-library/react';
 import { AccountPage } from '@/pages/account';
 import { AuditLogPage } from '@/pages/admin/audit-log';
 import { CoachesPage } from '@/pages/admin/coaches';
@@ -250,7 +251,7 @@ describe('SettingsPage', () => {
 });
 
 describe('AuditLogPage', () => {
-  it('lists activity with expandable details', async () => {
+  it('lists compact activity tiles and opens details in a popup', async () => {
     mockApi({
       'GET /admin/audit-logs': () => ({
         data: [
@@ -259,7 +260,7 @@ describe('AuditLogPage', () => {
             action: 'invoice.payment_reverted',
             entityType: 'invoice',
             entityId: 'i1',
-            metadata: { reason: 'Mistake' },
+            metadata: { reason: 'Mistake', amount: 250000, effectiveFrom: '2026-03-09' },
             ipAddress: null,
             createdAt: '2026-03-09T05:00:00Z',
             actor: { id: 'a', name: 'Asha Admin' },
@@ -268,13 +269,23 @@ describe('AuditLogPage', () => {
         meta: { page: 1, pageSize: 50, total: 1, totalPages: 1 },
       }),
     });
-    await renderPage(<AuditLogPage />, {
+    const { user } = await renderPage(<AuditLogPage />, {
       path: '/audit-log',
       route: '/audit-log',
       user: adminUser,
     });
-    expect(await screen.findByText('Invoice payment reverted')).toBeInTheDocument();
-    expect(screen.getByText(/"reason": "Mistake"/)).toBeInTheDocument();
+    const tile = await screen.findByRole('button', { name: /Invoice payment reverted/ });
+    expect(tile).toHaveTextContent('Asha Admin · ₹2,500 · Mistake');
+    await user.click(tile);
+    const dialog = await screen.findByRole('dialog', { name: 'Invoice payment reverted' });
+    expect(dialog).toHaveTextContent('Done byAsha Admin');
+    expect(dialog).toHaveTextContent('ReasonMistake');
+    expect(dialog).toHaveTextContent('Amount₹2,500');
+    expect(dialog).toHaveTextContent('Effective from');
+    expect(within(dialog).getByRole('link', { name: 'Open' })).toHaveAttribute(
+      'href',
+      '/invoices?status=all&invoice=i1',
+    );
   });
 });
 

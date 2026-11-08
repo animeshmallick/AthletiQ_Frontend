@@ -84,15 +84,15 @@ export function Segmented<V extends string>({
       value={value}
       onValueChange={(v) => v && onChange(v as V)}
       aria-label={ariaLabel}
-      className={cn('inline-flex rounded-xl bg-muted p-1', className)}
+      className={cn('inline-flex max-w-full min-w-0 rounded-xl bg-muted p-1', className)}
     >
       {options.map((o) => (
         <TG.Item
           key={o.value}
           value={o.value}
           className={cn(
-            'inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg font-medium whitespace-nowrap text-muted-foreground transition-all hover:text-foreground data-[state=on]:bg-card data-[state=on]:font-semibold data-[state=on]:text-foreground data-[state=on]:shadow-e1',
-            size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-sm',
+            'inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 truncate rounded-lg font-medium whitespace-nowrap text-muted-foreground transition-all hover:text-foreground data-[state=on]:bg-card data-[state=on]:font-semibold data-[state=on]:text-foreground data-[state=on]:shadow-e1',
+            size === 'sm' ? 'h-7 px-2 text-xs' : 'h-8 px-2 text-[13px] sm:px-3 sm:text-sm',
             o.className,
           )}
         >

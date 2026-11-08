@@ -171,6 +171,11 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
                   <div className="flex-1 text-sm">
                     <p className="font-medium">
                       {formatShortDate(m.date)} · {m.batchName}
+                      {m.status === 'pending' && (
+                        <Badge variant="warning" className="ml-1.5 align-middle">
+                          Awaiting approval
+                        </Badge>
+                      )}
                     </p>
                     {m.reason && <p className="text-xs text-muted-foreground">{m.reason}</p>}
                   </div>

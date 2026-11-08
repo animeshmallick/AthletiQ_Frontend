@@ -124,14 +124,9 @@ export function CalendarPage() {
   const days = useMemo(() => q.data?.days ?? [], [q.data]);
   const selected = days.find((d) => d.date === date);
 
-  // Grid hours: cover every session in the week (with a little breathing room), default 6am–9pm.
-  const [startHour, endHour] = useMemo(() => {
-    const all = days.flatMap((d) => d.sessions);
-    if (!all.length) return [6, 21];
-    const first = Math.min(...all.map((s) => minutes(s.batch.startTime)));
-    const last = Math.max(...all.map((s) => minutes(s.batch.endTime)));
-    return [Math.max(0, Math.floor(first / 60) - 1), Math.min(24, Math.ceil(last / 60) + 1)];
-  }, [days]);
+  // The grid always shows the whole day (12 am – 12 am); it opens scrolled to the first session.
+  const startHour = 0;
+  const endHour = 24;
 
   const total = days.reduce((n, d) => n + d.sessions.filter((s) => !s.cancelled).length, 0);
 

@@ -30,6 +30,7 @@ import {
   AccountPage,
   CalendarPage,
   FeesPage,
+  MakeupsPage,
 } from './pages';
 
 function FullScreenLoader() {
@@ -153,6 +154,7 @@ export const router = createBrowserRouter([
           { path: 'account', element: <AccountPage /> },
           { path: 'coaches', element: admin(<CoachesPage />) },
           { path: 'registrations', element: admin(<RegistrationsPage />) },
+          { path: 'makeups', element: admin(<MakeupsPage />) },
           { path: 'locations', element: admin(<LocationsPage />) },
           { path: 'fee-plans', element: admin(<FeePlansPage />) },
           { path: 'settings', element: admin(<SettingsPage />) },
