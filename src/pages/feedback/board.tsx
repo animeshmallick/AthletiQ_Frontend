@@ -107,6 +107,7 @@ export function FeedbackPage() {
                 </span>
               </div>
               <Progress
+                label="Feedback sent"
                 value={sum.total ? (sum.submitted / sum.total) * 100 : 0}
                 tone={sum.submitted === sum.total ? 'success' : 'primary'}
               />

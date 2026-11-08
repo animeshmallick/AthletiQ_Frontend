@@ -20,8 +20,8 @@ jest.mock('@/lib/api', () => ({
   request: jest.fn(async () => undefined),
   errorMessage: (e: Error) => e.message,
 }));
-jest.mock('firebase/app', () => ({ initializeApp: jest.fn(() => ({})), getApps: () => [] }));
-jest.mock('firebase/messaging', () => ({
+jest.mock('@firebase/app', () => ({ initializeApp: jest.fn(() => ({})), getApps: () => [] }));
+jest.mock('@firebase/messaging', () => ({
   getMessaging: jest.fn(() => ({})),
   getToken: jest.fn(async () => 'web-fcm-token'),
 }));

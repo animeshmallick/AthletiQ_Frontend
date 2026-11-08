@@ -73,7 +73,7 @@ export function Segmented<V extends string>({
 }: {
   value: V;
   onChange: (v: V) => void;
-  options: { value: V; label: ReactNode; className?: string }[];
+  options: readonly { value: V; label: ReactNode; className?: string }[];
   className?: string;
   size?: 'default' | 'sm';
   ariaLabel: string;

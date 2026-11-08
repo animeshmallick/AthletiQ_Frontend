@@ -12,7 +12,7 @@ import {
   SearchInput,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/controls';
+import { Segmented } from '@/components/ui/controls';
 import { Card } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { formatDate, formatShortDate, money, plural } from '@/lib/format';
@@ -83,15 +83,13 @@ export function InvoicesPage() {
       />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={status} onValueChange={(v) => set({ status: v === 'open' ? null : v })}>
-          <TabsList>
-            {TABS.map((t) => (
-              <TabsTrigger key={t.value} value={t.value}>
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <Segmented
+          ariaLabel="Invoice status"
+          value={status}
+          onChange={(v) => set({ status: v === 'open' ? null : v })}
+          options={TABS}
+          className="w-full sm:w-auto"
+        />
         <SearchInput
           value={search}
           onChange={(v) => set({ q: v || null })}

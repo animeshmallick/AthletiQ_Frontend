@@ -91,7 +91,10 @@ function WeekStrip({
             className={cn(
               'flex cursor-pointer flex-col items-center gap-1 rounded-xl border bg-card py-2 transition-all hover:border-primary/50',
               selected && 'border-primary ring-2 ring-primary/20',
-              info && (!info.isSessionDay || info.cancelled) && 'opacity-50',
+              // Non-training / cancelled days: visibly quieter without dropping text contrast.
+              info &&
+                (!info.isSessionDay || info.cancelled) &&
+                'border-dashed bg-muted/50 shadow-none',
               info?.cancelled && 'line-through',
             )}
             aria-pressed={selected}

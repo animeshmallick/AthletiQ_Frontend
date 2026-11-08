@@ -173,7 +173,11 @@ function CoachSessionCard({
           </span>
           {overview ? (
             <>
-              <Progress value={pct} tone={overview.attendanceComplete ? 'success' : 'primary'} />
+              <Progress
+                label="Attendance marked"
+                value={pct}
+                tone={overview.attendanceComplete ? 'success' : 'primary'}
+              />
               <span className="tabular text-xs text-muted-foreground">
                 {overview.marked}/{overview.expectedStudents} marked · {overview.present} present
               </span>

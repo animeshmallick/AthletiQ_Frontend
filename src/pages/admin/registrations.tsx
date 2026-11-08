@@ -21,7 +21,7 @@ import {
   Pagination,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/controls';
+import { Segmented } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -218,22 +218,30 @@ export function RegistrationsPage() {
           </Button>
         }
       />
-      <Tabs
+      <Segmented
+        ariaLabel="Registration status"
         value={status}
-        onValueChange={(v) => (setStatus(v as typeof status), setPage(1))}
-        className="mb-4"
-      >
-        <TabsList>
-          <TabsTrigger value="pending">
-            Pending{' '}
-            {pending && pending.pendingStudents + pending.pendingCoaches > 0 && (
-              <Badge className="ml-1">{pending.pendingStudents + pending.pendingCoaches}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-        </TabsList>
-      </Tabs>
+        onChange={(v) => {
+          setStatus(v);
+          setPage(1);
+        }}
+        className="mb-4 w-full sm:w-auto"
+        options={[
+          {
+            value: 'pending',
+            label: (
+              <>
+                Pending
+                {pending && pending.pendingStudents + pending.pendingCoaches > 0 && (
+                  <Badge className="ml-1">{pending.pendingStudents + pending.pendingCoaches}</Badge>
+                )}
+              </>
+            ),
+          },
+          { value: 'approved', label: 'Approved' },
+          { value: 'rejected', label: 'Rejected' },
+        ]}
+      />
 
       {q.isPending ? (
         <ListSkeleton rows={4} />

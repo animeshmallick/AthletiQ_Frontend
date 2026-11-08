@@ -305,6 +305,7 @@ export function BatchesPage() {
                   </div>
                   {b.capacity && (
                     <Progress
+                      label="Batch capacity used"
                       value={(b.memberCount / b.capacity) * 100}
                       tone={b.memberCount >= b.capacity ? 'warning' : 'primary'}
                     />

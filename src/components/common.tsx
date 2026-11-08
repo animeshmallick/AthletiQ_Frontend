@@ -230,12 +230,12 @@ export function StatCard({
 
 const AVATAR_TONES = [
   'bg-indigo-500/12 text-indigo-700 dark:text-indigo-300',
-  'bg-emerald-500/14 text-emerald-700 dark:text-emerald-300',
+  'bg-emerald-500/14 text-emerald-800 dark:text-emerald-300',
   'bg-amber-500/18 text-amber-800 dark:text-amber-300',
   'bg-rose-500/12 text-rose-700 dark:text-rose-300',
-  'bg-sky-500/14 text-sky-700 dark:text-sky-300',
+  'bg-sky-500/14 text-sky-800 dark:text-sky-300',
   'bg-violet-500/12 text-violet-700 dark:text-violet-300',
-  'bg-teal-500/14 text-teal-700 dark:text-teal-300',
+  'bg-teal-500/14 text-teal-800 dark:text-teal-300',
   'bg-orange-500/14 text-orange-700 dark:text-orange-300',
 ];
 
@@ -566,16 +566,20 @@ export function Progress({
   value,
   className,
   tone = 'primary',
+  label = 'Progress',
 }: {
   value: number;
   className?: string;
   tone?: 'primary' | 'success' | 'warning';
+  /** What is measured, for screen readers (e.g. "Feedback sent"). */
+  label?: string;
 }) {
   const color = { primary: 'bg-primary', success: 'bg-success', warning: 'bg-warning' }[tone];
   return (
     <div
       className={cn('h-1.5 w-full overflow-hidden rounded-full bg-muted', className)}
       role="progressbar"
+      aria-label={label}
       aria-valuenow={Math.round(value)}
       aria-valuemin={0}
       aria-valuemax={100}

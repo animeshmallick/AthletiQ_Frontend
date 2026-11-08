@@ -62,8 +62,8 @@ async function fcmToken(): Promise<string> {
     (await navigator.serviceWorker.getRegistration('/')) ?? (await registerServiceWorker());
   if (!reg) throw new Error('Service worker unavailable');
   const [{ initializeApp, getApps }, { getMessaging, getToken }] = await Promise.all([
-    import('firebase/app'),
-    import('firebase/messaging'),
+    import('@firebase/app'),
+    import('@firebase/messaging'),
   ]);
   const app =
     getApps()[0] ??
