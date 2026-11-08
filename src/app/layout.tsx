@@ -31,15 +31,7 @@ import { cn } from '@/lib/utils';
 import { useAuth, useUser } from './auth';
 import { IosInstallBanner } from '@/components/notifications';
 import { useInstallPrompt } from './install';
-import {
-  APK_URL,
-  checkForAppUpdate,
-  downloadUpdate,
-  isAndroidBrowser,
-  isNativeApp,
-  registerPush,
-  type AppUpdate,
-} from './native';
+import { APK_URL, checkForAppUpdate, isAndroidBrowser, isNativeApp, registerPush } from './native';
 import { navFor, tabsFor, type NavItem } from './nav';
 import { preloadRoute, preloadWhenIdle } from './pages';
 import { PullToRefresh } from './pull-to-refresh';
@@ -48,6 +40,7 @@ import { useTheme, type Theme } from './theme';
 import { AppHeader, BrandMark } from './header';
 import { DeploymentsInfo } from './deployments';
 import { useTasks } from '@/lib/queries';
+import { startAppUpdate } from './app-update';
 
 function SidebarNav({
   items,
@@ -178,7 +171,9 @@ function UserMenu() {
           <DropdownMenuItem
             onSelect={() =>
               void checkForAppUpdate(true).then((u) =>
-                u ? offerUpdate(u) : toast.success('You have the latest version of the app'),
+                u
+                  ? void startAppUpdate(u, { interactive: true })
+                  : toast.success('You have the latest version of the app'),
               )
             }
           >
@@ -303,14 +298,6 @@ export function AppLayout() {
   );
 }
 
-function offerUpdate(update: AppUpdate) {
-  toast('A new version of the app is available', {
-    description: 'Download it and tap Install. Your data stays as it is.',
-    duration: 15_000,
-    action: { label: 'Update', onClick: () => downloadUpdate(update.url) },
-  });
-}
-
 /** Inside the Android app: register for push and offer new APK versions (once per sign-in). */
 function useNativeApp() {
   const navigate = useNavigate();
@@ -324,7 +311,8 @@ function useNativeApp() {
   useEffect(() => {
     if (!isNativeApp()) return;
     void registerPush();
-    void checkForAppUpdate().then((u) => u && offerUpdate(u));
+    // New version: download quietly, then offer a one-tap install.
+    void checkForAppUpdate().then((u) => u && startAppUpdate(u));
   }, []);
 }
 

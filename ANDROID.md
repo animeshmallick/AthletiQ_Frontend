@@ -7,10 +7,10 @@ screen. It is distributed **outside the Play Store** as an APK on this repositor
 
 ## How updates reach phones
 
-| Change                                                   | What users need to do                                                                                              |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Any screen, feature or bug fix (everything under `src/`) | **Nothing.** The app loads the website, so it updates on the next launch after Amplify deploys.                    |
-| Native shell (`android/`, Capacitor plugins, icons)      | The app shows **"A new version of the app is available → Update"**. One tap downloads it; Android asks to install. |
+| Change                                                   | What users need to do                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Any screen, feature or bug fix (everything under `src/`) | **Nothing.** The app loads the website, so it updates on the next launch after Amplify deploys.                                                                                                                                                                                                          |
+| Native shell (`android/`, Capacitor plugins, icons)      | The app downloads it in the background, then shows **"Update ready → Install now"**. One tap opens Android's installer (Android always asks to confirm). Also available any time: Account menu → **Check for app update** (with progress). The first time, Android asks to allow installs from AthletiQ. |
 
 Native shell releases are rare: they are only needed when plugins or Android settings change.
 

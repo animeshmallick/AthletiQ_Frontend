@@ -56,4 +56,6 @@
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <!-- Android 13+: ask before showing notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- One-tap in-app updates (Android asks the user once to allow installs from AthletiQ) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>
