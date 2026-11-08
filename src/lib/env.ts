@@ -14,3 +14,7 @@ export const FIREBASE = import.meta.env.VITE_FIREBASE_VAPID_KEY
       vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
     }
   : null;
+
+/** Sentry DSN for crash reporting. Empty = off. */
+export const SENTRY_DSN: string = import.meta.env.VITE_SENTRY_DSN ?? '';
+export const MODE: string = import.meta.env.MODE;

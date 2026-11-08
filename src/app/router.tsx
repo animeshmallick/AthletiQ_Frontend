@@ -1,8 +1,9 @@
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, useEffect, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation, useRouteError } from 'react-router';
 import { Button } from '@/components/ui/button';
 import type { Role } from '@/lib/types';
 import { useAuth } from './auth';
+import { reportError } from './monitoring';
 import { setNativeNavigator } from './native';
 import { AppLayout, PageFallback } from './layout';
 import {
@@ -78,6 +79,9 @@ function GuestOnly() {
 
 function RouteError() {
   const error = useRouteError() as { status?: number } | undefined;
+  useEffect(() => {
+    if (error?.status !== 404) reportError(error, { where: 'route' });
+  }, [error]);
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
       <p className="text-5xl font-semibold text-primary">

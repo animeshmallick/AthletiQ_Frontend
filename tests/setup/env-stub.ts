@@ -9,3 +9,5 @@ export const FIREBASE: {
   appId: string;
   vapidKey: string;
 } | null = null;
+export const SENTRY_DSN = '';
+export const MODE = 'test';
