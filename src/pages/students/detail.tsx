@@ -59,9 +59,11 @@ import { errorMessage } from '@/lib/api';
 import {
   addDays,
   formatDate,
+  formatPhone,
   formatShortDate,
   formatTimeRange,
   money,
+  plural,
   today,
   weekdaysLabel,
 } from '@/lib/format';
@@ -239,7 +241,7 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
               label={s.guardianName ? `Guardian · ${s.guardianName}` : 'Mobile'}
             >
               <a href={`tel:${s.phone}`} className="hover:underline">
-                {s.phone}
+                {formatPhone(s.phone)}
               </a>
               <a
                 href={`https://wa.me/${s.phone.replace(/\D/g, '')}`}
@@ -252,7 +254,7 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
             </InfoRow>
             {s.alternatePhone && (
               <InfoRow icon={Phone} label="Alternate">
-                {s.alternatePhone}
+                {formatPhone(s.alternatePhone)}
               </InfoRow>
             )}
             {s.email && (
@@ -551,11 +553,13 @@ export function StudentDetailPage() {
       >
         <ArrowLeft className="size-4" /> Students
       </Link>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Avatar name={s.fullName} className="size-14 text-lg" />
+      <div className="mb-4 flex flex-wrap items-center gap-3 sm:mb-6 sm:gap-4">
+        <Avatar name={s.fullName} className="size-12 text-base sm:size-14 sm:text-lg" />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{s.fullName}</h1>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <h1 className="text-xl leading-tight font-bold tracking-tight sm:text-2xl">
+              {s.fullName}
+            </h1>
             <Badge variant={active ? 'success' : 'muted'}>{active ? 'Active' : 'Left'}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -563,8 +567,8 @@ export function StudentDetailPage() {
           </p>
         </div>
         {active && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setDialog('makeup')}>
+          <div className="flex w-full gap-2 sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
+            <Button variant="tonal" onClick={() => setDialog('makeup')}>
               <CalendarPlus /> Makeup
             </Button>
             {isAdmin && (
@@ -615,7 +619,7 @@ export function StudentDetailPage() {
           label="Paid to date"
           value={money(s.billing.paid)}
           tone="success"
-          hint={`${s.billing.invoiceCount} invoices`}
+          hint={plural(s.billing.invoiceCount, 'invoice')}
         />
       </div>
 

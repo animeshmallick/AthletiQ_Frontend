@@ -191,7 +191,7 @@ describe('TodayPage (admin)', () => {
     });
     await renderPage(<TodayPage />, { user: adminUser });
     expect(await screen.findByText('₹2,500')).toBeInTheDocument();
-    expect(screen.getByText('25% collected')).toBeInTheDocument();
+    expect(screen.getByText('25% collected this month')).toBeInTheDocument();
     expect(await screen.findByText('3 registrations to review')).toBeInTheDocument();
     expect(screen.getByText('1 check-in flagged')).toBeInTheDocument();
     expect(screen.getByText('Anya Rao')).toBeInTheDocument();

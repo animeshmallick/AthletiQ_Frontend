@@ -290,7 +290,7 @@ export function FeedbackFormPage() {
                 <p className="text-sm text-muted-foreground">{section.description}</p>
               )}
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-4 sm:space-y-5">
               {section.fields.map((f) => (
                 <div
                   key={f.id}

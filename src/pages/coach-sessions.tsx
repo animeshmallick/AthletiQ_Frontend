@@ -243,45 +243,57 @@ export function CoachSessionsPage() {
           {q.data.sessions.map((r) => (
             <div
               key={r.id}
-              className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm"
+              className="grid grid-cols-[1fr_auto] items-start gap-x-3 gap-y-1.5 px-3.5 py-3 text-sm sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:px-4"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-medium">
-                  {formatDate(r.date)} · {r.batch.name}
+                <p className="font-semibold">
+                  {r.batch.name}
+                  <span className="font-normal text-muted-foreground"> · {formatDate(r.date)}</span>
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
                   {isAdmin && `${r.coach.name} · `}
                   {formatTimeRange(r.batch.startTime, r.batch.endTime)} · {r.location.name}
                 </p>
               </div>
-              <div className="tabular text-right text-xs">
-                <p>
+              <div className="justify-self-end sm:order-last">
+                {r.flagged ? (
+                  r.reviewedAt ? (
+                    <Badge variant="secondary">
+                      <ShieldCheck /> Reviewed
+                    </Badge>
+                  ) : (
+                    <Badge variant="warning">
+                      <ShieldAlert /> {Math.max(r.checkInDistanceM, r.checkOutDistanceM ?? 0)} m
+                      away
+                    </Badge>
+                  )
+                ) : (
+                  <Badge variant="success">
+                    <MapPin /> On site
+                  </Badge>
+                )}
+              </div>
+              <p className="tabular col-span-2 flex items-center gap-1.5 text-xs text-muted-foreground sm:block sm:text-right">
+                <span className="font-medium text-foreground">
                   {formatClock(r.checkInAt)} –{' '}
                   {r.checkOutAt ? (
                     formatClock(r.checkOutAt)
                   ) : (
                     <span className="text-destructive">no check-out</span>
                   )}
-                </p>
-                <p className="text-muted-foreground">{formatDuration(r.durationMinutes)}</p>
-              </div>
-              {r.flagged ? (
-                r.reviewedAt ? (
-                  <Badge variant="secondary">
-                    <ShieldCheck /> Reviewed
-                  </Badge>
-                ) : (
-                  <Badge variant="warning">
-                    <ShieldAlert /> {Math.max(r.checkInDistanceM, r.checkOutDistanceM ?? 0)} m away
-                  </Badge>
-                )
-              ) : (
-                <Badge variant="success">
-                  <MapPin /> On site
-                </Badge>
-              )}
+                </span>
+                <span aria-hidden className="sm:hidden">
+                  ·
+                </span>
+                <span className="sm:block">{formatDuration(r.durationMinutes)}</span>
+              </p>
               {isAdmin && r.flagged && !r.reviewedAt && (
-                <Button size="sm" variant="outline" onClick={() => setReviewing(r)}>
+                <Button
+                  size="sm"
+                  variant="tonal"
+                  className="col-span-2 sm:order-last"
+                  onClick={() => setReviewing(r)}
+                >
                   Review
                 </Button>
               )}

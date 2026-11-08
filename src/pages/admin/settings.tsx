@@ -199,7 +199,7 @@ export function SettingsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader title="Settings" description="Academy profile and billing automation." />
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {q.isPending ? (
           <ListSkeleton rows={4} />
         ) : q.isError ? (

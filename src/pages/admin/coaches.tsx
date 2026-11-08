@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/overlays';
 import { Badge, Card, Input, Select } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatInstant } from '@/lib/format';
+import { formatInstant, formatPhone, plural } from '@/lib/format';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema } from '@/lib/forms';
 import {
   useAccessLink,
@@ -250,12 +250,12 @@ export function CoachesPage() {
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {u.email}
-                  {u.phone && ` · ${u.phone}`}
+                  {u.phone && ` · ${formatPhone(u.phone)}`}
                 </p>
               </div>
               {role === 'coach' && (
                 <span className="hidden text-sm text-muted-foreground sm:inline">
-                  {u.activeBatches ?? 0} batches
+                  {plural(u.activeBatches ?? 0, 'batch', 'batches')}
                 </span>
               )}
               <span className="hidden text-xs text-muted-foreground md:inline">

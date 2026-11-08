@@ -201,3 +201,11 @@ export const PAYMENT_MODE_LABELS: Record<string, string> = {
   cheque: 'Cheque',
   other: 'Other',
 };
+
+/** "+919876543210" / "9876543210" → "+91 98765 43210"; other formats are returned unchanged. */
+export function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const digits = phone.replace(/[^\d+]/g, '');
+  const m = digits.match(/^(?:\+?91)?([6-9]\d{4})(\d{5})$/);
+  return m ? `+91 ${m[1]} ${m[2]}` : phone;
+}

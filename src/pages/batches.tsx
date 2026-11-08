@@ -45,7 +45,7 @@ import {
   Select,
   Skeleton,
 } from '@/components/ui/primitives';
-import { formatDate, formatTimeRange, weekdaysLabel, WEEKDAYS } from '@/lib/format';
+import { formatDate, formatTimeRange, plural, WEEKDAYS, weekdaysLabel } from '@/lib/format';
 import { applyServerErrors } from '@/lib/forms';
 import { useBatch, useBatches, useLocations, useSaveBatch, useUsers } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
@@ -299,7 +299,7 @@ export function BatchesPage() {
                 <div>
                   <div className="mb-1 flex justify-between text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Users className="size-3.5" /> {b.memberCount} students
+                      <Users className="size-3.5" /> {plural(b.memberCount, 'student')}
                     </span>
                     {b.capacity && <span>Capacity {b.capacity}</span>}
                   </div>

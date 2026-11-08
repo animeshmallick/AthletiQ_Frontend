@@ -44,7 +44,7 @@ export function AuthShell({
           <h2 className="text-3xl leading-tight font-semibold tracking-tight">
             Run your academy, not spreadsheets.
           </h2>
-          <ul className="space-y-5">
+          <ul className="space-y-4 sm:space-y-5">
             {FEATURES.map((f) => (
               <li key={f.title} className="flex gap-4">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent">

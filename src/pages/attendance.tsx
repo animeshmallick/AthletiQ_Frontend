@@ -59,7 +59,11 @@ function StatusToggle({
   disabled: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label="Attendance status" className="grid grid-cols-4 gap-1">
+    <div
+      role="radiogroup"
+      aria-label="Attendance status"
+      className="grid w-full grid-cols-4 gap-1.5 sm:w-auto"
+    >
       {STATUSES.map((s) => {
         const meta = ATTENDANCE_META[s];
         const active = value === s;
@@ -74,14 +78,13 @@ function StatusToggle({
             disabled={disabled}
             onClick={() => onChange(s)}
             className={cn(
-              'h-10 min-w-10 cursor-pointer rounded-lg border text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-20',
+              'h-10 min-w-0 cursor-pointer rounded-xl border px-1 text-[13px] font-semibold transition-all active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-20 sm:text-sm',
               active
                 ? meta.active
                 : 'bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
             )}
           >
-            <span className="sm:hidden">{meta.short}</span>
-            <span className="hidden sm:inline">{meta.label}</span>
+            {meta.label}
           </button>
         );
       })}

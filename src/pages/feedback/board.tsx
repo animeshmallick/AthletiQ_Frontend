@@ -143,7 +143,7 @@ export function FeedbackPage() {
           }
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {Object.entries(byBatch).map(([batchName, rows]) => (
             <section key={batchName}>
               <h2 className="mb-2 text-sm font-semibold text-muted-foreground">{batchName}</h2>

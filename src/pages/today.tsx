@@ -214,7 +214,7 @@ function CoachToday() {
   const feedback = useFeedbackWeek({ weekStart: lastWeek });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">{formatLongDate(day)}</p>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -283,7 +283,7 @@ function AdminToday() {
   const unreviewed = flagged.data?.summary.unreviewedFlagged ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">{formatLongDate(day)}</p>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -293,21 +293,25 @@ function AdminToday() {
 
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         <StatCard
-          label="Collected this month"
+          label="Collected"
           to="/finance"
           icon={<Wallet />}
           tone="success"
           loading={finance.isPending}
           value={t ? money(t.collected) : '—'}
-          hint={t ? `${plural(t.paymentsReceived, 'payment')}` : undefined}
+          hint={t ? `${plural(t.paymentsReceived, 'payment')} this month` : undefined}
         />
         <StatCard
-          label="Billed this month"
+          label="Billed"
           to="/finance"
           icon={<IndianRupee />}
           loading={finance.isPending}
           value={t ? money(t.billed) : '—'}
-          hint={t?.collectionRate !== null && t ? `${t.collectionRate}% collected` : undefined}
+          hint={
+            t?.collectionRate !== null && t
+              ? `${t.collectionRate}% collected this month`
+              : undefined
+          }
         />
         <StatCard
           label="Outstanding"

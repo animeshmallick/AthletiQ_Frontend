@@ -438,7 +438,7 @@ export function StudentFormDialog({
               : 'Add the student, place them in a batch and set their fee.'}
           </DialogDescription>
         </DialogHeader>
-        <form id="student-form" onSubmit={onSubmit} noValidate className="space-y-6">
+        <form id="student-form" onSubmit={onSubmit} noValidate className="space-y-4 sm:space-y-6">
           <ProfileFields register={register} errors={formState.errors} />
           <Separator />
           {editing ? (

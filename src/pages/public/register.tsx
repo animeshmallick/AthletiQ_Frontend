@@ -400,7 +400,7 @@ export function RegisterPage() {
                 </a>
               </p>
             )}
-            <Button variant="outline" className="mt-6" onClick={() => setDone(null)}>
+            <Button variant="outline" className="mt-4 sm:mt-6" onClick={() => setDone(null)}>
               Register someone else
             </Button>
           </Card>

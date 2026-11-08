@@ -96,7 +96,7 @@ function TokenPasswordPage({ kind }: { kind: 'invite' | 'reset' }) {
         )
       }
     >
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <form onSubmit={onSubmit} noValidate className="space-y-4 sm:space-y-5">
         <Field
           label="New password"
           htmlFor="password"

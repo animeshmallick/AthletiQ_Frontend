@@ -145,7 +145,7 @@ export function AccountPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Account" />
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <ProfileCard />
         <PasswordCard />
       </div>

@@ -148,7 +148,7 @@ export function FinancePage() {
       {q.isError ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <StatCard
               label="Billed"

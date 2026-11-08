@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/overlays';
 import { Badge, Card } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatDate, formatInstant, today, weekdaysLabel } from '@/lib/format';
+import { formatDate, formatInstant, formatPhone, today, weekdaysLabel } from '@/lib/format';
 import { applyServerErrors } from '@/lib/forms';
 import { useRegistrations, useReviewRegistration } from '@/lib/queries';
 import type { Registration } from '@/lib/types';
@@ -133,7 +133,7 @@ function RegistrationCard({
               href={`tel:${r.phone}`}
               className="inline-flex items-center gap-1 hover:text-foreground"
             >
-              <Phone className="size-3.5" /> {r.phone}
+              <Phone className="size-3.5" /> {formatPhone(r.phone)}
             </a>
             {r.email && (
               <span className="inline-flex items-center gap-1">

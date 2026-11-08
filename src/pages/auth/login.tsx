@@ -48,7 +48,7 @@ export function LoginPage() {
       title="Welcome back"
       subtitle="Sign in to manage your batches, students and payments."
     >
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <form onSubmit={onSubmit} noValidate className="space-y-4 sm:space-y-5">
         {formError && (
           <div
             role="alert"
