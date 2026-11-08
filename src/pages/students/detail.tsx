@@ -2,12 +2,13 @@ import {
   ArrowLeft,
   ArrowRightLeft,
   CalendarPlus,
+  ChevronDown,
   ChevronRight,
+  FileText,
   HeartPulse,
   Mail,
   MapPin,
   MessageCircle,
-  ChevronDown,
   Pencil,
   Phone,
   Trash2,
@@ -86,6 +87,7 @@ import {
   StudentFormDialog,
   TransferDialog,
 } from './forms';
+import { ReportDialog, slug, STUDENT_REPORT_INCLUDES } from '@/components/report-dialog';
 
 const CHART_COLORS = [
   'var(--chart-1)',
@@ -537,6 +539,7 @@ export function StudentDetailPage() {
     'edit' | 'transfer' | 'makeup' | 'leave' | 'rejoin' | 'delete' | null
   >(null);
   const deleteStudent = useDeleteStudent();
+  const [reportOpen, setReportOpen] = useState(false);
   const navigate = useNavigate();
 
   if (q.isPending)
@@ -550,8 +553,46 @@ export function StudentDetailPage() {
   const s = q.data;
   const active = s.status === 'active';
 
+  const batchesSeen = [
+    ...new Map(
+      [...s.enrollmentHistory]
+        .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
+        .filter((e) => isAdmin || e.coachId === user.id)
+        .map((e) => [e.batchId, e] as const)
+        .reverse(),
+    ).values(),
+  ].reverse();
+  const firstIn = (batchId: string) =>
+    s.enrollmentHistory
+      .filter((e) => e.batchId === batchId)
+      .reduce((m, e) => (e.effectiveFrom < m ? e.effectiveFrom : m), '9999-12-31');
+  const reportOptions = [
+    {
+      value: 'all',
+      label: 'All batches (consolidated)',
+      hint: `Everything since joining on ${formatDate(s.joiningDate)}`,
+    },
+    ...batchesSeen.map((e) => ({
+      value: e.batchId,
+      label: e.batchName,
+      hint: `Since ${formatDate(firstIn(e.batchId))} · Coach ${e.coachName}${e.effectiveTo ? '' : ' · current'}`,
+    })),
+  ];
+
   return (
     <div>
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        title={`${s.fullName} - report`}
+        description="A detailed PDF with insights, history and a timeline. Share it on WhatsApp or download it."
+        options={reportOptions}
+        path={(v) => `/reports/students/${s.id}/pdf?batchId=${v}`}
+        filename={(v) =>
+          `${slug(s.fullName)}-${s.code}-${v === 'all' ? 'report' : slug(reportOptions.find((o) => o.value === v)?.label ?? 'batch')}.pdf`
+        }
+        includes={STUDENT_REPORT_INCLUDES}
+      />
       <Link
         to="/students"
         className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -571,6 +612,16 @@ export function StudentDetailPage() {
             {s.code} · Joined {formatDate(s.joiningDate)}
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          onClick={() => setReportOpen(true)}
+          aria-label="Student report (PDF)"
+          title="Student report (PDF)"
+        >
+          <FileText />
+        </Button>
         {active && (
           <div className="flex w-full gap-2 sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
             <Button variant="tonal" onClick={() => setDialog('makeup')}>

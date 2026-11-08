@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CalendarCheck2,
   ClipboardList,
+  FileText,
   LayoutGrid,
   MapPin,
   Pencil,
@@ -66,6 +67,7 @@ import {
 } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { BATCH_REPORT_INCLUDES, ReportDialog, slug } from '@/components/report-dialog';
 
 const schema = z
   .object({
@@ -445,6 +447,7 @@ export function BatchesPage() {
   const q = useBatches(showInactive ? {} : { active: 'true' });
   const dash = useDashboard();
   const [editing, setEditing] = useState<Batch | 'new' | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const now = new Date();
 
   const all = useMemo(
@@ -487,12 +490,46 @@ export function BatchesPage() {
         }
         actions={
           isAdmin && (
-            <Button onClick={() => setEditing('new')}>
-              <Plus /> New batch
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setReportOpen(true)}
+                disabled={!active.length}
+              >
+                <FileText /> Reports
+              </Button>
+              <Button onClick={() => setEditing('new')}>
+                <Plus /> New batch
+              </Button>
+            </>
           )
         }
       />
+      {isAdmin && reportOpen && (
+        <ReportDialog
+          open
+          onOpenChange={setReportOpen}
+          title="Batch report"
+          description="Every student with attendance, skills, fees and history. Share it on WhatsApp or download it."
+          options={[
+            {
+              value: 'all',
+              label: 'All batches combined',
+              hint: `${active.length} batches · ${students} students`,
+            },
+            ...active.map((b) => ({
+              value: b.id,
+              label: b.name,
+              hint: `${b.coach.name} · ${plural(b.memberCount, 'student')}`,
+            })),
+          ]}
+          path={(v) => `/reports/batches/pdf?batchId=${v}`}
+          filename={(v) =>
+            `${v === 'all' ? 'all-batches' : slug(active.find((b) => b.id === v)?.name ?? 'batch')}-report-${today()}.pdf`
+          }
+          includes={BATCH_REPORT_INCLUDES}
+        />
+      )}
 
       {q.isPending ? (
         <ListSkeleton rows={4} />
@@ -590,6 +627,7 @@ export function BatchDetailPage() {
   const user = useUser();
   const q = useBatch(id);
   const [editing, setEditing] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   if (q.isPending) return <Skeleton className="h-64 w-full rounded-xl" />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
@@ -620,6 +658,11 @@ export function BatchDetailPage() {
                 <ClipboardList /> Plans
               </Link>
             </Button>
+            {user.role === 'admin' && (
+              <Button variant="outline" onClick={() => setReportOpen(true)}>
+                <FileText /> Report
+              </Button>
+            )}
             {user.role === 'admin' && (
               <Button onClick={() => setEditing(true)}>
                 <Pencil /> Edit
@@ -662,6 +705,18 @@ export function BatchDetailPage() {
         </CardContent>
       </Card>
       {editing && <BatchDialog open onOpenChange={setEditing} batch={b} />}
+      {reportOpen && (
+        <ReportDialog
+          open
+          onOpenChange={setReportOpen}
+          title={`${b.name} - report`}
+          description="Every student in this batch with attendance, skills, fees and history since they joined it."
+          options={[{ value: b.id, label: b.name }]}
+          path={(v) => `/reports/batches/pdf?batchId=${v}`}
+          filename={() => `${slug(b.name)}-report-${today()}.pdf`}
+          includes={BATCH_REPORT_INCLUDES}
+        />
+      )}
     </div>
   );
 }
