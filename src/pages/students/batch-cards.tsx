@@ -126,8 +126,10 @@ export function BatchCards({
               </div>
               <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <CalendarClock className="size-3.5" />
-                Since {formatDate(m.since)} · billed on day {m.billingDay}
-                {m.nextInvoice ? ` · next ${formatDate(m.nextInvoice.issueDate)}` : ''}
+                Since {formatDate(m.since)} ·{' '}
+                {m.fee.total === 0
+                  ? 'free, no invoices'
+                  : `billed on day ${m.billingDay}${m.nextInvoice ? ` · next ${formatDate(m.nextInvoice.issueDate)}` : ''}`}
               </p>
             </Card>
           ))}

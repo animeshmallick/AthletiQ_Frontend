@@ -38,6 +38,8 @@ export interface FeePlan {
   daysPerWeek: number;
   monthlyFee: number;
   isActive: boolean;
+  /** The built-in free plan: fits any days, never invoiced, not on the Fee plans page. */
+  isSystem?: boolean;
   activeStudents?: number;
   /** Admins only. [] = everything goes to the academy. */
   split?: SplitNode[];

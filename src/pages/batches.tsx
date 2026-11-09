@@ -124,7 +124,7 @@ export function BatchDialog({
   const coaches = useUsers({ role: 'coach', status: 'active', pageSize: 100 });
   const locations = useLocations({ active: 'true' });
   const sports = useSports();
-  const plans = useFeePlans({ active: 'true' });
+  const plans = useFeePlans({ active: 'true', forBatch: 'true' });
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: batch
@@ -170,10 +170,12 @@ export function BatchDialog({
   const watchedPlan = useWatch({ control, name: 'feePlanId' });
   const watchedStart = useWatch({ control, name: 'startTime' });
   const watchedEnd = useWatch({ control, name: 'endTime' });
-  // Plans priced for as many days a week as the batch runs (plus the current one).
+  // Plans priced for as many days a week as the batch runs (plus the current one), and the
+  // built-in free plan, which fits any days.
   const fitting = (plans.data ?? []).filter(
-    (p) => p.daysPerWeek === watchedDays.length || p.id === batch?.feePlan.id,
+    (p) => p.isSystem || p.daysPerWeek === watchedDays.length || p.id === batch?.feePlan.id,
   );
+  const paidFitting = fitting.filter((p) => !p.isSystem);
   const daysChanged =
     !!batch && [...watchedDays].sort().join() !== [...batch.weekdays].sort().join();
 
@@ -281,15 +283,17 @@ export function BatchDialog({
               <option value="">Select…</option>
               {fitting.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} · {money(p.monthlyFee)}/month
+                  {p.isSystem
+                    ? `${p.name} · no fee, no invoices`
+                    : `${p.name} · ${money(p.monthlyFee)}/month`}
                 </option>
               ))}
             </Select>
           </Field>
-          {fitting.length === 0 && (plans.data?.length ?? 0) > 0 && (
+          {paidFitting.length === 0 && plans.isSuccess && (
             <p className="rounded-xl bg-warning/12 px-3 py-2 text-[13px] sm:col-span-2">
-              No active plan is for {watchedDays.length} day{watchedDays.length === 1 ? '' : 's'} a
-              week. Add one under Fee plans, or change the days.
+              No paid plan is for {watchedDays.length} day{watchedDays.length === 1 ? '' : 's'} a
+              week. Add one under Fee plans, change the days, or make the batch free.
             </p>
           )}
           <Field label="Starts" required error={e.startTime?.message}>

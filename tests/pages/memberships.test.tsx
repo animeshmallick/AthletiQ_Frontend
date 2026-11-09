@@ -90,25 +90,54 @@ describe('batch memberships on the student page', () => {
 });
 
 describe('batch form', () => {
-  it('offers only fee plans priced for the batch’s days', async () => {
-    mockApi({
+  it('offers only fee plans priced for the batch’s days, plus the free plan', async () => {
+    const api = mockApi({
       'GET /users': () => ({ data: [], meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } }),
       'GET /locations': () => [],
       'GET /sports': () => [],
       'GET /fee-plans': () => [
+        { id: 'free', name: 'Free', daysPerWeek: 7, monthlyFee: 0, isActive: true, isSystem: true },
         { id: 'p3', name: '3 days', daysPerWeek: 3, monthlyFee: 250_000, isActive: true },
         { id: 'p6', name: '6 days', daysPerWeek: 6, monthlyFee: 400_000, isActive: true },
       ],
     });
-    await renderPage(<BatchDialog open onOpenChange={() => {}} />, {
+    const { user } = await renderPage(<BatchDialog open onOpenChange={() => {}} />, {
       path: '/',
       route: '/',
       user: adminUser,
     });
     const plan = await screen.findByLabelText(/fee plan/i);
-    // New batches default to Mon–Sat: only the 6-day plan fits, so it is picked for you.
-    await waitFor(() => expect(selectValue(plan)).toBe('p6'));
-    expect(plan).toHaveAttribute('title', 'Only one option available');
+    await waitFor(() => expect(api.find('GET /fee-plans')[0]?.query.get('forBatch')).toBe('true'));
+    // New batches default to Mon–Sat: the 6-day plan fits, and the free plan fits any days.
+    await chooseOption(user, plan, 'p6');
+    expect(selectValue(plan)).toBe('p6');
+    await chooseOption(user, plan, 'free');
+    expect(selectValue(plan)).toBe('free');
+    // The 3-day plan isn't offered.
+    await user.click(plan);
+    expect(document.querySelector('[role="option"][data-value="p6"]')).not.toBeNull();
+    expect(document.querySelector('[role="option"][data-value="p3"]')).toBeNull();
+  });
+
+  it('marks a free membership as never invoiced', async () => {
+    mockApi({
+      'GET /students/s1': () => ({
+        ...studentDetail,
+        memberships: [
+          {
+            ...studentDetail.memberships[0]!,
+            fee: { base: 0, discount: 0, total: 0 },
+            nextInvoice: null,
+          },
+        ],
+      }),
+    });
+    await renderPage(<StudentDetailPage />, {
+      path: '/students/:id',
+      route: '/students/s1',
+      user: adminUser,
+    });
+    expect(await screen.findByText(/free, no invoices/)).toBeInTheDocument();
   });
 });
 
