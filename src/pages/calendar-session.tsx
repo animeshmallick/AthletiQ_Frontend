@@ -342,24 +342,39 @@ function Body({
         )}
       </section>
 
-      <div className="flex flex-wrap gap-1.5 border-t pt-3">
+      {/* One row on every screen: two quick actions and the batch. */}
+      <div className="flex gap-1.5 border-t pt-2.5 *:flex-1">
         {!s.cancelled && (
           <>
-            <Button size="sm" variant="outline" asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              asChild
+              className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
+            >
               <Link to={`/attendance?batch=${id}&date=${date}`}>
-                <Users /> Attendance
+                <Users /> <span className="truncate">Attendance</span>
               </Link>
             </Button>
-            <Button size="sm" variant="outline" asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              asChild
+              className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
+            >
               <Link to={`/lesson-plans?batch=${id}&date=${date}`}>
-                <ClipboardList /> Lesson plan
+                <ClipboardList /> <span className="truncate">Lesson plan</span>
               </Link>
             </Button>
           </>
         )}
-        <Button size="sm" asChild className="ml-auto">
-          <Link to={`/batches/${id}`}>
-            <LayoutGrid /> Open batch
+        <Button
+          size="sm"
+          asChild
+          className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
+        >
+          <Link to={`/batches/${id}`} aria-label="Open batch">
+            <LayoutGrid /> <span className="truncate">Batch</span>
           </Link>
         </Button>
       </div>
