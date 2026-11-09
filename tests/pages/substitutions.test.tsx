@@ -74,7 +74,7 @@ describe('SubstitutionsPage', () => {
         { id: coachUser.id, name: 'Me' },
         { id: 'coach-2', name: 'Neha' },
       ],
-      'POST /substitutions': (c) => sub(c.body as object),
+      'POST /substitutions': (c) => sub(c.body as Record<string, unknown>),
     });
     const { user } = await renderPage(<SubstitutionsPage />, {
       path: '/substitutions',
