@@ -47,6 +47,19 @@ import { Ledger } from './ledger';
 type Open = { action: MoneyAction; prefill?: ActionPrefill } | null;
 
 /** A row with a name, a proportional bar and an amount, plus an optional action. */
+/** A labelled rule between sections, so each part of the dashboard stands out. */
+function Divider({ label }: { label: string }) {
+  return (
+    <div role="separator" aria-label={label} className="flex items-center gap-2 pt-1">
+      <span className="h-px flex-1 bg-border" />
+      <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {label}
+      </span>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 function AmountRow({
   name,
   sub,
@@ -210,6 +223,7 @@ function AdminMoney({
 
   return (
     <div className="space-y-3">
+      <Divider label="Right now" />
       <section aria-label="Right now">
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           <StatCard
@@ -217,6 +231,13 @@ function AdminMoney({
             icon={<Wallet />}
             value={money(inHand)}
             hint="Academy + with staff"
+          />
+          <StatCard
+            label="Owed to others"
+            icon={<Scale />}
+            value={money(b.owedToStaff + b.owedToPayees)}
+            tone={b.owedToStaff + b.owedToPayees > 0 ? 'destructive' : 'default'}
+            hint={`Staff ${moneyCompact(b.owedToStaff)} · payees ${moneyCompact(b.owedToPayees)}`}
           />
           <StatCard
             label="With the academy"
@@ -236,17 +257,10 @@ function AdminMoney({
                 : 'Nothing pending'
             }
           />
-          <StatCard
-            label="Owed to others"
-            icon={<Scale />}
-            value={money(b.owedToStaff + b.owedToPayees)}
-            tone={b.owedToStaff + b.owedToPayees > 0 ? 'destructive' : 'default'}
-            hint={`Staff ${moneyCompact(b.owedToStaff)} · payees ${moneyCompact(b.owedToPayees)}`}
-          />
         </div>
-        <Card className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5 text-[12px] text-muted-foreground">
-          <PiggyBank className="size-4 text-primary" />
-          <span>
+        <Card className="mt-2.5 flex items-start gap-2.5 px-3 py-2.5 text-[12px] text-muted-foreground">
+          <PiggyBank className="mt-px size-4 shrink-0 text-primary" />
+          <span className="min-w-0 flex-1">
             <b className="tabular text-foreground">{money(inHand)}</b> in hand ={' '}
             <b className="tabular text-foreground">{money(b.academyFund)}</b> academy’s own money +{' '}
             <b className="tabular text-foreground">{money(b.owedToStaff)}</b> owed to staff +{' '}
@@ -255,6 +269,7 @@ function AdminMoney({
         </Card>
       </section>
 
+      <Divider label="By person" />
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -379,6 +394,7 @@ function AdminMoney({
         </Card>
       </div>
 
+      <Divider label="This period" />
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -518,6 +534,7 @@ function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to:
   const p = data.period;
   return (
     <div className="space-y-3">
+      <Divider label="Right now" />
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <StatCard
           label="Cash with me"
@@ -527,17 +544,17 @@ function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to:
           hint={data.cash > 0 ? 'Belongs to the academy' : 'Nothing to hand over'}
         />
         <StatCard
+          label="My share"
+          icon={<Split />}
+          value={money(p.earned)}
+          hint={`Kept ${moneyCompact(p.kept)} from cash`}
+        />
+        <StatCard
           label="Academy owes me"
           icon={<Landmark />}
           value={money(data.due)}
           tone={data.due > 0 ? 'success' : 'default'}
           hint="Shares & reimbursements"
-        />
-        <StatCard
-          label="My share"
-          icon={<Split />}
-          value={money(p.earned)}
-          hint={`Kept ${moneyCompact(p.kept)} from cash`}
         />
         <StatCard
           label="Spent"
@@ -547,6 +564,7 @@ function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to:
         />
       </div>
 
+      <Divider label="This period" />
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
