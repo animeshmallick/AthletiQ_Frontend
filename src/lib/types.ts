@@ -177,7 +177,7 @@ export interface Batch {
   weekdays: number[];
   startTime: string;
   endTime: string;
-  capacity: number | null;
+  capacity: number;
   isActive: boolean;
   coach: { id: string; name: string; phone: string | null };
   location: { id: string; name: string; latitude: number; longitude: number; radiusMeters: number };

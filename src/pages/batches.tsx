@@ -77,7 +77,12 @@ const schema = z
     weekdays: z.array(z.number()).min(1, 'Pick at least one day'),
     startTime: z.string().min(1, 'Required'),
     endTime: z.string().min(1, 'Required'),
-    capacity: z.string().regex(/^\d*$/, 'Whole number').optional(),
+    capacity: z
+      .string()
+      .trim()
+      .min(1, 'Enter the most students this batch can take')
+      .regex(/^\d+$/, 'Whole number')
+      .refine((v) => Number(v) >= 1 && Number(v) <= 1000, 'Between 1 and 1000'),
     isActive: z.boolean(),
   })
   .refine((v) => v.endTime > v.startTime, {
@@ -109,7 +114,7 @@ export function BatchDialog({
           weekdays: batch.weekdays,
           startTime: batch.startTime.slice(0, 5),
           endTime: batch.endTime.slice(0, 5),
-          capacity: batch.capacity ? String(batch.capacity) : '',
+          capacity: String(batch.capacity),
           isActive: batch.isActive,
         }
       : {
@@ -144,7 +149,7 @@ export function BatchDialog({
       await save.mutateAsync({
         id: batch?.id,
         ...v,
-        capacity: v.capacity ? Number(v.capacity) : null,
+        capacity: Number(v.capacity),
         ...(canApply && applyToStudents ? { applyDaysToStudents: true } : {}),
       });
       toast.success(
@@ -231,7 +236,12 @@ export function BatchDialog({
           <Field label="Ends" required error={e.endTime?.message}>
             <Input type="time" {...register('endTime')} />
           </Field>
-          <Field label="Capacity" error={e.capacity?.message} hint="Leave empty for no limit.">
+          <Field
+            label="Capacity"
+            required
+            error={e.capacity?.message}
+            hint="Most students this batch can take."
+          >
             <Input inputMode="numeric" {...register('capacity')} />
           </Field>
           {batch && (
