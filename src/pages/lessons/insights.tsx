@@ -19,12 +19,13 @@ import {
 } from '@/components/common';
 import { Tooltip } from '@/components/ui/overlays';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/primitives';
-import { formatShortDate, formatTimeRange, plural } from '@/lib/format';
+import { formatShortDate, plural } from '@/lib/format';
 import { periodRange, type PeriodKey } from '@/lib/periods';
 import { useLessonInsights } from '@/lib/queries';
 import type { LessonInsights } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { daysAgo, pct, whenLabel, STATUS_META } from './meta';
+import { timeLabel } from '@/lib/batch-times';
 
 const LESSON_PERIODS: PeriodKey[] = ['week', 'next', '4w', 'month', 'quarter'];
 
@@ -225,7 +226,7 @@ function BatchTable({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px] font-medium">{b.name}</span>
                     <span className="block truncate text-[12px] text-muted-foreground">
-                      {formatTimeRange(b.startTime, b.endTime)}
+                      {timeLabel(b)}
                       {multiCoach ? ` · ${b.coach.name}` : ` · ${b.location.name}`}
                     </span>
                     {b.next && (

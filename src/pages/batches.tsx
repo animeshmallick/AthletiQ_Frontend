@@ -71,6 +71,7 @@ import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { BATCH_REPORT_INCLUDES, ReportDialog, slug } from '@/components/report-dialog';
 import { useSports } from '@/lib/skills';
+import { scheduleGroups, scheduleLabel, timesOn, timesVary } from '@/lib/batch-times';
 
 const schema = z
   .object({
@@ -82,6 +83,8 @@ const schema = z
     weekdays: z.array(z.number()).min(1, 'Pick at least one day'),
     startTime: z.string().min(1, 'Required'),
     endTime: z.string().min(1, 'Required'),
+    /** Days that run at their own time (ISO weekday → start/end). */
+    dayTimes: z.record(z.string(), z.object({ start: z.string(), end: z.string() })),
     capacity: z
       .string()
       .trim()
@@ -93,6 +96,17 @@ const schema = z
   .refine((v) => v.endTime > v.startTime, {
     path: ['endTime'],
     message: 'Must be after the start time',
+  })
+  .superRefine((v, ctx) => {
+    for (const [d, t] of Object.entries(v.dayTimes)) {
+      if (!v.weekdays.includes(Number(d))) continue;
+      if (!t.start || !t.end || t.end <= t.start)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['dayTimes', d],
+          message: 'End must be after start',
+        });
+    }
   });
 
 type Values = z.infer<typeof schema>;
@@ -123,6 +137,12 @@ export function BatchDialog({
           weekdays: batch.weekdays,
           startTime: batch.startTime.slice(0, 5),
           endTime: batch.endTime.slice(0, 5),
+          dayTimes: Object.fromEntries(
+            Object.entries(batch.dayTimes ?? {}).map(([d, t]) => [
+              d,
+              { start: t!.start.slice(0, 5), end: t!.end.slice(0, 5) },
+            ]),
+          ),
           capacity: String(batch.capacity),
           isActive: batch.isActive,
         }
@@ -135,6 +155,7 @@ export function BatchDialog({
           weekdays: [1, 2, 3, 4, 5, 6],
           startTime: '06:00',
           endTime: '08:00',
+          dayTimes: {},
           capacity: '',
           isActive: true,
         },
@@ -147,6 +168,8 @@ export function BatchDialog({
   const close = (o: boolean) => onOpenChange(o);
   const watchedDays = useWatch({ control, name: 'weekdays' });
   const watchedPlan = useWatch({ control, name: 'feePlanId' });
+  const watchedStart = useWatch({ control, name: 'startTime' });
+  const watchedEnd = useWatch({ control, name: 'endTime' });
   // Plans priced for as many days a week as the batch runs (plus the current one).
   const fitting = (plans.data ?? []).filter(
     (p) => p.daysPerWeek === watchedDays.length || p.id === batch?.feePlan.id,
@@ -159,6 +182,10 @@ export function BatchDialog({
       await save.mutateAsync({
         id: batch?.id,
         ...v,
+        // Only days the batch still runs (the server also drops ones equal to the usual time).
+        dayTimes: Object.fromEntries(
+          Object.entries(v.dayTimes).filter(([d]) => v.weekdays.includes(Number(d))),
+        ),
         capacity: Number(v.capacity),
       });
       toast.success(
@@ -271,6 +298,21 @@ export function BatchDialog({
           <Field label="Ends" required error={e.endTime?.message}>
             <Input type="time" {...register('endTime')} />
           </Field>
+          <Controller
+            control={control}
+            name="dayTimes"
+            render={({ field }) => (
+              <DayTimesEditor
+                value={field.value}
+                onChange={field.onChange}
+                weekdays={watchedDays}
+                start={watchedStart}
+                end={watchedEnd}
+                errors={e.dayTimes as Record<string, { message?: string }> | undefined}
+                changing={!!batch}
+              />
+            )}
+          />
           <Field
             label="Capacity"
             required
@@ -301,6 +343,107 @@ export function BatchDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * "Some days run at a different time": off by default; when on, each day the batch runs gets
+ * its own switch and start/end, starting from the usual time.
+ */
+function DayTimesEditor({
+  value,
+  onChange,
+  weekdays,
+  start,
+  end,
+  errors,
+  changing,
+}: {
+  value: Record<string, { start: string; end: string }>;
+  onChange: (v: Record<string, { start: string; end: string }>) => void;
+  weekdays: number[];
+  start: string;
+  end: string;
+  errors?: Record<string, { message?: string }>;
+  changing: boolean;
+}) {
+  const days = [...weekdays].sort((a, b) => a - b);
+  const active = days.filter((d) => value[String(d)]);
+  const [open, setOpen] = useState(active.length > 0);
+  const set = (d: number, t: { start: string; end: string } | null) => {
+    const next = { ...value };
+    if (t) next[String(d)] = t;
+    else delete next[String(d)];
+    onChange(next);
+  };
+  const usual = start && end && end > start ? formatTimeRange(start, end) : 'the usual time';
+  return (
+    <div className="rounded-xl border border-border p-3 sm:col-span-2">
+      <label className="flex cursor-pointer items-center justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">Some days run at a different time</span>
+          <span className="block text-[12px] text-muted-foreground">
+            Other days use {usual}.{changing ? ' Changes apply from today.' : ''}
+          </span>
+        </span>
+        <Switch
+          checked={open}
+          aria-label="Some days run at a different time"
+          onCheckedChange={(on) => {
+            setOpen(on);
+            if (!on) onChange({});
+          }}
+        />
+      </label>
+      {open && (
+        <ul className="mt-3 space-y-2">
+          {days.map((d) => {
+            const t = value[String(d)];
+            const day = WEEKDAYS[d - 1]!;
+            const err = errors?.[String(d)]?.message;
+            return (
+              <li key={d} className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1.5">
+                <Switch
+                  checked={!!t}
+                  aria-label={`${day.long} at its own time`}
+                  onCheckedChange={(on) => set(d, on ? { start, end } : null)}
+                />
+                <span className="w-9 text-sm font-medium">{day.short}</span>
+                {t ? (
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <Input
+                      type="time"
+                      aria-label={`${day.long} starts`}
+                      value={t.start}
+                      onChange={(ev) => set(d, { ...t, start: ev.target.value })}
+                      className="min-w-0 flex-1"
+                    />
+                    <span aria-hidden className="text-muted-foreground">
+                      –
+                    </span>
+                    <Input
+                      type="time"
+                      aria-label={`${day.long} ends`}
+                      value={t.end}
+                      aria-invalid={err ? true : undefined}
+                      onChange={(ev) => set(d, { ...t, end: ev.target.value })}
+                      className="min-w-0 flex-1"
+                    />
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-muted-foreground">{usual}</span>
+                )}
+                {err && (
+                  <span role="alert" className="w-full pl-[5.25rem] text-[12px] text-destructive">
+                    {err}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -336,12 +479,14 @@ const toMin = (t: string) => {
   return h * 60 + m;
 };
 
-/** "Live now" while the session runs, "Today" before it, otherwise nothing. */
+/** "Live now" while today's session runs, "Today" before it, otherwise nothing. */
 function todayStatus(b: Batch, now: Date) {
-  if (!b.isActive || !b.weekdays.includes(isoWeekday(today(now)))) return null;
+  const day = today(now);
+  if (!b.isActive || !b.weekdays.includes(isoWeekday(day))) return null;
+  const t = timesOn(b, day);
   const mins = toMin(istClock.format(now));
-  if (mins >= toMin(b.startTime) && mins < toMin(b.endTime)) return 'live' as const;
-  if (mins < toMin(b.startTime)) return 'today' as const;
+  if (mins >= toMin(t.startTime) && mins < toMin(t.endTime)) return 'live' as const;
+  if (mins < toMin(t.startTime)) return 'today' as const;
   return null;
 }
 
@@ -358,7 +503,10 @@ function BatchCard({
   status: 'live' | 'today' | null;
   onEdit: () => void;
 }) {
-  const [hm, suffix] = formatTime(b.startTime).split(' ');
+  // Today's time when it runs today (days can differ), otherwise the usual one.
+  const t = status ? timesOn(b, today()) : b;
+  const [hm, suffix] = formatTime(t.startTime).split(' ');
+  const vary = timesVary(b);
   const fill = b.capacity ? Math.min(100, (b.memberCount / b.capacity) * 100) : null;
   const full = b.capacity !== null && b.memberCount >= b.capacity;
   return (
@@ -379,7 +527,7 @@ function BatchCard({
           <span className="tabular text-[15px] leading-none font-bold">{hm}</span>
           <span className="mt-0.5 text-[10px] font-semibold uppercase">{suffix}</span>
           <span className="mt-1 text-[10px] text-current/70">
-            {formatDuration(toMin(b.endTime) - toMin(b.startTime))}
+            {formatDuration(toMin(t.endTime) - toMin(t.startTime))}
           </span>
         </span>
 
@@ -414,6 +562,15 @@ function BatchCard({
             <span className="truncate">{b.location.name}</span>
           </span>
           <DayDots days={b.weekdays} compact />
+          {vary && (
+            <span className="block truncate text-[11px] text-muted-foreground">
+              {/* The time block shows the usual time; list the days that differ. */}
+              {scheduleGroups(b)
+                .filter((g) => g.time !== formatTimeRange(b.startTime, b.endTime))
+                .map((g) => `${g.days.map((d) => WEEKDAYS[d - 1]!.short).join(', ')} ${g.time}`)
+                .join(' · ')}
+            </span>
+          )}
           <span className="flex items-center gap-2 pt-0.5 text-[11px] text-muted-foreground">
             <span className="inline-flex shrink-0 items-center gap-1">
               <Users className="size-3" />
@@ -683,7 +840,7 @@ export function BatchDetailPage() {
       <PageHeader
         back={<BackLink to="/batches">Batches</BackLink>}
         title={b.name}
-        description={`${formatTimeRange(b.startTime, b.endTime)} · ${weekdaysLabel(b.weekdays)} · ${b.location.name} · Coach ${b.coach.name}`}
+        description={`${scheduleLabel(b)} · ${b.location.name} · Coach ${b.coach.name}`}
         actions={
           // One compact row: two quick links, then icon buttons.
           <div className="flex items-center gap-1">

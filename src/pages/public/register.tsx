@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox, Segmented, WeekdayPicker } from '@/components/ui/controls';
 import { Card, Input, Select, Textarea } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
-import { formatTimeRange, weekdaysLabel } from '@/lib/format';
 import {
   applyServerErrors,
   nullIfEmpty,
@@ -19,6 +18,7 @@ import {
   phoneSchema,
   optionalPhoneSchema,
 } from '@/lib/forms';
+import { scheduleLabel, type DayTimes } from '@/lib/batch-times';
 
 interface Options {
   academy: { name: string; phone: string | null; email: string | null };
@@ -28,6 +28,7 @@ interface Options {
     weekdays: number[];
     startTime: string;
     endTime: string;
+    dayTimes?: DayTimes;
     location: { id: string; name: string; address: string | null };
   }[];
 }
@@ -220,8 +221,7 @@ function StudentForm({
                     <span className="min-w-0">
                       <span className="block font-medium">{b.name}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {weekdaysLabel(b.weekdays)} · {formatTimeRange(b.startTime, b.endTime)} ·{' '}
-                        {b.location.name}
+                        {scheduleLabel(b)} · {b.location.name}
                       </span>
                     </span>
                   </label>

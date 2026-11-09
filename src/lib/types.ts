@@ -1,6 +1,7 @@
 /** API response shapes (mirrors the backend; amounts in paise, dates as YYYY-MM-DD). */
 
 export type Role = 'admin' | 'coach';
+import type { DayTimes } from './batch-times';
 export type UserStatus = 'invited' | 'active' | 'disabled';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 export type InvoiceStatus = 'due' | 'paid' | 'refunded' | 'cancelled';
@@ -177,6 +178,8 @@ export interface Batch {
   weekdays: number[];
   startTime: string;
   endTime: string;
+  /** Days that run at their own time (ISO weekday → start/end); others use the times above. */
+  dayTimes: DayTimes;
   capacity: number;
   isActive: boolean;
   coach: { id: string; name: string; phone: string | null };
@@ -265,6 +268,7 @@ export interface Membership {
   weekdays: number[];
   startTime: string;
   endTime: string;
+  dayTimes?: DayTimes;
   since: string;
   plan: { id: string; name: string; monthlyFee: number; daysPerWeek: number };
   customMonthlyFee: number | null;
@@ -407,7 +411,14 @@ export interface Substitution {
   reviewedAt: string | null;
   createdAt: string;
   sessions: number;
-  batch: { id: string; name: string; startTime: string; endTime: string; weekdays: number[] };
+  batch: {
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    dayTimes?: DayTimes;
+    weekdays: number[];
+  };
   substitute: { id: string; name: string };
   coach: { id: string; name: string };
   requestedBy: { id: string; name: string };
@@ -477,6 +488,7 @@ export interface LessonInsights {
     name: string;
     startTime: string;
     endTime: string;
+    dayTimes?: DayTimes;
     weekdays: number[];
     coach: { id: string; name: string };
     location: { id: string; name: string };

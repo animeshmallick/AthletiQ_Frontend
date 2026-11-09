@@ -40,6 +40,7 @@ import { TemplateDialog } from './library';
 import { snapToSession } from './meta';
 import { AllBatchesDay } from './all-batches';
 import { UpNext, WeekStrip } from './week';
+import { timesOn } from '@/lib/batch-times';
 
 type View = 'plan' | 'insights';
 /** URL value for the combined, all-batches view. */
@@ -252,7 +253,9 @@ export function LessonPlansPage() {
                 )}
                 {batch && (
                   <span className="inline-flex min-w-0 items-center gap-1 text-[12px] text-muted-foreground">
-                    {formatTimeRange(batch.startTime, batch.endTime)}
+                    {(({ startTime, endTime }) => formatTimeRange(startTime, endTime))(
+                      timesOn(batch, date),
+                    )}
                     <MapPin className="ml-1 size-3" />
                     <span className="truncate">{batch.location.name}</span>
                     {!isCoach && <span className="truncate"> · {batch.coach.name}</span>}

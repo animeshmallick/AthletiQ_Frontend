@@ -21,9 +21,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/overlays';
 import { Badge, Card } from '@/components/ui/primitives';
-import { formatDate, formatTimeRange, money, weekdaysLabel } from '@/lib/format';
+import { formatDate, money } from '@/lib/format';
 import type { Membership, StudentDetail } from '@/lib/types';
 import { AddBatchDialog, LeaveBatchDialog, MembershipFeeDialog, MoveBatchDialog } from './forms';
+import { scheduleLabel } from '@/lib/batch-times';
 
 type Action = { kind: 'fee' | 'move' | 'leave'; m: Membership } | { kind: 'add' } | null;
 
@@ -68,9 +69,7 @@ export function BatchCards({
                   >
                     {m.batchName}
                   </Link>
-                  <p className="text-[12px] text-muted-foreground">
-                    {weekdaysLabel(m.weekdays)} · {formatTimeRange(m.startTime, m.endTime)}
-                  </p>
+                  <p className="text-[12px] text-muted-foreground">{scheduleLabel(m)}</p>
                   <p className="text-[12px] text-muted-foreground">
                     Coach {m.coachName} · {m.locationName}
                   </p>

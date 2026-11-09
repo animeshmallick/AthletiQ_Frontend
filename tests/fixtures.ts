@@ -13,6 +13,7 @@ export const batch: Batch = {
   weekdays: [1, 2, 3, 4, 5, 6],
   startTime: '06:00:00',
   endTime: '08:00:00',
+  dayTimes: {},
   capacity: 20,
   isActive: true,
   coach: { id: 'coach-1', name: 'Ravi Kumar', phone: null },

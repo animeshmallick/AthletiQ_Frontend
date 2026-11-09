@@ -53,15 +53,7 @@ import {
   Textarea,
 } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import {
-  eachDay,
-  formatShortDate,
-  formatTimeRange,
-  isoWeekday,
-  plural,
-  today,
-  WEEKDAYS,
-} from '@/lib/format';
+import { eachDay, formatShortDate, isoWeekday, plural, today, WEEKDAYS } from '@/lib/format';
 import { periodRange, type PeriodKey } from '@/lib/periods';
 import {
   useBatches,
@@ -73,6 +65,7 @@ import {
 } from '@/lib/queries';
 import type { Substitution, SubstitutionStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { timeLabel } from '@/lib/batch-times';
 
 const STATUS: Record<
   SubstitutionStatus,
@@ -162,7 +155,7 @@ function SubstituteDialog({ onClose }: { onClose: () => void }) {
               {own.length === 0 && <option value="">No batches</option>}
               {own.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.name} · {formatTimeRange(b.startTime, b.endTime)}
+                  {b.name} · {timeLabel(b)}
                   {admin ? ` · ${b.coach.name}` : ''}
                 </option>
               ))}
@@ -291,8 +284,7 @@ function SubstitutionRow({
           <span className="truncate font-medium text-foreground">{s.substitute.name}</span>
         </p>
         <p className="truncate text-[11px] text-muted-foreground">
-          {span(s)} · {formatTimeRange(s.batch.startTime, s.batch.endTime)} ·{' '}
-          {plural(s.sessions, 'session')}
+          {span(s)} · {timeLabel(s.batch)} · {plural(s.sessions, 'session')}
           {s.reason ? ` · ${s.reason}` : ''}
           {s.reviewNote ? ` · Note: ${s.reviewNote}` : ''}
         </p>

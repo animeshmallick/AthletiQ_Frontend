@@ -2,12 +2,13 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useAuth } from '@/app/auth';
-import { addDays, formatTimeRange, relativeDay, today } from '@/lib/format';
+import { addDays, relativeDay, today } from '@/lib/format';
 import { useBatches } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { Input, Select, Skeleton } from './ui/primitives';
+import { timeLabel } from '@/lib/batch-times';
 
 /** Prev / date / next control for day-based screens. */
 export function DateStepper({
@@ -97,7 +98,7 @@ export function BatchSelect({
       {!allowAll && !value && <option value="">Select a batch…</option>}
       {batches?.map((b) => (
         <option key={b.id} value={b.id}>
-          {b.name} · {formatTimeRange(b.startTime, b.endTime)}
+          {b.name} · {timeLabel(b)}
           {b.substitution &&
             ` · Substitute till ${b.substitution.toDate.slice(8)}/${b.substitution.toDate.slice(5, 7)}`}
           {b.coach && ` · ${b.coach.name}`}

@@ -6,6 +6,7 @@ import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { planStatus, STATUS_META } from './meta';
 import { useWeekPlans } from './week-data';
+import { timesOn } from '@/lib/batch-times';
 
 /** Every batch's session on one day, with its plan state; tap one to open its plan. */
 export function AllBatchesDay({
@@ -26,14 +27,15 @@ export function AllBatchesDay({
     .filter((d) => d.isSessionDay)
     .map((d) => ({ d, b: batches.find((x) => x.id === d.batchId) }))
     .filter((r): r is { d: typeof r.d; b: Batch } => Boolean(r.b))
-    .sort((x, y) => x.b.startTime.localeCompare(y.b.startTime));
+    .map((r) => ({ ...r, t: timesOn(r.b, date) }))
+    .sort((x, y) => x.t.startTime.localeCompare(y.t.startTime));
 
   if (!rows.length)
     return <EmptyState title="No sessions this day" description="None of your batches train." />;
 
   return (
     <ul className="space-y-1.5" aria-label="Sessions this day">
-      {rows.map(({ d, b }) => {
+      {rows.map(({ d, b, t }) => {
         const status = planStatus(d);
         const meta = STATUS_META[status];
         return (
@@ -55,7 +57,7 @@ export function AllBatchesDay({
                     {b.name}
                   </span>
                   <span className="block truncate text-[12px] text-muted-foreground">
-                    {formatTimeRange(b.startTime, b.endTime)} · {b.location.name}
+                    {formatTimeRange(t.startTime, t.endTime)} · {b.location.name}
                   </span>
                 </span>
                 {d.cancelled ? (

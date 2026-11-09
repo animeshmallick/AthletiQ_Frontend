@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/overlays';
 import { Input, Select, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatTimeRange, isoWeekday, money, today, weekdaysLabel } from '@/lib/format';
+import { isoWeekday, money, today } from '@/lib/format';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema, phoneSchema } from '@/lib/forms';
 import {
   useBatches,
@@ -33,12 +33,12 @@ import {
 } from '@/lib/queries';
 import type { Batch, Membership, StudentDetail } from '@/lib/types';
 import { useUser } from '@/app/auth';
+import { scheduleLabel, timeLabel } from '@/lib/batch-times';
 
 // ─── Picking batches ─────────────────────────────────────────────────────────
 
 /** "Mon · Wed · Fri · 5:00–6:30 pm · Coach Ravi" */
-const batchLine = (b: Batch) =>
-  `${weekdaysLabel(b.weekdays)} · ${formatTimeRange(b.startTime, b.endTime)} · ${b.coach.name}`;
+const batchLine = (b: Batch) => `${scheduleLabel(b)} · ${b.coach.name}`;
 
 const feeOf = (b: Batch | undefined, pick: BatchPick) =>
   Math.max(0, (pick.customMonthlyFee ?? b?.feePlan.monthlyFee ?? 0) - (pick.monthlyDiscount ?? 0));
@@ -83,7 +83,7 @@ function BatchPickRow({
             <option value="">Select a batch…</option>
             {options.map((b) => (
               <option key={b.id} value={b.id} disabled={full(b)}>
-                {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
+                {b.name} · {timeLabel(b)} · {b.coach.name}
                 {full(b) ? ' (full)' : ` (${b.memberCount}/${b.capacity})`}
               </option>
             ))}
@@ -609,7 +609,7 @@ export function MoveBatchDialog({
               <option value="">Select a batch…</option>
               {options.map((b) => (
                 <option key={b.id} value={b.id} disabled={b.memberCount >= b.capacity}>
-                  {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
+                  {b.name} · {timeLabel(b)} · {b.coach.name}
                   {b.memberCount >= b.capacity ? ' (full)' : ''}
                 </option>
               ))}
@@ -862,8 +862,7 @@ export function MakeupDialog({
                   <option value="">Select a batch…</option>
                   {bookable.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.name} · {formatTimeRange(b.startTime, b.endTime)} ·{' '}
-                      {weekdaysLabel(b.weekdays)}
+                      {b.name} · {scheduleLabel(b)}
                     </option>
                   ))}
                 </Select>

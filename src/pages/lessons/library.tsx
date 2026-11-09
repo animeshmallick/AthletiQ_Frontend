@@ -17,11 +17,11 @@ import {
 } from '@/components/ui/overlays';
 import { Input, Select } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatTimeRange } from '@/lib/format';
 import { useCopyTemplate, useLibrary, useReorderLibrary, useSaveLibraryItem } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { STAGE_COLORS } from './meta';
+import { timeLabel } from '@/lib/batch-times';
 
 function LibraryList({ kind, batchId }: { kind: 'stages' | 'events'; batchId: string }) {
   const list = useLibrary(kind, { batchId, includeArchived: 'true' });
@@ -295,7 +295,7 @@ export function TemplateDialog({
           >
             {batches.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.name} · {formatTimeRange(b.startTime, b.endTime)}
+                {b.name} · {timeLabel(b)}
               </option>
             ))}
           </Select>

@@ -111,3 +111,69 @@ describe('batch form', () => {
     expect(plan).toHaveAttribute('title', 'Only one option available');
   });
 });
+
+describe('batch timings', () => {
+  it('lets some days run at their own time', async () => {
+    const api = mockApi({
+      'GET /users': () => ({ data: [], meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } }),
+      'GET /locations': () => [],
+      'GET /sports': () => [],
+      'GET /fee-plans': () => [
+        { id: 'p1', name: '6 days', daysPerWeek: 6, monthlyFee: 250_000, isActive: true },
+      ],
+      'PATCH /batches/b1': () => batch,
+    });
+    const { user } = await renderPage(<BatchDialog open onOpenChange={() => {}} batch={batch} />, {
+      path: '/',
+      route: '/',
+      user: adminUser,
+    });
+    await user.click(
+      await screen.findByRole('switch', { name: 'Some days run at a different time' }),
+    );
+    await user.click(screen.getByRole('switch', { name: 'Saturday at its own time' }));
+    const start = screen.getByLabelText('Saturday starts');
+    const end = screen.getByLabelText('Saturday ends');
+    expect(start).toHaveValue('06:00'); // starts from the usual time
+    await user.clear(start);
+    await user.type(start, '07:00');
+    await user.clear(end);
+    await user.type(end, '06:30');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByText('End must be after start')).toBeInTheDocument();
+    expect(api.find('PATCH /batches/b1')).toHaveLength(0);
+
+    await user.clear(end);
+    await user.type(end, '09:00');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(api.find('PATCH /batches/b1')).toHaveLength(1));
+    expect(api.find('PATCH /batches/b1')[0]!.body).toMatchObject({
+      startTime: '06:00',
+      endTime: '08:00',
+      dayTimes: { '6': { start: '07:00', end: '09:00' } },
+    });
+  });
+
+  it('shows each day’s time on the student’s batch card', async () => {
+    mockApi({
+      'GET /students/s1': () => ({
+        ...studentDetail,
+        memberships: [
+          {
+            ...studentDetail.memberships[0]!,
+            weekdays: [1, 3, 6],
+            dayTimes: { '6': { start: '07:00:00', end: '09:00:00' } },
+          },
+        ],
+      }),
+    });
+    await renderPage(<StudentDetailPage />, {
+      path: '/students/:id',
+      route: '/students/s1',
+      user: adminUser,
+    });
+    expect(
+      await screen.findByText(/Mon, Wed 6:00 am – 8:00 am · Sat 7:00 am – 9:00 am/),
+    ).toBeInTheDocument();
+  });
+});
