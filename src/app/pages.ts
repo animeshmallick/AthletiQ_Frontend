@@ -27,6 +27,8 @@ const m18 = () => import('@/pages/admin/settings');
 const m19 = () => import('@/pages/admin/audit-log');
 const m20 = () => import('@/pages/account');
 const m21 = () => import('@/pages/substitutions');
+const m22 = () => import('@/pages/admin/people');
+const m23 = () => import('@/pages/admin/payees');
 
 const page = <T>(loader: () => Promise<T>, name: keyof T) =>
   lazy(async () => ({ default: (await loader())[name] as ComponentType }));
@@ -59,6 +61,8 @@ export const SettingsPage = page(m18, 'SettingsPage');
 export const AuditLogPage = page(m19, 'AuditLogPage');
 export const AccountPage = page(m20, 'AccountPage');
 export const SubstitutionsPage = page(m21, 'SubstitutionsPage');
+export const PeoplePage = page(m22, 'PeoplePage');
+export const PayeesPage = page(m23, 'PayeesPage');
 export const MoneyPage = page(() => import('@/pages/money'), 'MoneyPage');
 
 const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [

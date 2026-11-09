@@ -1,6 +1,7 @@
 /**
- * The phone "More" sheet: profile, every screen that isn't a tab (as tiles and grouped
- * lists with task counts), appearance, sign out and — for admins — deployment status.
+ * The phone "More" sheet: profile, every screen that isn't a tab as tiles grouped by purpose
+ * (role-specific: Approvals for admins, Requests for coaches) with to-do counts, a quick screen
+ * search, this device's app actions, appearance, sign out and — for admins — deployment status.
  */
 import {
   Bell,
@@ -10,6 +11,7 @@ import {
   Monitor,
   Moon,
   RefreshCw,
+  Search,
   Smartphone,
   Sun,
   X,
@@ -32,15 +34,9 @@ import { DeploymentsInfo } from './deployments';
 import { useInstallPrompt } from './install';
 import { APK_URL, checkForAppUpdate, isAndroidBrowser, isNativeApp } from './native';
 import { enableWebPush, webPushState } from './web-push';
-import type { NavItem } from './nav';
+import { matches, NAV_GROUPS, type NavItem } from './nav';
 import { preloadRoute } from './pages';
 import { useTheme, type Theme } from './theme';
-
-const GROUPS: { key: NavItem['group']; label: string }[] = [
-  { key: 'main', label: 'Coaching' },
-  { key: 'manage', label: 'Manage' },
-  { key: 'system', label: 'System' },
-];
 
 const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -57,11 +53,6 @@ function CountBadge({ n }: { n?: number }) {
   );
 }
 
-const rowClass =
-  'flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors active:bg-muted/60';
-const iconClass =
-  'flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/80';
-
 interface AppAction {
   label: string;
   icon: LucideIcon;
@@ -69,7 +60,69 @@ interface AppAction {
   onClick?: () => void;
 }
 
-const isActive = (to: string, path: string) => (to === '/' ? path === '/' : path.startsWith(to));
+/** Icon colour per section, so each group is recognisable at a glance. */
+const TONES: Record<NavItem['group'], string> = {
+  main: 'bg-primary/10 text-primary',
+  manage: 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300',
+  approvals: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+  system: 'bg-slate-500/12 text-slate-700 dark:text-slate-300',
+};
+
+/** Screens as large, tappable tiles with an active state and to-do counts. */
+function TileGrid({
+  items,
+  counts,
+  pathname,
+  onNavigate,
+}: {
+  items: NavItem[];
+  counts: Record<string, number>;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <ul className="grid grid-cols-4 gap-1.5">
+      {items.map((item) => {
+        const active = matches(item, pathname);
+        const n = counts[item.to] ?? 0;
+        return (
+          <li key={item.to}>
+            <NavLink
+              to={item.to}
+              end={item.to === '/'}
+              onClick={onNavigate}
+              onPointerDown={() => preloadRoute(item.to)}
+              aria-current={active ? 'page' : undefined}
+              aria-label={n ? `${item.label}, ${n} to do` : item.label}
+              className={cn(
+                'relative flex h-full min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-2xl border bg-card px-1 py-2 text-center shadow-e1 transition-[transform,background-color,border-color] duration-150 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 active:scale-[0.96]',
+                active && 'border-primary/50 bg-primary/[0.06]',
+              )}
+            >
+              <span
+                className={cn(
+                  'flex size-9 items-center justify-center rounded-xl',
+                  TONES[item.group],
+                  active && 'bg-primary text-primary-foreground',
+                )}
+              >
+                <item.icon className="size-[18px]" />
+              </span>
+              <span className="line-clamp-2 w-full text-[11px] leading-tight font-medium">
+                {item.short ?? item.label}
+              </span>
+              {n > 0 && (
+                <span aria-hidden className="absolute top-1 right-1">
+                  <CountBadge n={n} />
+                </span>
+              )}
+            </NavLink>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export function MoreSheet({
   items,
@@ -89,6 +142,9 @@ export function MoreSheet({
   const { pathname } = useLocation();
   const tabPaths = new Set(tabs.map((t) => t.to));
   const rest = items.filter((i) => !tabPaths.has(i.to));
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const found = rest.filter((i) => `${i.label} ${i.short ?? ''}`.toLowerCase().includes(needle));
   const web = typeof __BUILD__ !== 'undefined' ? __BUILD__ : null;
   const install = useInstallPrompt();
   const [pushState, setPushState] = useState(webPushState);
@@ -168,115 +224,100 @@ export function MoreSheet({
           <ChevronRight className="size-4 text-muted-foreground" />
         </NavLink>
 
-        {/* Screens, grouped */}
-        {GROUPS.map(({ key, label }) => {
-          const group = rest.filter((i) => i.group === key);
-          if (!group.length) return null;
-          return (
-            <section key={key} aria-label={label}>
-              <h3 className="mb-1.5 px-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                {label}
-              </h3>
-              {key === 'main' ? (
-                <div className="grid grid-cols-4 gap-1.5">
-                  {group.map((item) => {
-                    const active = isActive(item.to, pathname);
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        end={item.to === '/'}
-                        onClick={onNavigate}
-                        onPointerDown={() => preloadRoute(item.to)}
-                        className={cn(
-                          'relative flex flex-col items-center gap-1 rounded-xl border bg-card px-0.5 py-2 text-center shadow-e1 transition-transform active:scale-[0.97]',
-                          active && 'border-primary/50 bg-primary/5',
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary',
-                            active && 'bg-primary text-primary-foreground',
-                          )}
-                        >
-                          <item.icon className="size-4.5" />
-                        </span>
-                        <span className="w-full truncate text-[11px] leading-tight font-medium">
-                          {item.short ?? item.label}
-                        </span>
-                        {!!counts[item.to] && (
-                          <span className="absolute top-0.5 right-0.5">
-                            <CountBadge n={counts[item.to]} />
-                          </span>
-                        )}
-                      </NavLink>
-                    );
-                  })}
+        {/* Find a screen (handy when there are many) */}
+        {rest.length > 8 && (
+          <label className="relative block">
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Find a screen…"
+              aria-label="Find a screen"
+              className="h-10 w-full rounded-xl border bg-card pr-3 pl-9 text-[15px] shadow-e1 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20 sm:text-sm"
+            />
+          </label>
+        )}
+
+        {/* Screens, grouped by what they're for — every one a tile */}
+        {needle ? (
+          <section aria-label="Search results">
+            {found.length === 0 ? (
+              <p className="rounded-2xl border bg-card px-3 py-4 text-center text-sm text-muted-foreground shadow-e1">
+                No screen matches “{query.trim()}”.
+              </p>
+            ) : (
+              <TileGrid items={found} counts={counts} pathname={pathname} onNavigate={onNavigate} />
+            )}
+          </section>
+        ) : (
+          NAV_GROUPS.map(({ key, label }) => {
+            const group = rest.filter((i) => i.group === key);
+            if (!group.length) return null;
+            const pending = group.reduce((n, i) => n + (counts[i.to] ?? 0), 0);
+            return (
+              <section key={key} aria-labelledby={`more-${key}`}>
+                <div className="mb-1.5 flex items-center gap-2 px-1">
+                  <h3
+                    id={`more-${key}`}
+                    className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+                  >
+                    {label(user.role)}
+                  </h3>
+                  {pending > 0 && (
+                    <span className="rounded-full bg-destructive/10 px-1.5 text-[10px] font-semibold text-destructive">
+                      {pending} to review
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <ul className="divide-y overflow-hidden rounded-2xl border bg-card shadow-e1">
-                  {group.map((item) => {
-                    const active = isActive(item.to, pathname);
-                    return (
-                      <li key={item.to}>
-                        <NavLink
-                          to={item.to}
-                          onClick={onNavigate}
-                          onPointerDown={() => preloadRoute(item.to)}
-                          className={cn(
-                            'flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors active:bg-muted/60',
-                            active && 'bg-primary/5 text-primary',
-                          )}
-                        >
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/80">
-                            <item.icon className="size-4.5" />
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                          <CountBadge n={counts[item.to]} />
-                          <ChevronRight className="size-4 text-muted-foreground" />
-                        </NavLink>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-          );
-        })}
+                <TileGrid
+                  items={group}
+                  counts={counts}
+                  pathname={pathname}
+                  onNavigate={onNavigate}
+                />
+              </section>
+            );
+          })
+        )}
 
         {/* This device: notifications, app install and updates (only what applies here) */}
         {appActions.length > 0 && (
-          <section aria-label="App">
-            <h3 className="mb-1.5 px-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-              App
+          <section aria-labelledby="more-app">
+            <h3
+              id="more-app"
+              className="mb-1.5 px-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+            >
+              This device
             </h3>
-            <ul className="divide-y overflow-hidden rounded-2xl border bg-card shadow-e1">
-              {appActions.map((a) => (
-                <li key={a.label}>
-                  {a.href ? (
-                    <a href={a.href} className={rowClass}>
-                      <span className={iconClass}>
-                        <a.icon className="size-4.5" />
-                      </span>
-                      <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                      <ChevronRight className="size-4 text-muted-foreground" />
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={a.onClick}
-                      className={cn(rowClass, 'w-full cursor-pointer text-left')}
-                    >
-                      <span className={iconClass}>
-                        <a.icon className="size-4.5" />
-                      </span>
-                      <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                      <ChevronRight className="size-4 text-muted-foreground" />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="grid grid-cols-2 gap-1.5">
+              {appActions.map((a) => {
+                const body = (
+                  <>
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/80">
+                      <a.icon className="size-4.5" />
+                    </span>
+                    <span className="min-w-0 flex-1 text-left text-[13px] leading-tight font-medium">
+                      {a.label}
+                    </span>
+                  </>
+                );
+                const cls =
+                  'flex min-h-14 cursor-pointer items-center gap-2 rounded-2xl border bg-card px-2.5 py-2 shadow-e1 transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/30 active:scale-[0.97]';
+                return a.href ? (
+                  <a key={a.label} href={a.href} className={cls}>
+                    {body}
+                  </a>
+                ) : (
+                  <button key={a.label} type="button" onClick={a.onClick} className={cls}>
+                    {body}
+                  </button>
+                );
+              })}
+            </div>
           </section>
         )}
 

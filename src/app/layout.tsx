@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { useUser } from './auth';
 import { IosInstallBanner } from '@/components/notifications';
 import { checkForAppUpdate, isNativeApp, registerPush } from './native';
-import { navFor, tabsFor, type NavItem } from './nav';
+import { matches, NAV_GROUPS, navFor, tabsFor, type NavItem } from './nav';
 import { preloadRoute, preloadWhenIdle } from './pages';
 import { PullToRefresh } from './pull-to-refresh';
 import { refreshWebPush } from './web-push';
@@ -27,14 +27,12 @@ function SidebarNav({
   onNavigate?: () => void;
   counts?: Record<string, number>;
 }) {
-  const groups: { key: NavItem['group']; label?: string }[] = [
-    { key: 'main' },
-    { key: 'manage', label: 'Manage' },
-    { key: 'system', label: 'System' },
-  ];
+  const user = useUser();
+  const { pathname } = useLocation();
   return (
     <nav aria-label="Main" className="flex flex-col gap-5">
-      {groups.map(({ key, label }) => {
+      {NAV_GROUPS.map(({ key, label: title }) => {
+        const label = key === 'main' ? undefined : title(user.role);
         const groupItems = items.filter((i) => i.group === key);
         if (!groupItems.length) return null;
         return (
@@ -53,7 +51,8 @@ function SidebarNav({
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                    isActive && 'bg-sidebar-accent text-sidebar-foreground',
+                    (isActive || matches(item, pathname)) &&
+                      'bg-sidebar-accent text-sidebar-foreground',
                   )
                 }
               >
@@ -88,9 +87,7 @@ export function AppLayout() {
   useNativeApp();
   const location = useLocation();
   // "More" lights up when the current screen isn't one of the tabs.
-  const onTab = tabs.some((t) =>
-    t.to === '/' ? location.pathname === '/' : location.pathname.startsWith(t.to),
-  );
+  const onTab = tabs.some((t) => matches(t, location.pathname));
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
@@ -149,11 +146,16 @@ export function AppLayout() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
-              className={({ isActive }) => tabClass(isActive)}
+              className={({ isActive }) => tabClass(isActive || matches(item, location.pathname))}
+              aria-label={counts[item.to] ? `${item.label}, ${counts[item.to]} to do` : undefined}
             >
               {({ isActive }) => (
                 <>
-                  <TabIcon icon={item.icon} active={isActive} badge={counts[item.to]} />
+                  <TabIcon
+                    icon={item.icon}
+                    active={isActive || matches(item, location.pathname)}
+                    badge={counts[item.to]}
+                  />
                   <span className="max-w-full truncate px-0.5">{item.short ?? item.label}</span>
                 </>
               )}

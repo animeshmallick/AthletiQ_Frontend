@@ -4,7 +4,7 @@ import { __setInstallEvent, isStandalone } from '@/app/install';
 import { RouterProvider } from 'react-router';
 import { Providers } from '@/app/providers';
 import { router } from '@/app/router';
-import { navFor, tabsFor } from '@/app/nav';
+import { matches, navFor, tabsFor } from '@/app/nav';
 import {
   adminUser,
   coachUser,
@@ -69,8 +69,20 @@ describe('navigation', () => {
     expect(navFor('admin').find((n) => n.to === '/invoices')?.label).toBe('Invoices');
     expect(coach).not.toContain('/registrations');
     expect(admin).toEqual(
-      expect.arrayContaining(['/settings', '/registrations', '/coaches', '/fee-plans']),
+      expect.arrayContaining(['/settings', '/registrations', '/people', '/fee-plans']),
     );
+    // Admins reach students, the team and payees through one Users hub; coaches see Students.
+    expect(tabsFor('admin').map((t) => t.to)).toContain('/people');
+    expect(coach).toContain('/students');
+    expect(coach).not.toContain('/people');
+    // Requests that need a decision are grouped together.
+    expect(
+      navFor('admin')
+        .filter((n) => n.group === 'approvals')
+        .map((n) => n.to),
+    ).toEqual(['/substitutions', '/registrations', '/makeups']);
+    expect(matches({ to: '/people', also: ['/students'] }, '/students/abc')).toBe(true);
+    expect(matches({ to: '/people', also: ['/students'] }, '/studentsx')).toBe(false);
     // Four tabs + "More" fit a phone; every tab is a screen the role can open.
     for (const role of ['coach', 'admin'] as const) {
       expect(tabsFor(role)).toHaveLength(4);

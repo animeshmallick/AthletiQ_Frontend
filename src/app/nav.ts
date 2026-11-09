@@ -16,7 +16,6 @@ import {
   Tags,
   UserPlus,
   Users,
-  UsersRound,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
@@ -31,7 +30,9 @@ export interface NavItem {
   short?: string;
   /** Roles that get this screen as a phone tab (4 per role; the 5th tab is "More"). */
   tabs?: Role[];
-  group: 'main' | 'manage' | 'system';
+  group: 'main' | 'manage' | 'approvals' | 'system';
+  /** Other paths that belong to this item (it stays highlighted on them). */
+  also?: string[];
 }
 
 export const NAV: NavItem[] = [
@@ -78,10 +79,19 @@ export const NAV: NavItem[] = [
   {
     to: '/students',
     label: 'Students',
+    icon: Users,
+    roles: ['coach'],
+    group: 'main',
+  },
+  {
+    // Admins: one place for people — students, the team and payees.
+    to: '/people',
+    label: 'Users',
     tabs: ['admin'],
     icon: Users,
-    roles: ['coach', 'admin'],
+    roles: ['admin'],
     group: 'main',
+    also: ['/students', '/coaches', '/payees'],
   },
   {
     to: '/invoices',
@@ -112,6 +122,14 @@ export const NAV: NavItem[] = [
     roles: ['coach', 'admin'],
     group: 'main',
   },
+  {
+    to: '/coach-sessions',
+    label: 'Coach check-ins',
+    short: 'Check-ins',
+    icon: ShieldCheck,
+    roles: ['admin', 'coach'],
+    group: 'main',
+  },
 
   {
     to: '/batches',
@@ -120,34 +138,28 @@ export const NAV: NavItem[] = [
     roles: ['coach', 'admin'],
     group: 'manage',
   },
-  { to: '/coaches', label: 'Coaches', icon: UsersRound, roles: ['admin'], group: 'manage' },
   {
     to: '/substitutions',
     label: 'Substitutes',
     icon: Repeat,
     roles: ['coach', 'admin'],
-    group: 'manage',
+    group: 'approvals',
   },
   {
     to: '/registrations',
     label: 'Registrations',
+    short: 'Sign-ups',
     icon: UserPlus,
     roles: ['admin'],
-    group: 'manage',
+    group: 'approvals',
   },
   {
     to: '/makeups',
     label: 'Makeup requests',
+    short: 'Makeups',
     icon: CalendarPlus,
     roles: ['admin'],
-    group: 'manage',
-  },
-  {
-    to: '/coach-sessions',
-    label: 'Coach check-ins',
-    icon: ShieldCheck,
-    roles: ['admin', 'coach'],
-    group: 'manage',
+    group: 'approvals',
   },
   { to: '/locations', label: 'Locations', icon: MapPin, roles: ['admin'], group: 'manage' },
   { to: '/fee-plans', label: 'Fee plans', icon: Tags, roles: ['admin'], group: 'manage' },
@@ -164,3 +176,17 @@ export function navFor(role: Role) {
 export function tabsFor(role: Role) {
   return NAV.filter((n) => n.tabs?.includes(role));
 }
+
+/** Is the user on this item's screen (or one of its related screens)? */
+export function matches(item: Pick<NavItem, 'to' | 'also'>, path: string) {
+  if (item.to === '/') return path === '/';
+  return [item.to, ...(item.also ?? [])].some((p) => path === p || path.startsWith(`${p}/`));
+}
+
+/** Section titles, in order (Approvals reads as Requests for coaches). */
+export const NAV_GROUPS: { key: NavItem['group']; label: (role: Role) => string }[] = [
+  { key: 'main', label: () => 'Coaching' },
+  { key: 'manage', label: () => 'Manage' },
+  { key: 'approvals', label: (role) => (role === 'admin' ? 'Approvals' : 'Requests') },
+  { key: 'system', label: () => 'System' },
+];
