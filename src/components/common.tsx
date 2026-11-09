@@ -54,7 +54,7 @@ export function PageHeader({
           {title}
         </h1>
         {description && (
-          <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground sm:mt-1 sm:text-sm">
+          <p className="mt-0.5 line-clamp-1 text-[13px] leading-snug text-muted-foreground sm:mt-1 sm:line-clamp-none sm:text-sm">
             {description}
           </p>
         )}

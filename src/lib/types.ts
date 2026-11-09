@@ -385,6 +385,53 @@ export interface LessonPlan {
   cells: { eventId: string; stageId: string; content: string }[];
 }
 
+export type PlanStatus = 'complete' | 'partial' | 'empty' | 'unplanned';
+
+export interface LessonInsights {
+  from: string;
+  to: string;
+  today: string;
+  totals: {
+    sessions: number;
+    cancelled: number;
+    planned: number;
+    complete: number;
+    missed: number;
+    upcomingUnplanned: number;
+    plannedAhead: number;
+    fillRate: number | null;
+    avgEvents: number | null;
+    streak: number;
+  };
+  batches: {
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    weekdays: number[];
+    coach: { id: string; name: string };
+    location: { id: string; name: string };
+    sessions: number;
+    planned: number;
+    complete: number;
+    missed: number;
+    fillRate: number | null;
+    streak: number;
+    next: { date: string; status: PlanStatus; filled: number; total: number } | null;
+  }[];
+  needsPlan: {
+    batchId: string;
+    batchName: string;
+    startTime: string;
+    date: string;
+    status: Exclude<PlanStatus, 'complete'>;
+  }[];
+  weeks: { start: string; sessions: number; planned: number; complete: number }[];
+  events: { id: string; name: string; plans: number; cells: number; lastUsed: string }[];
+  stages: { id: string; name: string; color: string | null; plans: number; cells: number }[];
+  unusedEvents: { id: string; name: string; lastUsed: string | null }[] | null;
+}
+
 export interface FeedbackField {
   id: string;
   type: 'rating' | 'text' | 'textarea' | 'select' | 'multiselect' | 'boolean';

@@ -59,6 +59,7 @@ import {
   useCoachToday,
   useFeedbackWeek,
   useFinance,
+  useLessonInsights,
   useRegistrations,
 } from '@/lib/queries';
 import type { DayOverviewSession, TodaySession } from '@/lib/types';
@@ -162,7 +163,7 @@ function CoachSessionCard({
     overview && overview.expectedStudents ? (overview.marked / overview.expectedStudents) * 100 : 0;
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:p-4">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate font-semibold">{item.batch.name}</h3>
@@ -172,7 +173,7 @@ function CoachSessionCard({
               </Badge>
             )}
           </div>
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Clock className="size-3.5" />{' '}
               {formatTimeRange(item.batch.startTime, item.batch.endTime)}
@@ -193,7 +194,7 @@ function CoachSessionCard({
       <div className="grid grid-cols-2 border-t text-sm">
         <Link
           to={`/attendance?batch=${item.batch.id}`}
-          className="group flex flex-col gap-2 border-r p-4 transition-colors hover:bg-muted/50"
+          className="group flex flex-col gap-1.5 border-r p-3 transition-colors hover:bg-muted/50 sm:p-3.5"
         >
           <span className="flex items-center justify-between font-medium">
             <span className="inline-flex items-center gap-2">
@@ -222,8 +223,8 @@ function CoachSessionCard({
           )}
         </Link>
         <Link
-          to={`/lesson-plans?batch=${item.batch.id}`}
-          className="group flex flex-col gap-2 p-4 transition-colors hover:bg-muted/50"
+          to={`/lesson-plans?batch=${item.batch.id}&date=${today()}`}
+          className="group flex flex-col gap-1.5 p-3 transition-colors hover:bg-muted/50 sm:p-3.5"
         >
           <span className="flex items-center justify-between font-medium">
             <span className="inline-flex items-center gap-2">
@@ -244,6 +245,28 @@ function CoachSessionCard({
   );
 }
 
+/** Upcoming sessions (next two weeks) that still have no lesson plan. */
+function PlanningNudge() {
+  const day = today();
+  const q = useLessonInsights({ from: day, to: addDays(day, 13) });
+  const missing = q.data?.totals.upcomingUnplanned ?? 0;
+  if (!missing) return null;
+  const first = q.data!.needsPlan.find((n) => n.status === 'unplanned');
+  return (
+    <Link
+      to={first ? `/lesson-plans?batch=${first.batchId}&date=${first.date}` : '/lesson-plans'}
+      className="flex items-center gap-3 rounded-xl border bg-card px-3.5 py-3 text-[13px] shadow-e1 transition-colors hover:bg-muted/50"
+    >
+      <ClipboardList className="size-5 shrink-0 text-primary" />
+      <span className="flex-1">
+        <span className="font-medium">{plural(missing, 'session')} without a lesson plan</span>
+        <span className="text-muted-foreground"> in the next two weeks.</span>
+      </span>
+      <ArrowRight className="size-4" />
+    </Link>
+  );
+}
+
 function CoachToday() {
   const user = useUser();
   const day = today();
@@ -253,10 +276,10 @@ function CoachToday() {
   const feedback = useFeedbackWeek({ weekStart: lastWeek });
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-5">
       <div>
-        <p className="text-sm text-muted-foreground">{formatLongDate(day)}</p>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <p className="text-[13px] text-muted-foreground">{formatLongDate(day)}</p>
+        <h1 className="text-[22px] font-semibold tracking-tight sm:text-2xl">
           {greeting()}, {user.name.split(' ')[0]}
         </h1>
       </div>
@@ -264,7 +287,7 @@ function CoachToday() {
       {feedback.data && feedback.data.summary.pending + feedback.data.summary.draft > 0 && (
         <Link
           to="/feedback"
-          className="flex items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm transition-colors hover:bg-warning/15"
+          className="flex items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 px-3.5 py-3 text-[13px] transition-colors hover:bg-warning/15"
         >
           <MessageSquareText className="size-5 shrink-0 text-warning-foreground dark:text-warning" />
           <span className="flex-1">
@@ -276,8 +299,10 @@ function CoachToday() {
         </Link>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+      <PlanningNudge />
+
+      <section className="space-y-2.5">
+        <h2 className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
           Today’s sessions
         </h2>
         {todayQ.isPending ? (

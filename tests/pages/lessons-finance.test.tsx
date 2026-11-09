@@ -1,7 +1,7 @@
 import { BatchDetailPage, BatchesPage } from '@/pages/batches';
 import { CoachSessionsPage } from '@/pages/coach-sessions';
 import { FinancePage } from '@/pages/finance';
-import { LessonPlansPage } from '@/pages/lesson-plans';
+import { LessonPlansPage } from '@/pages/lessons';
 import { batch } from '../fixtures';
 import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 

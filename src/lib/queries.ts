@@ -25,6 +25,7 @@ import type {
   FinanceSummary,
   Invoice,
   InvoiceDetail,
+  LessonInsights,
   LessonPlan,
   LibraryItem,
   Location,
@@ -518,6 +519,18 @@ export const usePlanCalendar = (q: { batchId?: string; from: string; to: string 
     placeholderData: keepPreviousData,
   });
 
+export const useLessonInsights = (q: {
+  from: string;
+  to: string;
+  batchId?: string;
+  coachId?: string;
+}) =>
+  useQuery({
+    queryKey: ['lessons', 'insights', q] as const,
+    queryFn: () => api.get<LessonInsights>('/lessons/insights', q),
+    placeholderData: keepPreviousData,
+  });
+
 export const usePlanDay = (batchId: string | undefined, date: string) =>
   useQuery({
     queryKey: keys.planDay(batchId ?? '', date),
@@ -528,6 +541,7 @@ export const usePlanDay = (batchId: string | undefined, date: string) =>
         isSessionDay: boolean;
         cancelled?: string | null;
         lockedReason?: string | null;
+        previousPlanDate?: string | null;
         plan: LessonPlan | null;
       }>('/lessons/plans/day', { batchId, date }),
     enabled: Boolean(batchId),
@@ -551,6 +565,7 @@ export function useSavePlan() {
       );
       return Promise.all([
         qc.invalidateQueries({ queryKey: ['lessons', 'calendar'] }),
+        qc.invalidateQueries({ queryKey: ['lessons', 'insights'] }),
         qc.invalidateQueries({ queryKey: ['attendance', 'overview'] }),
       ]);
     },
@@ -561,7 +576,8 @@ export function useDeletePlan() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (q: { batchId: string; date: string }) => api.delete('/lessons/plans/day', q),
-    onSuccess: (_d, v) => invalidate(keys.planDay(v.batchId, v.date), ['lessons', 'calendar']),
+    onSuccess: (_d, v) =>
+      invalidate(keys.planDay(v.batchId, v.date), ['lessons', 'calendar'], ['lessons', 'insights']),
   });
 }
 

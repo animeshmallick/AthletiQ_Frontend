@@ -10,7 +10,7 @@ const m1 = () => import('@/pages/auth/token-password');
 const m2 = () => import('@/pages/public/register');
 const m3 = () => import('@/pages/today');
 const m4 = () => import('@/pages/attendance');
-const m5 = () => import('@/pages/lesson-plans');
+const m5 = () => import('@/pages/lessons');
 const m6 = () => import('@/pages/feedback/board');
 const m7 = () => import('@/pages/feedback/form');
 const m8 = () => import('@/pages/students/list');

@@ -404,4 +404,24 @@ describe('Today insights', () => {
     expect(screen.getByText('2 still to send')).toBeInTheDocument();
     expect(screen.getByText('89%')).toBeInTheDocument();
   });
+
+  it('nudges a coach about upcoming sessions without a plan', async () => {
+    mockApi({
+      'GET /lessons/insights': () => ({
+        totals: { upcomingUnplanned: 3 },
+        needsPlan: [
+          {
+            batchId: 'b1',
+            batchName: 'M',
+            startTime: '06:00:00',
+            date: '2026-03-11',
+            status: 'unplanned',
+          },
+        ],
+      }),
+    });
+    await renderPage(<TodayPage />, { user: coachUser });
+    const link = await screen.findByRole('link', { name: /3 sessions without a lesson plan/ });
+    expect(link).toHaveAttribute('href', '/lesson-plans?batch=b1&date=2026-03-11');
+  });
 });
