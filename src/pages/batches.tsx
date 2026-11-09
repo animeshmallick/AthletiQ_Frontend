@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  ArrowLeft,
   CalendarCheck2,
   ClipboardList,
   FileText,
@@ -25,6 +24,7 @@ import {
   PageHeader,
   SearchInput,
 } from '@/components/common';
+import { BackLink } from '@/components/back-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Switch, WeekdayPicker } from '@/components/ui/controls';
 import {
@@ -636,14 +636,7 @@ export function BatchDetailPage() {
   return (
     <div>
       <PageHeader
-        back={
-          <Link
-            to="/batches"
-            className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> Batches
-          </Link>
-        }
+        back={<BackLink to="/batches">Batches</BackLink>}
         title={b.name}
         description={`${formatTimeRange(b.startTime, b.endTime)} · ${weekdaysLabel(b.weekdays)} · ${b.location.name} · Coach ${b.coach.name}`}
         actions={

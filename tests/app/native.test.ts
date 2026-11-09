@@ -91,13 +91,18 @@ describe('native shell', () => {
     expect(escape).toHaveBeenCalled();
     dialog.remove();
 
-    // 2. Inner screens go back, or to Today when there is no history.
+    // 2. Detail screens go back, or up to their list when there is no history.
     window.history.replaceState(null, '', '/students/abc');
     const historyBack = jest.spyOn(window.history, 'back').mockImplementation(() => undefined);
     back({ canGoBack: true });
     expect(historyBack).toHaveBeenCalled();
     back({ canGoBack: false });
-    expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    expect(navigate).toHaveBeenCalledWith('/students', { replace: true });
+
+    // 2b. Top-level screens return to Today.
+    window.history.replaceState(null, '', '/students');
+    back({ canGoBack: true });
+    expect(navigate).toHaveBeenLastCalledWith('/', { replace: true });
 
     // 3. On Today the app goes to the background instead of closing.
     window.history.replaceState(null, '', '/');

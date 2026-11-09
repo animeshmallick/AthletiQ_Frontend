@@ -1,9 +1,10 @@
-import { ArrowLeft, Lock, Send } from 'lucide-react';
+import { Lock, Send } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import { ErrorState, ListSkeleton, PageHeader, Progress } from '@/components/common';
+import { BackLink } from '@/components/back-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Switch } from '@/components/ui/controls';
 import {
@@ -263,14 +264,7 @@ export function FeedbackFormPage() {
   return (
     <div className="mx-auto max-w-3xl pb-24">
       <PageHeader
-        back={
-          <Link
-            to={`/feedback?week=${weekStart}`}
-            className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> Weekly feedback
-          </Link>
-        }
+        back={<BackLink to={`/feedback?week=${weekStart}`}>Weekly feedback</BackLink>}
         title={student.fullName}
         description={`${template.title} · ${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`}
         actions={

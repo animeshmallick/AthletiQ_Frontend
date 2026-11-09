@@ -26,6 +26,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '@/lib/utils';
+import { useBackToClose } from '@/app/back-stack';
 import { fieldClass } from './field-styles';
 
 interface Opt {
@@ -111,6 +112,8 @@ export function Select({
   const listId = `${id}-list`;
   const sheet = useSheet();
   const [open, setOpen] = useState(false);
+  // The phone back button / gesture closes the picker.
+  useBackToClose(open, () => setOpen(false));
   const openRef = useRef(open);
   useLayoutEffect(() => {
     openRef.current = open;

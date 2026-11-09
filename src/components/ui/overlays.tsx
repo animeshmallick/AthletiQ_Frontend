@@ -1,12 +1,47 @@
 /** Dialog, sheet (side/bottom drawer), dropdown menu, tooltip, popover — all Radix-based. */
 import { X } from 'lucide-react';
 import { Dialog as D, DropdownMenu as DM, Popover as P, Tooltip as T } from 'radix-ui';
-import type { ComponentProps, ReactNode } from 'react';
+import { useCallback, useState, type ComponentProps, type ReactNode } from 'react';
+import { useBackToClose } from '@/app/back-stack';
 import { cn } from '@/lib/utils';
+
+/**
+ * Open state for an overlay root (controlled or not), registered so that the phone's back
+ * button / gesture closes it instead of leaving the screen.
+ */
+function useOverlayOpen({
+  open: openProp,
+  defaultOpen,
+  onOpenChange,
+}: {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [inner, setInner] = useState(defaultOpen ?? false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : inner;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!controlled) setInner(next);
+      onOpenChange?.(next);
+    },
+    [controlled, onOpenChange],
+  );
+  useBackToClose(open, () => setOpen(false));
+  return { open, onOpenChange: setOpen };
+}
 
 // ─── Dialog ──────────────────────────────────────────────────────────────────
 
-export const Dialog = D.Root;
+export function Dialog({
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: ComponentProps<typeof D.Root>) {
+  return <D.Root {...props} {...useOverlayOpen({ open, defaultOpen, onOpenChange })} />;
+}
 export const DialogTrigger = D.Trigger;
 export const DialogClose = D.Close;
 
@@ -114,7 +149,14 @@ export function SheetContent({
 
 // ─── Dropdown menu ───────────────────────────────────────────────────────────
 
-export const DropdownMenu = DM.Root;
+export function DropdownMenu({
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: ComponentProps<typeof DM.Root>) {
+  return <DM.Root {...props} {...useOverlayOpen({ open, defaultOpen, onOpenChange })} />;
+}
 export const DropdownMenuTrigger = DM.Trigger;
 
 export function DropdownMenuContent({
@@ -201,7 +243,14 @@ export function Tooltip({
   );
 }
 
-export const Popover = P.Root;
+export function Popover({
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: ComponentProps<typeof P.Root>) {
+  return <P.Root {...props} {...useOverlayOpen({ open, defaultOpen, onOpenChange })} />;
+}
 export const PopoverTrigger = P.Trigger;
 
 export function PopoverContent({

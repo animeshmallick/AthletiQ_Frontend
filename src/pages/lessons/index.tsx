@@ -9,7 +9,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useBlocker, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import {
@@ -48,7 +48,7 @@ const NEAR_DAYS = ['Today', 'Tomorrow', 'Yesterday'];
 export function LessonPlansPage() {
   const user = useUser();
   const isCoach = user.role === 'coach';
-  const { batches, batchId, date, batch } = useBatchDateParams();
+  const { batches, batchId, date, batch } = useBatchDateParams({ allByDefault: true });
   const [params, setParams] = useSearchParams();
   const view: View = params.get('view') === 'insights' ? 'insights' : 'plan';
   const isAll = batchId === ALL;
@@ -62,6 +62,11 @@ export function LessonPlansPage() {
     dirty.current = d;
   }, []);
   const [pending, setPending] = useState<Record<string, string> | null>(null);
+  // Leaving the screen (back gesture, menu, links) with unsaved edits asks first too.
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty.current && currentLocation.pathname !== nextLocation.pathname,
+  );
 
   const apply = (changes: Record<string, string>) =>
     setParams(
@@ -291,6 +296,18 @@ export function LessonPlansPage() {
         </>
       )}
 
+      <ConfirmDialog
+        open={blocker.state === 'blocked'}
+        onOpenChange={(o) => !o && blocker.state === 'blocked' && blocker.reset()}
+        title="Leave without saving?"
+        description="Your edits to this lesson plan haven’t been saved."
+        confirmLabel="Discard changes"
+        destructive
+        onConfirm={() => {
+          dirty.current = false;
+          if (blocker.state === 'blocked') blocker.proceed();
+        }}
+      />
       <ConfirmDialog
         open={Boolean(pending)}
         onOpenChange={(o) => !o && setPending(null)}

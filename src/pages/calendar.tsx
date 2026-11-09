@@ -22,7 +22,7 @@ import { Segmented } from '@/components/ui/controls';
 import { Badge, Card, Skeleton } from '@/components/ui/primitives';
 import {
   addDays,
-  coachTimes,
+  formatClock,
   formatLongDate,
   formatShortDate,
   formatTime,
@@ -582,18 +582,29 @@ function SessionDetails({
         </Badge>
       ) : (
         <>
-          <div className="flex flex-wrap gap-1">
-            <Badge variant={s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'}>
+          {/* One row: attendance · plan · check-in → check-out. */}
+          <div className="flex min-w-0 items-center gap-1 overflow-hidden [&_[data-slot=badge]]:px-1.5 [&_[data-slot=badge]]:text-[11px]">
+            <Badge
+              variant={s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'}
+              title={`Attendance marked: ${s.marked} of ${s.expectedStudents}`}
+            >
               <Users /> {s.marked}/{s.expectedStudents}
               {s.expectedStudents > 0 && ` · ${pct}%`}
             </Badge>
             <Badge variant={s.hasLessonPlan ? 'success' : 'muted'}>
-              <ClipboardList /> {s.hasLessonPlan ? 'Plan ready' : 'No plan'}
+              <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'No plan'}
             </Badge>
             {s.coachSession ? (
-              <Badge variant={s.coachSession.flagged ? 'warning' : 'success'}>
-                <CheckCircle2 /> {s.coachSession.flagged ? 'Flagged · ' : ''}
-                {coachTimes(s.coachSession)}
+              <Badge
+                variant={s.coachSession.flagged ? 'warning' : 'success'}
+                className="min-w-0"
+                title={s.coachSession.flagged ? 'Check-in flagged for review' : 'Checked in'}
+              >
+                <CheckCircle2 />
+                <span className="tabular truncate">
+                  {formatClock(s.coachSession.checkInAt)} →{' '}
+                  {s.coachSession.checkOutAt ? formatClock(s.coachSession.checkOutAt) : '--'}
+                </span>
               </Badge>
             ) : (
               <Badge variant="muted">

@@ -1,4 +1,4 @@
-import { ChevronRight, Plus, Users } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Plus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge, Card, Select } from '@/components/ui/primitives';
 import { money, weekdaysLabel } from '@/lib/format';
 import { useBatches, usePrefetchStudent, useStudents } from '@/lib/queries';
+import { cn } from '@/lib/utils';
 import { StudentFormDialog } from './forms';
 
 export function StudentsPage() {
@@ -233,21 +234,54 @@ export function StudentsPage() {
                 to={`/students/${s.id}`}
                 onPointerEnter={() => prefetch(s.id)}
                 onTouchStart={() => prefetch(s.id)}
-                className="flex items-center gap-2 px-1.5 py-1.5 hover:bg-muted/40"
+                className={cn(
+                  'flex items-center gap-2 px-1.5 py-1.5 hover:bg-muted/40 active:bg-muted/60',
+                  s.status === 'left' && 'opacity-60',
+                )}
               >
                 <Avatar name={s.fullName} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{s.fullName}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {s.batch?.name ?? 'No batch'} ·{' '}
-                    {s.trainingDays ? weekdaysLabel(s.trainingDays) : ''}
+                  <p className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate text-[14px] font-semibold">{s.fullName}</span>
+                    <span className="tabular shrink-0 rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+                      {s.code}
+                    </span>
+                    {s.status === 'left' && (
+                      <Badge variant="muted" className="shrink-0">
+                        Left
+                      </Badge>
+                    )}
+                  </p>
+                  <p className="truncate text-[12px] text-muted-foreground">
+                    {s.batch?.name ?? 'No batch'}
+                    {s.trainingDays ? ` · ${weekdaysLabel(s.trainingDays)}` : ''}
+                    <span className="tabular"> · {money(s.effectiveFee)}/mo</span>
                   </p>
                 </div>
-                {s.outstanding > 0 && (
-                  <Badge variant={s.overdue > 0 ? 'destructive' : 'warning'} className="tabular">
-                    {money(s.outstanding)}
-                  </Badge>
+                {s.outstanding > 0 ? (
+                  <span className="flex shrink-0 flex-col items-end">
+                    <span
+                      className={cn(
+                        'tabular text-[13px] font-semibold',
+                        s.overdue > 0
+                          ? 'text-destructive'
+                          : 'text-warning-foreground dark:text-warning',
+                      )}
+                    >
+                      {money(s.outstanding)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {s.overdue > 0 ? 'overdue' : 'due'}
+                    </span>
+                  </span>
+                ) : (
+                  s.status === 'active' && (
+                    <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] text-success">
+                      <CheckCircle2 className="size-3.5" /> Paid
+                    </span>
+                  )
                 )}
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" />
               </Link>
             ))}
           </Card>

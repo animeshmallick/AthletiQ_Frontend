@@ -57,11 +57,11 @@ export function PageHeader({
     >
       <div className="min-w-0 flex-[1_1_13rem]">
         {back}
-        <h1 className="truncate text-[22px] leading-tight font-bold tracking-tight sm:text-2xl">
+        <h1 className="truncate text-[19px] leading-tight font-bold tracking-tight sm:text-[22px]">
           {title}
         </h1>
         {description && (
-          <p className="mt-0.5 line-clamp-1 text-[13px] leading-snug text-muted-foreground sm:line-clamp-none sm:text-sm">
+          <p className="line-clamp-1 text-[12px] leading-snug text-muted-foreground sm:line-clamp-none sm:text-[13px]">
             {description}
           </p>
         )}

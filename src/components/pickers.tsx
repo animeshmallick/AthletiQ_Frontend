@@ -103,7 +103,14 @@ export function BatchSelect({
  * Batch + date selection persisted in the URL (?batch=&date=), so links like
  * /attendance?batch=… from the dashboard open the right session and the back button works.
  */
-export function useBatchDateParams({ defaultDate = today() }: { defaultDate?: string } = {}) {
+export function useBatchDateParams({
+  defaultDate = today(),
+  allByDefault = false,
+}: {
+  defaultDate?: string;
+  /** Coaches with several batches start on the combined "all" view instead of the first. */
+  allByDefault?: boolean;
+} = {}) {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const batches = useBatches({ active: 'true' });
@@ -114,10 +121,15 @@ export function useBatchDateParams({ defaultDate = today() }: { defaultDate?: st
   useEffect(() => {
     if (!batchId && batches.data?.length && (user?.role === 'coach' || batches.data.length === 1)) {
       const p = new URLSearchParams(params);
-      p.set('batch', batches.data[0]!.id);
+      p.set(
+        'batch',
+        allByDefault && user?.role === 'coach' && batches.data.length > 1
+          ? 'all'
+          : batches.data[0]!.id,
+      );
       setParams(p, { replace: true });
     }
-  }, [batchId, batches.data, user?.role, params, setParams]);
+  }, [batchId, batches.data, user?.role, params, setParams, allByDefault]);
 
   const set = (key: 'batch' | 'date', value: string) => {
     const p = new URLSearchParams(params);

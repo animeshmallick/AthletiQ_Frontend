@@ -10,6 +10,7 @@ import {
   Bell,
   CalendarCheck2,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   ClipboardList,
   IndianRupee,
@@ -28,6 +29,7 @@ import { useTasks } from '@/lib/queries';
 import type { AppTask } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useUser } from './auth';
+import { parentPath, useGoBack } from './go-back';
 import { navFor } from './nav';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/primitives';
@@ -60,9 +62,30 @@ function useScreenTitle(): string {
   return 'AthletiQ';
 }
 
+/** Detail screens (e.g. /students/123) get a back arrow on phones instead of the brand. */
+function HeaderBack({ title }: { title: string }) {
+  const { pathname } = useLocation();
+  const goBack = useGoBack(parentPath(pathname));
+  return (
+    <div className="-ml-1.5 flex min-w-0 items-center gap-1 lg:hidden">
+      <button
+        type="button"
+        onClick={goBack}
+        aria-label={`Back to ${title}`}
+        className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-muted active:scale-95"
+      >
+        <ChevronLeft className="size-6" />
+      </button>
+      <span className="truncate text-[17px] font-bold tracking-tight">{title}</span>
+    </div>
+  );
+}
+
 export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
   const scrolled = useScrolled();
   const title = useScreenTitle();
+  const { pathname } = useLocation();
+  const deep = pathname.split('/').filter(Boolean).length > 1;
   return (
     <header
       className={cn(
@@ -73,11 +96,15 @@ export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
       )}
     >
       <div className="flex h-[3.25rem] items-center gap-2 px-3.5 sm:h-14 sm:px-6">
+        {deep && <HeaderBack title={title} />}
         {/* Phones / tablets: brand (→ Today), turning into the screen name while scrolled. */}
         <Link
           to="/"
           aria-label="AthletiQ, go to Today"
-          className="group -ml-1 flex min-w-0 items-center gap-2.5 rounded-xl px-1 py-1 transition-colors active:bg-muted/60 lg:hidden"
+          className={cn(
+            'group -ml-1 flex min-w-0 items-center gap-2.5 rounded-xl px-1 py-1 transition-colors active:bg-muted/60 lg:hidden',
+            deep && 'hidden',
+          )}
         >
           <BrandMark />
           <span className="relative grid min-w-0">

@@ -1,5 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown, KeyRound, Pencil, Plus, UserCheck, UserX, UsersRound } from 'lucide-react';
+import {
+  Clock3,
+  KeyRound,
+  LayoutGrid,
+  MoreHorizontal,
+  Pencil,
+  Phone,
+  Plus,
+  UserCheck,
+  UserX,
+  UsersRound,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -43,6 +54,7 @@ import {
   useUsers,
 } from '@/lib/queries';
 import type { User } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Enter a name').max(120),
@@ -239,41 +251,71 @@ export function CoachesPage() {
       ) : (
         <Card className="divide-y">
           {q.data.data.map((u) => (
-            <div key={u.id} className="flex items-center gap-3 px-4 py-3">
-              <Avatar name={u.name} />
+            <div
+              key={u.id}
+              className={cn(
+                'flex items-center gap-2.5 px-2 py-1.5 sm:px-3',
+                u.status === 'disabled' && 'opacity-70',
+              )}
+            >
+              <span className="relative shrink-0">
+                <Avatar name={u.name} />
+                <span
+                  aria-hidden
+                  className={cn(
+                    'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-card',
+                    u.status === 'active'
+                      ? 'bg-success'
+                      : u.status === 'invited'
+                        ? 'bg-warning'
+                        : 'bg-muted-foreground/50',
+                  )}
+                />
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">
-                  {u.name}{' '}
+                <p className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-[14px] font-semibold">{u.name}</span>
                   {u.id === me.id && (
-                    <span className="text-xs font-normal text-muted-foreground">(you)</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">(you)</span>
+                  )}
+                  {u.status !== 'active' && (
+                    <Badge
+                      variant={u.status === 'invited' ? 'warning' : 'muted'}
+                      className="shrink-0 capitalize"
+                    >
+                      {u.status}
+                    </Badge>
                   )}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-[12px] text-muted-foreground">
                   {u.email}
                   {u.phone && ` · ${formatPhone(u.phone)}`}
                 </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                  {role === 'coach' && (
+                    <span className="inline-flex items-center gap-1">
+                      <LayoutGrid className="size-3" />
+                      {plural(u.activeBatches ?? 0, 'batch', 'batches')}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <Clock3 className="size-3" />
+                    {u.lastLoginAt ? `Seen ${formatInstant(u.lastLoginAt)}` : 'Never signed in'}
+                  </span>
+                </p>
               </div>
-              {role === 'coach' && (
-                <span className="hidden text-sm text-muted-foreground sm:inline">
-                  {plural(u.activeBatches ?? 0, 'batch', 'batches')}
-                </span>
+              {u.phone && (
+                <Button variant="ghost" size="icon-sm" asChild className="text-muted-foreground">
+                  <a href={`tel:${u.phone}`} aria-label={`Call ${u.name}`}>
+                    <Phone />
+                  </a>
+                </Button>
               )}
-              <span className="hidden text-xs text-muted-foreground md:inline">
-                {u.lastLoginAt ? `Last seen ${formatInstant(u.lastLoginAt)}` : 'Never signed in'}
-              </span>
-              <Badge
-                variant={
-                  u.status === 'active' ? 'success' : u.status === 'invited' ? 'warning' : 'muted'
-                }
-                className="capitalize"
-              >
-                {u.status}
-              </Badge>
               {u.id !== me.id && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" aria-label={`Manage ${u.name}`}>
-                      Manage <ChevronDown />
+                    <Button variant="ghost" size="icon-sm" aria-label={`Manage ${u.name}`}>
+                      <MoreHorizontal />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>

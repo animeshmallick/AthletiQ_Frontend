@@ -3,8 +3,8 @@
  * plugin code is only downloaded inside the app.
  *
  * - System bars follow the app theme (edge-to-edge; the header/tab bar pad for the insets).
- * - Hardware back button: closes the open sheet/dialog first, then goes back, then returns to
- *   Today, and finally sends the app to the background (like native Android apps).
+ * - Hardware back button / gesture: closes the open sheet/dialog first; detail screens go back;
+ *   other screens return to Today; on Today the app goes to the background (like native apps).
  * - Push notifications: registers this device for the signed-in user; tapping a notification
  *   opens the screen it links to.
  * - Updates: the web app updates itself on every deploy; when a new APK (native shell) is
@@ -12,6 +12,8 @@
  */
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { request } from '@/lib/api';
+import { overlayOnStack } from './back-stack';
+import { parentPath } from './go-back';
 
 export const isNativeApp = () => Capacitor.isNativePlatform();
 
@@ -67,14 +69,17 @@ export async function initNativeShell() {
   });
 
   await App.addListener('backButton', ({ canGoBack }) => {
+    // 1. Close the top dialog / sheet / picker / menu.
+    if (overlayOnStack()) return window.history.back();
     if (overlayOpen()) return closeTopOverlay();
     const path = window.location.pathname;
-    if (!ROOTS.has(path)) {
-      if (canGoBack) window.history.back();
-      else navigateTo('/', { replace: true });
-      return;
-    }
-    void App.minimizeApp();
+    // 2. On Today (or sign-in), leave the app running in the background, like native apps.
+    if (ROOTS.has(path)) return void App.minimizeApp();
+    // 3. Top-level screens (tabs, menu pages) return to Today, the start screen.
+    if (path.split('/').filter(Boolean).length === 1) return navigateTo('/', { replace: true });
+    // 4. Detail screens go back to where you came from (or up to their list).
+    if (canGoBack) window.history.back();
+    else navigateTo(parentPath(path), { replace: true });
   });
 
   // Data may be stale after the app sat in the background; let screens refetch.
