@@ -286,8 +286,8 @@ export function FeePlansPage() {
               description="Turn on Retired to see older plans."
             />
           ) : (
-            <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
                 {shown.map((p) => (
                   <PlanCard
                     key={p.id}
@@ -304,7 +304,7 @@ export function FeePlansPage() {
                 ))}
               </div>
               {selected && (
-                <div className="lg:sticky lg:top-4">
+                <div className="xl:sticky xl:top-4">
                   <PlanSplitPanel
                     key={selected.id}
                     plan={selected}

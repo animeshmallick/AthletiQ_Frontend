@@ -40,14 +40,21 @@ export function PageHeader({
   description,
   actions,
   back,
+  className,
 }: {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   back?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="mb-3.5 flex flex-wrap items-end justify-between gap-x-3 gap-y-2.5 sm:mb-6 sm:gap-4">
+    <div
+      className={cn(
+        'mb-3.5 flex flex-wrap items-end justify-between gap-x-3 gap-y-2.5 sm:mb-6 sm:gap-4',
+        className,
+      )}
+    >
       <div className="min-w-0 flex-[1_1_13rem]">
         {back}
         <h1 className="truncate text-[22px] leading-tight font-bold tracking-tight sm:text-2xl">

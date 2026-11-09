@@ -156,7 +156,7 @@ describe('Lesson plans (coach)', () => {
       route: '/lesson-plans?batch=b1&date=2026-03-10',
       user: coachUser,
     });
-    await user.click(await screen.findByRole('button', { name: /use 9 mar/i }));
+    await user.click(await screen.findByRole('button', { name: /copy 9 mar/i }));
     await waitFor(() => expect(api.find('POST /lessons/plans/copy')).toHaveLength(1));
     expect(api.find('POST /lessons/plans/copy')[0]!.body).toEqual({
       batchId: 'b1',
@@ -225,6 +225,52 @@ describe('Lesson plans (coach)', () => {
     // Opening a batch goes back to the plan view on its next session.
     await user.click(screen.getByRole('button', { name: /Morning U-12/ }));
     expect(await screen.findByRole('region', { name: 'Week' })).toBeInTheDocument();
+  });
+});
+
+describe('Lesson plans (coach dates)', () => {
+  const dayDates = (api: ReturnType<typeof mockApi>) =>
+    api.find('GET /lessons/plans/day').map((c) => c.query.get('date'));
+
+  it('snaps a non-session date to the next session day', async () => {
+    const api = mockApi(routes({}));
+    await renderPage(<LessonPlansPage />, {
+      path: '/lesson-plans',
+      route: '/lesson-plans?batch=b1&date=2026-03-15', // Sunday; the batch trains Mon–Sat
+      user: coachUser,
+    });
+    await waitFor(() => expect(dayDates(api)).toContain('2026-03-16'));
+  });
+
+  it('steps between session days and disables days without a session', async () => {
+    const api = mockApi({
+      ...routes({}),
+      'GET /lessons/plans': () => ({
+        ...calendar,
+        days: [
+          ...calendar.days,
+          {
+            date: '2026-03-15',
+            isSessionDay: false,
+            cancelled: null,
+            planId: null,
+            filledCells: 0,
+            totalCells: 0,
+          },
+        ],
+      }),
+    });
+    const { user } = await renderPage(<LessonPlansPage />, {
+      path: '/lesson-plans',
+      route: '/lesson-plans?batch=b1&date=2026-03-14',
+      user: coachUser,
+    });
+    expect(await screen.findByRole('button', { name: /15 March \(no session\)/i })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Next session' }));
+    await waitFor(() => expect(dayDates(api)).toContain('2026-03-16'));
+    expect(dayDates(api)).not.toContain('2026-03-15');
+    await user.click(screen.getByRole('button', { name: 'Previous session' }));
+    expect(await screen.findByRole('heading', { name: /14 March/ })).toBeInTheDocument();
   });
 });
 

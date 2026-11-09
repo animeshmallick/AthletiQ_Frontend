@@ -1,5 +1,6 @@
 import {
   CalendarCheck2,
+  CalendarRange,
   CalendarX2,
   ChevronRight,
   Flame,
@@ -10,9 +11,15 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyState, ErrorState, ListSkeleton, StatCard } from '@/components/common';
-import { Segmented } from '@/components/ui/controls';
 import { Tooltip } from '@/components/ui/overlays';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/primitives';
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+} from '@/components/ui/primitives';
 import { formatShortDate, formatTimeRange, plural } from '@/lib/format';
 import { useLessonInsights } from '@/lib/queries';
 import type { LessonInsights } from '@/lib/types';
@@ -36,18 +43,31 @@ export function LessonInsightsView({
   onOpen: (batchId: string, date: string) => void;
 }) {
   const [range, setRange] = useState<InsightRange>('4w');
-  const q = useLessonInsights({ ...rangeDates(range), batchId: batchId || undefined });
+  const { from, to } = rangeDates(range);
+  const q = useLessonInsights({ from, to, batchId: batchId || undefined });
 
   return (
-    <div className="space-y-3">
-      <div className="-mx-1 [scrollbar-width:none] overflow-x-auto px-1">
-        <Segmented
-          size="sm"
-          ariaLabel="Period"
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-2">
+        <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] text-muted-foreground">
+          <CalendarRange aria-hidden className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {formatShortDate(from)} – {formatShortDate(to)}
+            {q.data && ` · ${plural(q.data.totals.sessions, 'session')}`}
+          </span>
+        </p>
+        <Select
+          aria-label="Period"
+          className="h-8 w-40 shrink-0 text-[13px]"
           value={range}
-          onChange={setRange}
-          options={RANGE_OPTIONS}
-        />
+          onChange={(e) => setRange(e.target.value as InsightRange)}
+        >
+          {RANGE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
       </div>
       {q.isPending ? (
         <ListSkeleton rows={5} />

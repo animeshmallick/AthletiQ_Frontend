@@ -284,7 +284,7 @@ export function PlanSplitPanel({
           <p className="mb-2 text-[12px] font-semibold text-muted-foreground">
             Each recipient gets in total
           </p>
-          <ul className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+          <ul className="grid max-w-md gap-y-1.5">
             {recipients.map((r, i) => (
               <li key={r.key} className="flex items-center gap-2 text-[13px]">
                 <span

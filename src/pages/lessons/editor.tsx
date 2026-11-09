@@ -36,22 +36,16 @@ import {
 } from '@/components/ui/overlays';
 import { Badge, Card, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import {
-  addDays,
-  formatLongDate,
-  formatShortDate,
-  isoWeekday,
-  relativeDay,
-  WEEKDAYS,
-} from '@/lib/format';
+import { addDays, formatLongDate, formatShortDate, isoWeekday, WEEKDAYS } from '@/lib/format';
 import { useCopyPlan, useDeletePlan, useLibrary, useSavePlan } from '@/lib/queries';
 import type { LessonPlan, LibraryItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { LibraryDialog } from './library';
+import { whenLabel } from './meta';
 
 // ─── Picker for grid rows/columns ────────────────────────────────────────────
 
-function ItemsPicker({
+function PickList({
   label,
   items,
   selected,
@@ -70,49 +64,84 @@ function ItemsPicker({
         : selected.filter((x) => x !== id),
     );
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Settings2 /> {label}
-          <span className="tabular text-muted-foreground">{selected.length}</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">{label} in this day’s grid</p>
-          {items.length > 0 && (
-            <button
-              type="button"
-              className="cursor-pointer text-xs font-medium text-primary hover:underline"
-              onClick={() =>
-                onChange(selected.length === items.length ? [] : items.map((i) => i.id))
-              }
-            >
-              {selected.length === items.length ? 'None' : 'All'}
-            </button>
-          )}
-        </div>
-        {items.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Your library is empty. Add some in “Library”.
-          </p>
+    <div className="min-w-0">
+      <div className="mb-1 flex items-center justify-between gap-2 px-1">
+        <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          {label} <span className="tabular">{selected.length}</span>
+        </p>
+        {items.length > 0 && (
+          <button
+            type="button"
+            className="cursor-pointer text-[11px] font-medium text-primary hover:underline"
+            onClick={() => onChange(selected.length === items.length ? [] : items.map((i) => i.id))}
+          >
+            {selected.length === items.length ? 'None' : 'All'}
+          </button>
         )}
-        <div className="max-h-64 space-y-0.5 overflow-y-auto">
+      </div>
+      {items.length === 0 ? (
+        <p className="px-1 text-[12px] text-muted-foreground">Empty. Add some in “Library”.</p>
+      ) : (
+        <div className="max-h-56 space-y-0.5 overflow-y-auto">
           {items.map((i) => (
             <label
               key={i.id}
-              className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-[13px] hover:bg-muted"
             >
               <Checkbox
                 checked={selected.includes(i.id)}
                 onCheckedChange={(c) => toggle(i.id, c === true)}
               />
               {i.color && (
-                <span className="size-2.5 rounded-full" style={{ background: i.color }} />
+                <span className="size-2 shrink-0 rounded-full" style={{ background: i.color }} />
               )}
               <span className="truncate">{i.name}</span>
             </label>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One button for the grid's shape: which stages (columns) and events (rows) the day uses. */
+function GridPicker({
+  stages,
+  events,
+  stageIds,
+  eventIds,
+  onStages,
+  onEvents,
+}: {
+  stages: LibraryItem[];
+  events: LibraryItem[];
+  stageIds: string[];
+  eventIds: string[];
+  onStages: (ids: string[]) => void;
+  onEvents: (ids: string[]) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 px-2.5"
+          aria-label={`Grid: ${stageIds.length} stages × ${eventIds.length} events`}
+        >
+          <Settings2 />
+          <span className="tabular">
+            {stageIds.length}×{eventIds.length}
+          </span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[min(30rem,calc(100vw-1.5rem))] p-2.5">
+        <p className="mb-2 px-1 text-[12px] text-muted-foreground">
+          Stages are the grid’s columns; events are its rows.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <PickList label="Stages" items={stages} selected={stageIds} onChange={onStages} />
+          <PickList label="Events" items={events} selected={eventIds} onChange={onEvents} />
         </div>
       </PopoverContent>
     </Popover>
@@ -143,7 +172,7 @@ function RunSheet({
   eventMap: Map<string, EventInfo>;
 }) {
   return (
-    <ol className="space-y-2">
+    <ol className="space-y-1.5">
       {stageIds.map((s, i) => {
         const rows = eventIds.filter((e) => cells[cellKey(e, s)]?.trim());
         const color = stageMap.get(s)?.color ?? '#94a3b8';
@@ -152,7 +181,7 @@ function RunSheet({
             <Card className="overflow-hidden">
               <div className="flex">
                 <span aria-hidden className="w-1 shrink-0" style={{ background: color }} />
-                <div className="min-w-0 flex-1 px-3 py-2.5">
+                <div className="min-w-0 flex-1 px-2.5 py-2">
                   <p className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
                     <span className="tabular flex size-5 items-center justify-center rounded-full bg-muted text-[11px]">
                       {i + 1}
@@ -397,48 +426,60 @@ export function PlanEditor({
   const offerPrevious = canEdit && !plan && !dirty && previousPlanDate && !startBlank;
 
   return (
-    <div className={cn('space-y-3', canEdit && 'pb-24')}>
+    <div className={cn('space-y-2', canEdit && 'pb-20')}>
       {offerPrevious && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5">
-          <History aria-hidden className="size-4 shrink-0 text-primary" />
-          <p className="min-w-0 flex-1 text-[13px] leading-snug">
-            <b className="font-semibold">New plan.</b> Start from the last one (
-            {relativeDay(previousPlanDate)}) and adjust it?
+        <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 py-1 pr-1 pl-2.5">
+          <History aria-hidden className="size-3.5 shrink-0 text-primary" />
+          <p className="min-w-0 flex-1 truncate text-[12px]">
+            Start from {whenLabel(previousPlanDate)}’s plan?
           </p>
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="ghost" onClick={() => setStartBlank(true)}>
-              Start blank
-            </Button>
-            <Button size="sm" loading={copy.isPending} onClick={startFromPrevious}>
-              <Copy /> Use {formatShortDate(previousPlanDate)}
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-[12px] pointer-coarse:h-7"
+            onClick={() => setStartBlank(true)}
+          >
+            Blank
+          </Button>
+          <Button
+            size="sm"
+            className="h-7 gap-1 px-2.5 text-[12px] pointer-coarse:h-7 [&_svg:not([class*=size-])]:size-3.5"
+            loading={copy.isPending}
+            onClick={startFromPrevious}
+            aria-label={`Copy ${formatShortDate(previousPlanDate)} plan`}
+          >
+            <Copy /> Copy
+          </Button>
         </div>
       )}
 
-      {/* Toolbar: progress on the left, tools on the right. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-36 flex-1 items-center gap-2">
+      {/* Toolbar: one compact row — progress, view switch, grid shape, more. */}
+      <div className="flex items-center gap-1.5">
+        <div
+          className={cn(
+            'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 sm:flex-none',
+            total && filled >= total ? 'bg-success/10' : 'bg-muted/70',
+          )}
+        >
           <Progress
             value={percent}
             tone={total && filled >= total ? 'success' : 'warning'}
             label="Grid filled"
-            className="max-w-40"
+            className="w-12 shrink-0 sm:w-20"
           />
-          <span className="tabular shrink-0 text-[12px] font-medium text-muted-foreground">
-            {filled}/{total} filled
+          <span className="tabular truncate text-[12px] font-semibold">
+            {`${filled}/${total} filled`}
           </span>
           {plan && !dirty && (
-            <Badge variant="success" className="hidden sm:inline-flex">
-              <Check /> Saved
-            </Badge>
+            <Check aria-label="Saved" className="size-3.5 shrink-0 text-success" />
           )}
         </div>
         {canEdit && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <>
             <Segmented
               size="sm"
               ariaLabel="View"
+              className="ml-auto"
               value={mode}
               onChange={setMode}
               options={[
@@ -446,7 +487,8 @@ export function PlanEditor({
                   value: 'edit',
                   label: (
                     <span className="inline-flex items-center gap-1">
-                      <PencilLine className="size-3.5" /> Edit
+                      <PencilLine className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Edit</span>
                     </span>
                   ),
                 },
@@ -454,27 +496,22 @@ export function PlanEditor({
                   value: 'run',
                   label: (
                     <span className="inline-flex items-center gap-1">
-                      <Eye className="size-3.5" /> Run sheet
+                      <Eye className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Run sheet</span>
                     </span>
                   ),
                 },
               ]}
             />
             {mode === 'edit' && (
-              <>
-                <ItemsPicker
-                  label="Stages"
-                  items={stagesQ.data ?? []}
-                  selected={stageIds}
-                  onChange={setStageIds}
-                />
-                <ItemsPicker
-                  label="Events"
-                  items={eventsQ.data ?? []}
-                  selected={eventIds}
-                  onChange={setEventIds}
-                />
-              </>
+              <GridPicker
+                stages={stagesQ.data ?? []}
+                events={eventsQ.data ?? []}
+                stageIds={stageIds}
+                eventIds={eventIds}
+                onStages={setStageIds}
+                onEvents={setEventIds}
+              />
             )}
             {plan && (
               <DropdownMenu>
@@ -493,14 +530,14 @@ export function PlanEditor({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-          </div>
+          </>
         )}
       </div>
 
       {stageIds.length === 0 || eventIds.length === 0 ? (
         <EmptyState
           title="Pick at least one stage and one event"
-          description="Use the Stages and Events buttons above."
+          description="Use the grid button above to choose them."
         />
       ) : showRun ? (
         <>
@@ -582,7 +619,7 @@ export function PlanEditor({
           </Card>
 
           {/* Mobile: one collapsible card per event */}
-          <div className="space-y-2 md:hidden">
+          <div className="space-y-1.5 md:hidden">
             {eventIds.map((e, idx) => {
               const n = stageIds.filter((s) => has(e, s)).length;
               const open = openEvent === null ? idx === 0 || n > 0 : openEvent === e;
@@ -592,7 +629,7 @@ export function PlanEditor({
                     type="button"
                     aria-expanded={open}
                     onClick={() => setOpenEvent(open ? '' : e)}
-                    className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left"
+                    className="flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[14px] font-semibold">
@@ -618,7 +655,7 @@ export function PlanEditor({
                     />
                   </button>
                   {open && (
-                    <div className="space-y-2 border-t px-3 pt-2 pb-3">
+                    <div className="space-y-1.5 border-t px-2.5 pt-1.5 pb-2.5">
                       {stageIds.map((s) => (
                         <label key={s} className="block space-y-1">
                           <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground">

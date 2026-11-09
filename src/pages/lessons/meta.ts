@@ -69,10 +69,10 @@ export type InsightRange = 'week' | 'next' | '4w' | 'month' | '3m';
 
 export const RANGE_OPTIONS: { value: InsightRange; label: string }[] = [
   { value: 'week', label: 'This week' },
-  { value: 'next', label: 'Next 2 wks' },
-  { value: '4w', label: 'Last 4 wks' },
+  { value: 'next', label: 'Next 2 weeks' },
+  { value: '4w', label: 'Last 4 weeks' },
   { value: 'month', label: 'This month' },
-  { value: '3m', label: '3 months' },
+  { value: '3m', label: 'Last 3 months' },
 ];
 
 export function rangeDates(r: InsightRange, now = today()): { from: string; to: string } {
@@ -110,4 +110,15 @@ export function whenLabel(date: string, now = today()): string {
   if (date === addDays(now, 1)) return 'tomorrow';
   if (date === addDays(now, -1)) return 'yesterday';
   return `${WEEKDAYS[isoWeekday(date) - 1]?.short} ${formatShortDate(date)}`;
+}
+
+/**
+ * The nearest day on or after (dir 1) / on or before (dir -1) `date` that the batch trains,
+ * or `date` itself if the batch has no training days.
+ */
+export function snapToSession(date: string, weekdays: number[], dir: 1 | -1 = 1): string {
+  if (!weekdays.length) return date;
+  let d = date;
+  for (let i = 0; i < 7 && !weekdays.includes(isoWeekday(d)); i++) d = addDays(d, dir);
+  return d;
 }

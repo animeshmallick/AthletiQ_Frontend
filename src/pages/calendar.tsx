@@ -34,6 +34,8 @@ import {
 import { useCalendar } from '@/lib/queries';
 import type { DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { batchTone, liveStatus, minutes } from './calendar-meta';
+import { SessionDialog } from './calendar-session';
 
 type View = 'week' | 'day';
 
@@ -59,27 +61,7 @@ function useFitAboveTabBar(ref: RefObject<HTMLElement | null>) {
     return () => window.removeEventListener('resize', fit);
   }, [ref]);
 }
-const minutes = (t: string) => {
-  const [h = 0, m = 0] = t.split(':').map(Number);
-  return h * 60 + m;
-};
 const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'am' : 'pm'}`;
-
-/** A stable colour per batch, so the same batch looks the same everywhere. */
-const PALETTE = [
-  'border-l-indigo-500 bg-indigo-500/12 text-indigo-900 dark:text-indigo-100',
-  'border-l-emerald-500 bg-emerald-500/12 text-emerald-900 dark:text-emerald-100',
-  'border-l-amber-500 bg-amber-500/15 text-amber-900 dark:text-amber-100',
-  'border-l-rose-500 bg-rose-500/12 text-rose-900 dark:text-rose-100',
-  'border-l-sky-500 bg-sky-500/12 text-sky-900 dark:text-sky-100',
-  'border-l-violet-500 bg-violet-500/12 text-violet-900 dark:text-violet-100',
-  'border-l-teal-500 bg-teal-500/12 text-teal-900 dark:text-teal-100',
-];
-function batchTone(id: string) {
-  let h = 0;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return PALETTE[h % PALETTE.length]!;
-}
 
 /** Current time in IST as minutes since midnight (ticks every minute). */
 const istClock = new Intl.DateTimeFormat('en-GB', {
@@ -150,6 +132,12 @@ export function CalendarPage() {
   const startHour = 0;
   const endHour = 24;
 
+  const [openSession, setOpenSession] = useState<{
+    s: DayOverviewSession;
+    date: string;
+  } | null>(null);
+  const now = useNowMinutes();
+
   const total = days.reduce((n, d) => n + d.sessions.filter((s) => !s.cancelled).length, 0);
 
   return (
@@ -175,8 +163,8 @@ export function CalendarPage() {
       />
 
       {/* Week navigation + day strip */}
-      <Card className="mb-3 p-2 sm:p-2.5">
-        <div className="flex items-center gap-1.5">
+      <Card className="mb-2.5 p-1.5 sm:p-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -252,8 +240,13 @@ export function CalendarPage() {
           </Button>
         </div>
         {date !== today() && (
-          <div className="mt-1.5 flex justify-center">
-            <Button variant="tonal" size="sm" onClick={() => set({ date: today() })}>
+          <div className="mt-1 flex justify-center">
+            <Button
+              variant="tonal"
+              size="sm"
+              className="h-7 px-2.5 text-[12px] pointer-coarse:h-7"
+              onClick={() => set({ date: today() })}
+            >
               <CalendarDays /> Back to today
             </Button>
           </div>
@@ -272,6 +265,7 @@ export function CalendarPage() {
           todayDate={q.data.today}
           selected={date}
           onOpenDay={(d) => set({ date: d, view: 'day' })}
+          onOpenSession={(s, d) => setOpenSession({ s, date: d })}
         />
       ) : (
         <DayView
@@ -281,6 +275,14 @@ export function CalendarPage() {
           isAdmin={user.role === 'admin'}
         />
       )}
+      <SessionDialog
+        session={openSession?.s ?? null}
+        date={openSession?.date ?? date}
+        todayDate={q.data?.today ?? today()}
+        now={now}
+        isAdmin={user.role === 'admin'}
+        onOpenChange={(o) => !o && setOpenSession(null)}
+      />
     </div>
   );
 }
@@ -338,6 +340,7 @@ function WeekGrid({
   todayDate,
   selected,
   onOpenDay,
+  onOpenSession,
 }: {
   days: { date: string; sessions: DayOverviewSession[] }[];
   startHour: number;
@@ -345,6 +348,7 @@ function WeekGrid({
   todayDate: string;
   selected: string;
   onOpenDay: (d: string) => void;
+  onOpenSession: (s: DayOverviewSession, date: string) => void;
 }) {
   const height = (endHour - startHour) * HOUR_PX;
   const scroller = useRef<HTMLDivElement>(null);
@@ -407,7 +411,8 @@ function WeekGrid({
                     <button
                       key={s.batch.id}
                       type="button"
-                      onClick={() => onOpenDay(d.date)}
+                      onClick={() => onOpenSession(s, d.date)}
+                      aria-haspopup="dialog"
                       title={`${s.batch.name} · ${formatTimeRange(s.batch.startTime, s.batch.endTime)}${s.cancelled ? ` · cancelled (${s.cancelled})` : ''}`}
                       className={cn(
                         'absolute cursor-pointer overflow-hidden rounded-md border-l-[3px] px-1 py-0.5 text-left shadow-xs transition-transform hover:z-20 hover:shadow-e2 active:scale-[0.97]',
@@ -461,17 +466,11 @@ function DayView({
   );
   // Where the "now" marker goes: before the first session that hasn't ended yet.
   const nowIndex = isToday ? sorted.findIndex((s) => minutes(s.batch.endTime) > now) : -1;
-  const status = (s: DayOverviewSession) => {
-    if (!isToday) return null;
-    const start = minutes(s.batch.startTime);
-    const end = minutes(s.batch.endTime);
-    if (now >= start && now < end) return 'Live now';
-    if (now < start && start - now <= 60) return `Starts in ${start - now} min`;
-    return null;
-  };
+  const status = (s: DayOverviewSession) =>
+    liveStatus(s.batch.startTime, s.batch.endTime, now, isToday);
   return (
-    <div className="space-y-3">
-      <h2 className="text-[15px] font-semibold">
+    <div className="space-y-2">
+      <h2 className="text-[14px] font-semibold">
         {formatLongDate(date)}
         {isToday && <Badge className="ml-2 align-middle">Today</Badge>}
       </h2>
@@ -482,7 +481,7 @@ function DayView({
           description="No batch sessions on this day."
         />
       ) : (
-        <ol className="space-y-2.5">
+        <ol className="space-y-1.5">
           {sorted.map((s, i) => {
             const live = status(s);
             return (
@@ -492,27 +491,24 @@ function DayView({
                 style={{ animationDelay: `${i * 40}ms` }}
               >
                 {i === nowIndex && <NowMarker />}
-                <div className="flex gap-2.5">
-                  <div className="tabular w-[3.75rem] shrink-0 pt-3 text-right whitespace-nowrap">
-                    <p className="text-[13px] leading-tight font-bold">
+                <div className="flex gap-2">
+                  <div className="tabular w-[3.25rem] shrink-0 pt-2 text-right whitespace-nowrap">
+                    <p className="text-[12px] leading-tight font-bold">
                       {formatTime(s.batch.startTime)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground">
                       {formatTime(s.batch.endTime)}
                     </p>
                   </div>
                   <Card
                     className={cn(
-                      'min-w-0 flex-1 border-l-4 p-3',
+                      'relative min-w-0 flex-1 border-l-4 px-2.5 py-2 transition-shadow hover:shadow-e2',
                       batchTone(s.batch.id),
                       s.cancelled && 'opacity-70 grayscale',
                     )}
                   >
                     {live && (
-                      <Badge
-                        className="mb-1.5"
-                        variant={live === 'Live now' ? 'success' : 'default'}
-                      >
+                      <Badge className="mb-1" variant={live === 'Live now' ? 'success' : 'default'}>
                         {live === 'Live now' && (
                           <span className="relative mr-0.5 flex size-1.5">
                             <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-75" />
@@ -537,13 +533,16 @@ function DayView({
 
 function NowMarker({ label = 'Now' }: { label?: string }) {
   return (
-    <div className="mb-2.5 flex items-center gap-2 pl-1" aria-label={label}>
+    <div className="mb-1.5 flex items-center gap-2 pl-1" aria-label={label}>
       <span className="size-2.5 rounded-full bg-destructive shadow-e1" />
       <span className="h-0.5 flex-1 bg-destructive/70" />
       <span className="text-[11px] font-semibold text-destructive">{label}</span>
     </div>
   );
 }
+
+const SMALL_BTN =
+  'h-6 gap-1 rounded-md bg-card/80 px-2 text-[11px] pointer-coarse:h-7 pointer-coarse:text-[11px] [&_svg:not([class*=size-])]:size-3';
 
 function SessionDetails({
   s,
@@ -556,12 +555,17 @@ function SessionDetails({
 }) {
   const pct = s.expectedStudents ? Math.round((s.marked / s.expectedStudents) * 100) : 0;
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-start justify-between gap-2">
-        <p className={cn('text-[13px] leading-tight font-bold', s.cancelled && 'line-through')}>
-          {s.batch.name}
-        </p>
-      </div>
+    <div className="space-y-1">
+      {/* The whole card opens the batch; the action buttons sit above this link. */}
+      <Link
+        to={`/batches/${s.batch.id}`}
+        className={cn(
+          'block truncate text-[13px] leading-tight font-bold after:absolute after:inset-0 after:rounded-[inherit] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring',
+          s.cancelled && 'line-through',
+        )}
+      >
+        {s.batch.name}
+      </Link>
       <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] opacity-85">
         <span className="inline-flex items-center gap-1">
           <MapPin className="size-3" /> {s.batch.location.name}
@@ -597,13 +601,13 @@ function SessionDetails({
               </Badge>
             )}
           </div>
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
-            <Button size="sm" variant="outline" asChild className="h-7 bg-card/80 text-[12px]">
+          <div className="relative z-10 flex flex-wrap gap-1 pt-0.5">
+            <Button size="sm" variant="outline" asChild className={SMALL_BTN}>
               <Link to={`/attendance?batch=${s.batch.id}&date=${date}`}>
                 <Users /> Attendance
               </Link>
             </Button>
-            <Button size="sm" variant="outline" asChild className="h-7 bg-card/80 text-[12px]">
+            <Button size="sm" variant="outline" asChild className={SMALL_BTN}>
               <Link to={`/lesson-plans?batch=${s.batch.id}&date=${date}`}>
                 <ClipboardList /> Lesson plan
               </Link>

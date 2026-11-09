@@ -1,6 +1,16 @@
-import { BarChart3, CalendarDays, ClipboardList, Library, Lock, MapPin } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import {
+  BarChart3,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Library,
+  Lock,
+  MapPin,
+} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import {
   ConfirmDialog,
@@ -12,12 +22,21 @@ import {
 import { BatchSelect, DateStepper, useBatchDateParams } from '@/components/pickers';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
-import { Badge } from '@/components/ui/primitives';
-import { addDays, formatLongDate, formatTimeRange, relativeDay, today } from '@/lib/format';
+import { Badge, Input } from '@/components/ui/primitives';
+import {
+  addDays,
+  formatLongDate,
+  formatShortDate,
+  formatTimeRange,
+  relativeDay,
+  today,
+} from '@/lib/format';
 import { useLessonInsights, usePlanDay } from '@/lib/queries';
+import { cn } from '@/lib/utils';
 import { PlanEditor } from './editor';
 import { LessonInsightsView } from './insights';
 import { LibraryDialog } from './library';
+import { snapToSession } from './meta';
 import { UpNext, WeekStrip } from './week';
 
 type View = 'plan' | 'insights';
@@ -62,9 +81,28 @@ export function LessonPlansPage() {
   };
   const openDay = (b: string, d: string) => go({ batch: b, date: d, view: '' });
 
+  // Coaches only move between their batch's session days; any other date snaps to the next one.
+  const daysOf = (id: string) =>
+    isCoach ? (batches.data?.find((b) => b.id === id)?.weekdays ?? []) : [];
+  const snap = (d: string, dir: 1 | -1 = 1, id = batchId) => snapToSession(d, daysOf(id), dir);
+  const pickDate = (d: string, dir: 1 | -1 = 1) => {
+    const s = snap(d, dir);
+    if (s !== d && dir === 1 && isCoach)
+      toast.info(`No session on ${formatShortDate(d)}`, {
+        description: `Showing ${formatLongDate(s)} instead.`,
+      });
+    go({ date: s });
+  };
+  const snapped = snap(date);
+  useEffect(() => {
+    if (view === 'plan' && snapped !== date) apply({ date: snapped });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply is stable in effect
+  }, [view, snapped, date]);
+
   return (
     <div>
       <PageHeader
+        className="mb-2 sm:mb-4"
         title="Lesson plans"
         description={
           isCoach
@@ -84,7 +122,7 @@ export function LessonPlansPage() {
         }
       />
 
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mb-2 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
         <Segmented
           ariaLabel="Lesson plan view"
           value={view}
@@ -109,19 +147,30 @@ export function LessonPlansPage() {
           ]}
         />
         {view === 'plan' && (
-          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-end">
             <BatchSelect
               value={batchId}
-              onChange={(id) => go({ batch: id })}
+              onChange={(id) => go({ batch: id, date: snap(date, 1, id) })}
               batches={batches.data}
               loading={batches.isPending}
               className="sm:w-64"
             />
-            <DateStepper
-              value={date}
-              onChange={(d) => go({ date: d })}
-              className={batchId ? 'hidden sm:flex' : undefined}
-            />
+            {isCoach ? (
+              <SessionStepper
+                date={date}
+                disabled={!batch}
+                onPrev={() => go({ date: snap(addDays(date, -1), -1) })}
+                onNext={() => go({ date: snap(addDays(date, 1), 1) })}
+                onPick={(d) => pickDate(d)}
+                className={batchId ? 'hidden sm:flex' : undefined}
+              />
+            ) : (
+              <DateStepper
+                value={date}
+                onChange={(d) => go({ date: d })}
+                className={batchId ? 'hidden sm:flex' : undefined}
+              />
+            )}
           </div>
         )}
         {view === 'insights' && !isCoach && (
@@ -156,9 +205,14 @@ export function LessonPlansPage() {
             />
           ) : (
             <>
-              <WeekStrip batchId={batchId} date={date} onPick={(d) => go({ date: d })} />
-              <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <h2 className="text-[17px] font-semibold sm:text-lg">
+              <WeekStrip
+                batchId={batchId}
+                date={date}
+                onPick={(d) => pickDate(d)}
+                sessionsOnly={isCoach}
+              />
+              <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <h2 className="text-[15px] font-semibold sm:text-base">
                   {NEAR_DAYS.includes(relativeDay(date))
                     ? `${relativeDay(date)} · ${formatLongDate(date)}`
                     : formatLongDate(date)}
@@ -180,7 +234,7 @@ export function LessonPlansPage() {
               {isCoach && day.data?.lockedReason && (
                 <div
                   role="status"
-                  className="mb-3 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/12 px-3 py-2.5 text-[13px] leading-snug"
+                  className="mb-2 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/12 px-2.5 py-1.5 text-[12px] leading-snug"
                 >
                   <Lock
                     aria-hidden
@@ -226,6 +280,54 @@ export function LessonPlansPage() {
           setPending(null);
         }}
       />
+    </div>
+  );
+}
+
+/** Previous / next session day and a date field; disabled until there's a batch to plan for. */
+function SessionStepper({
+  date,
+  disabled,
+  onPrev,
+  onNext,
+  onPick,
+  className,
+}: {
+  date: string;
+  disabled: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  onPick: (d: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex items-center gap-1', className)}>
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label="Previous session"
+        disabled={disabled}
+        onClick={onPrev}
+      >
+        <ChevronLeft />
+      </Button>
+      <Input
+        type="date"
+        aria-label="Date"
+        value={date}
+        disabled={disabled}
+        onChange={(e) => e.target.value && onPick(e.target.value)}
+        className="w-40 text-center"
+      />
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label="Next session"
+        disabled={disabled}
+        onClick={onNext}
+      >
+        <ChevronRight />
+      </Button>
     </div>
   );
 }

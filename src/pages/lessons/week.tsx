@@ -22,10 +22,13 @@ export function WeekStrip({
   batchId,
   date,
   onPick,
+  sessionsOnly = false,
 }: {
   batchId: string;
   date: string;
   onPick: (d: string) => void;
+  /** Coaches can only open days their batch actually trains (not cancelled). */
+  sessionsOnly?: boolean;
 }) {
   const from = startOfWeek(date);
   const cal = usePlanCalendar({ batchId, from, to: addDays(from, 6) });
@@ -34,8 +37,8 @@ export function WeekStrip({
   const planned = sessions.filter((d) => d.planId).length;
 
   return (
-    <section aria-label="Week" className="mb-3">
-      <div className="mb-1.5 flex items-center gap-1">
+    <section aria-label="Week" className="mb-2">
+      <div className="mb-1 flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -87,15 +90,18 @@ export function WeekStrip({
           const selected = d === date;
           const off = info && (!info.isSessionDay || info.cancelled);
           const status = planStatus(info);
+          const blocked = sessionsOnly && Boolean(off);
           return (
             <button
               key={d}
               type="button"
+              disabled={blocked}
               onClick={() => onPick(d)}
               className={cn(
                 'flex cursor-pointer flex-col items-center gap-0.5 rounded-xl border bg-card py-1.5 transition-all hover:border-primary/50 sm:py-2',
                 selected && 'border-primary ring-2 ring-primary/20',
                 off && 'border-dashed bg-muted/50 shadow-none',
+                blocked && 'cursor-not-allowed opacity-50 hover:border-border',
                 info?.cancelled && 'line-through',
               )}
               aria-pressed={selected}
@@ -142,7 +148,7 @@ export function WeekStrip({
 
 function Legend() {
   return (
-    <ul className="mt-1.5 flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+    <ul className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
       {(['complete', 'partial', 'unplanned'] as const).map((s) => (
         <li key={s} className="inline-flex items-center gap-1">
           <span className={cn('size-1.5 rounded-full', STATUS_META[s].dot)} />
@@ -168,7 +174,7 @@ export function UpNext({
   current: { batchId: string; date: string };
   onOpen: (batchId: string, date: string) => void;
 }) {
-  if (loading) return <Skeleton className="mb-3 h-[52px] rounded-xl" />;
+  if (loading) return <Skeleton className="mb-2 h-[46px] rounded-xl" />;
   if (!data || data.batches.length === 0) return null;
   const items = data.needsPlan;
   const multi = data.batches.length > 1;
@@ -177,7 +183,7 @@ export function UpNext({
     return (
       <p
         role="status"
-        className="mb-3 flex items-center gap-2 rounded-xl border border-success/30 bg-success/8 px-3 py-2 text-[13px]"
+        className="mb-2 flex items-center gap-2 rounded-lg border border-success/30 bg-success/8 px-2.5 py-1.5 text-[12px]"
       >
         <CheckCircle2 aria-hidden className="size-4 shrink-0 text-success" />
         Every session in the next two weeks is fully planned.
@@ -187,8 +193,11 @@ export function UpNext({
 
   const unplanned = items.filter((i) => i.status === 'unplanned').length;
   return (
-    <section aria-label="Needs a plan" className="mb-3 rounded-xl border bg-card p-2 shadow-e1">
-      <p className="mb-1.5 flex items-center gap-1.5 px-1 text-[12px] font-medium">
+    <section
+      aria-label="Needs a plan"
+      className="mb-2 rounded-xl border bg-card px-1.5 py-1.5 shadow-e1"
+    >
+      <p className="mb-1 flex items-center gap-1.5 px-1 text-[12px] font-medium">
         <ClipboardPen aria-hidden className="size-3.5 text-warning-foreground dark:text-warning" />
         {unplanned > 0
           ? `${unplanned} session${unplanned === 1 ? '' : 's'} not planned`
