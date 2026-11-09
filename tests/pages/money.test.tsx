@@ -333,6 +333,8 @@ describe('Money dashboard', () => {
     // Total in hand: ₹3,000 with the academy + ₹1,250 with staff.
     expect(screen.getAllByText('₹4,250').length).toBeGreaterThan(0);
     expect(screen.getByText(/academy’s own money/)).toBeInTheDocument();
+    // Enough cash for what's owed: no shortfall warning.
+    expect(screen.queryByText(/Not enough cash/)).not.toBeInTheDocument();
     expect(screen.getByText('Kept by coaches as their share')).toBeInTheDocument();
     expect(screen.getByText('Equipment')).toBeInTheDocument();
 
@@ -358,6 +360,28 @@ describe('Money dashboard', () => {
     await user.type(within(confirm).getByRole('textbox'), 'Duplicate');
     await user.click(within(confirm).getByRole('button', { name: 'Reverse' }));
     await waitFor(() => expect(api.find('POST /funds/txns/t1/reverse')).toHaveLength(1));
+  });
+
+  it('warns admins when cash in hand is less than what is owed', async () => {
+    mockApi({
+      'GET /funds/overview': () => ({
+        ...academy,
+        balances: {
+          ...academy.balances,
+          academyCash: 20_000,
+          withStaff: 10_000,
+          academyFund: -55_000,
+        },
+      }),
+      'GET /funds/txns': () => page([]),
+      'GET /users': () => page([]),
+    });
+    await renderPage(<MoneyPage />, { path: '/money', route: '/money', user: adminUser });
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Not enough cash to pay what’s owed');
+    // ₹300 in hand vs ₹850 owed (₹412.50 staff + ₹437.50 payees) → short by ₹550.
+    expect(alert).toHaveTextContent('short by ₹550');
+    expect(within(alert).getByRole('button', { name: 'Add income' })).toBeInTheDocument();
   });
 
   it('coach sees their cash, what they are owed, and can hand over or record a purchase', async () => {

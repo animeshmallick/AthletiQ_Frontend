@@ -26,6 +26,7 @@ import {
   ListSkeleton,
   PageHeader,
   StatCard,
+  SectionDivider,
 } from '@/components/common';
 import { FilterBar, FilterField, FilterMenu, PeriodFilter } from '@/components/filters';
 import { Button } from '@/components/ui/button';
@@ -452,6 +453,7 @@ export function SubstitutionsPage() {
         </FilterMenu>
       </FilterBar>
 
+      <SectionDivider className="mb-1.5">Overview</SectionDivider>
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {admin ? (
           <>
@@ -520,6 +522,7 @@ export function SubstitutionsPage() {
         </Card>
       )}
 
+      <SectionDivider className="mb-1.5">Substitutions</SectionDivider>
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <Card className="min-w-0 overflow-hidden">
           <CardHeader className="pb-1">

@@ -29,6 +29,7 @@ import {
   ListSkeleton,
   Progress,
   StatCard,
+  SectionDivider,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import {
@@ -314,9 +315,7 @@ function CoachToday() {
       <PlanningNudge />
 
       <section className="space-y-2.5">
-        <h2 className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Today’s sessions
-        </h2>
+        <SectionDivider>Today’s sessions</SectionDivider>
         {todayQ.isPending ? (
           <ListSkeleton rows={2} />
         ) : todayQ.isError ? (

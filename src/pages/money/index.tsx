@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowDownLeft,
   ArrowRightLeft,
   Building2,
@@ -18,7 +19,14 @@ import { Link } from 'react-router';
 import { useUser } from '@/app/auth';
 import { FINANCE_PERIODS, financeRange, type FinancePreset } from '@/components/collected-by';
 import { FilterBar, PeriodFilter } from '@/components/filters';
-import { Avatar, ErrorState, ListSkeleton, PageHeader, StatCard } from '@/components/common';
+import {
+  Avatar,
+  ErrorState,
+  ListSkeleton,
+  PageHeader,
+  StatCard,
+  SectionDivider,
+} from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
 import {
@@ -47,19 +55,6 @@ import { Ledger } from './ledger';
 type Open = { action: MoneyAction; prefill?: ActionPrefill } | null;
 
 /** A row with a name, a proportional bar and an amount, plus an optional action. */
-/** A labelled rule between sections, so each part of the dashboard stands out. */
-function Divider({ label }: { label: string }) {
-  return (
-    <div role="separator" aria-label={label} className="flex items-center gap-2 pt-1">
-      <span className="h-px flex-1 bg-border" />
-      <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-        {label}
-      </span>
-      <span className="h-px flex-1 bg-border" />
-    </div>
-  );
-}
-
 function AmountRow({
   name,
   sub,
@@ -223,7 +218,7 @@ function AdminMoney({
 
   return (
     <div className="space-y-3">
-      <Divider label="Right now" />
+      <SectionDivider>Right now</SectionDivider>
       <section aria-label="Right now">
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           <StatCard
@@ -258,6 +253,30 @@ function AdminMoney({
             }
           />
         </div>
+        {inHand < b.owedToStaff + b.owedToPayees && (
+          // More is owed than there is cash: someone won't get paid until money comes in.
+          <div
+            role="alert"
+            className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-destructive/40 bg-destructive/8 px-3 py-2.5 text-[12px]"
+          >
+            <AlertTriangle aria-hidden className="mt-px size-4 shrink-0 text-destructive" />
+            <span className="min-w-0 flex-1">
+              <b className="font-semibold text-destructive">Not enough cash to pay what’s owed.</b>{' '}
+              <span className="tabular">{money(inHand)}</span> in hand but{' '}
+              <span className="tabular">{money(b.owedToStaff + b.owedToPayees)}</span> owed — short
+              by <b className="tabular">{money(b.owedToStaff + b.owedToPayees - inHand)}</b>.
+              Collect fees or record other income before paying out.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0"
+              onClick={() => onOpen({ action: 'income' })}
+            >
+              Add income
+            </Button>
+          </div>
+        )}
         <Card className="mt-2.5 flex items-start gap-2.5 px-3 py-2.5 text-[12px] text-muted-foreground">
           <PiggyBank className="mt-px size-4 shrink-0 text-primary" />
           <span className="min-w-0 flex-1">
@@ -269,7 +288,7 @@ function AdminMoney({
         </Card>
       </section>
 
-      <Divider label="By person" />
+      <SectionDivider>By person</SectionDivider>
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -394,7 +413,7 @@ function AdminMoney({
         </Card>
       </div>
 
-      <Divider label="This period" />
+      <SectionDivider>This period</SectionDivider>
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -534,7 +553,7 @@ function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to:
   const p = data.period;
   return (
     <div className="space-y-3">
-      <Divider label="Right now" />
+      <SectionDivider>Right now</SectionDivider>
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <StatCard
           label="Cash with me"
@@ -564,7 +583,7 @@ function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to:
         />
       </div>
 
-      <Divider label="This period" />
+      <SectionDivider>This period</SectionDivider>
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>

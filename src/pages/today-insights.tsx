@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { Link } from 'react-router';
-import { StatCard } from '@/components/common';
+import { StatCard, SectionDivider } from '@/components/common';
 import {
   Card,
   CardContent,
@@ -53,14 +53,6 @@ const rateTone = (r: number | null) =>
 const barTone = (r: number | null) =>
   r === null ? 'bg-muted' : r >= 80 ? 'bg-success' : r >= 60 ? 'bg-warning' : 'bg-destructive';
 const pctLabel = (r: number | null) => (r === null ? '—' : `${r}%`);
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="px-0.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-      {children}
-    </h2>
-  );
-}
 
 /** 14-day attendance as compact bars (no chart library needed). */
 function AttendanceTrend({ d }: { d: Dashboard }) {
@@ -358,7 +350,7 @@ export function AdminInsights() {
   const d = q.data;
   return (
     <div className="space-y-2.5 sm:space-y-3">
-      <SectionTitle>Academy</SectionTitle>
+      <SectionDivider>Academy</SectionDivider>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         <StatCard
           label="Active students"
@@ -425,7 +417,7 @@ export function CoachInsights() {
   const t = fin.data?.totals;
   return (
     <div className="space-y-2.5 sm:space-y-3">
-      <SectionTitle>My month</SectionTitle>
+      <SectionDivider>My month</SectionDivider>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         <StatCard
           label="Sessions"

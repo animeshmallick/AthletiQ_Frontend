@@ -10,7 +10,13 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { FilterBar, PeriodFilter } from '@/components/filters';
-import { EmptyState, ErrorState, ListSkeleton, StatCard } from '@/components/common';
+import {
+  EmptyState,
+  ErrorState,
+  ListSkeleton,
+  StatCard,
+  SectionDivider,
+} from '@/components/common';
 import { Tooltip } from '@/components/ui/overlays';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/primitives';
 import { formatShortDate, formatTimeRange, plural } from '@/lib/format';
@@ -107,10 +113,12 @@ function Body({ d, onOpen }: { d: LessonInsights; onOpen: (b: string, date: stri
         />
       </div>
 
+      <SectionDivider>Coverage</SectionDivider>
       <div className="grid grid-cols-1 gap-3 *:min-w-0 lg:grid-cols-2">
         <WeeklyCoverage weeks={d.weeks} />
         <BatchTable d={d} multiCoach={multiCoach} onOpen={onOpen} />
       </div>
+      <SectionDivider>What the plans cover</SectionDivider>
       <div className="grid grid-cols-1 gap-3 *:min-w-0 lg:grid-cols-2">
         <DrillUsage d={d} />
         <StageBalance stages={d.stages} />

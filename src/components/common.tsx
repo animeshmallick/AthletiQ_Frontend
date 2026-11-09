@@ -71,6 +71,31 @@ export function PageHeader({
   );
 }
 
+/**
+ * A section heading centred on a hairline rule ("—— RIGHT NOW ——"), so the parts of a long
+ * screen stand apart. Renders a real heading for screen readers.
+ */
+export function SectionDivider({
+  children,
+  as: Heading = 'h2',
+  className,
+}: {
+  children: ReactNode;
+  as?: 'h2' | 'h3';
+  className?: string;
+}) {
+  return (
+    // No padding of its own: in a spaced stack it adds only its own small line height.
+    <div className={cn('flex items-center gap-2', className)}>
+      <span aria-hidden className="h-px flex-1 bg-border" />
+      <Heading className="shrink-0 text-[10px] leading-none font-semibold tracking-wider text-muted-foreground uppercase">
+        {children}
+      </Heading>
+      <span aria-hidden className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 export function EmptyState({
   icon,
   title,

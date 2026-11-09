@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ATTENDANCE_META } from '@/components/common';
+import { ATTENDANCE_META, SectionDivider } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -204,9 +204,7 @@ function Body({
 
       {!s.cancelled && (
         <section aria-label="This session" className="space-y-1.5">
-          <h3 className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-            This session
-          </h3>
+          <SectionDivider as="h3">This session</SectionDivider>
           <div className="grid grid-cols-3 gap-1">
             <Tile
               icon={<CalendarCheck2 />}
@@ -277,9 +275,7 @@ function Body({
       )}
 
       <section aria-label="Last 4 weeks" className="space-y-1.5">
-        <h3 className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Last 4 weeks
-        </h3>
+        <SectionDivider as="h3">Last 4 weeks</SectionDivider>
         {trend.loading || plans.isPending ? (
           <Skeleton className="h-16 rounded-xl" />
         ) : (

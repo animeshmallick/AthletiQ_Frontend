@@ -20,7 +20,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { relativeTime } from '@/app/deployments';
-import { EmptyState, ErrorState, ListSkeleton, PageHeader } from '@/components/common';
+import {
+  EmptyState,
+  ErrorState,
+  ListSkeleton,
+  PageHeader,
+  SectionDivider,
+} from '@/components/common';
 import {
   Dialog,
   DialogContent,
@@ -204,9 +210,7 @@ export function AuditLogPage() {
         <div className="space-y-3">
           {groups.map((g) => (
             <section key={g.day} aria-label={g.day}>
-              <h2 className="mb-1.5 px-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                {g.day}
-              </h2>
+              <SectionDivider className="mb-1.5">{g.day}</SectionDivider>
               <Card className="divide-y overflow-hidden">
                 {g.items.map((l) => {
                   const e = entityMeta(l.entityType);

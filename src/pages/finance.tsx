@@ -23,7 +23,14 @@ import {
   FINANCE_PERIODS,
   type FinancePreset,
 } from '@/components/collected-by';
-import { EmptyState, ErrorState, ListSkeleton, PageHeader, StatCard } from '@/components/common';
+import {
+  EmptyState,
+  ErrorState,
+  ListSkeleton,
+  PageHeader,
+  StatCard,
+  SectionDivider,
+} from '@/components/common';
 import { FilterBar, FilterField, FilterMenu, PeriodFilter } from '@/components/filters';
 import {
   Card,
@@ -155,6 +162,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
             />
           </div>
 
+          <SectionDivider>Trends</SectionDivider>
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
@@ -260,6 +268,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
             </Card>
           </div>
 
+          <SectionDivider>Breakdowns</SectionDivider>
           <Card>
             <CardHeader>
               <CardTitle>Collected by</CardTitle>
