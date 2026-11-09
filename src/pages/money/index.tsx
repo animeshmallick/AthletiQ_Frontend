@@ -611,7 +611,7 @@ function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to:
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-export function MoneyPage() {
+export function MoneyPage({ embedded = false }: { embedded?: boolean } = {}) {
   const user = useUser();
   const admin = user.role === 'admin';
   const [preset, setPreset] = useState<FinancePreset>('month');
@@ -621,10 +621,11 @@ export function MoneyPage() {
   const funds = q.data?.scope === 'academy' ? q.data : undefined;
   const mine = q.data?.scope === 'self' ? q.data : undefined;
 
+  const size = embedded ? ('sm' as const) : undefined;
   const actions = admin ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button>
+        <Button size={size}>
           <Plus /> Record <ChevronDown />
         </Button>
       </DropdownMenuTrigger>
@@ -644,35 +645,40 @@ export function MoneyPage() {
       </DropdownMenuContent>
     </DropdownMenu>
   ) : (
-    <div className="flex gap-2">
-      <Button variant="outline" onClick={() => setOpen({ action: 'expense' })}>
+    <div className="flex gap-1.5">
+      <Button size={size} variant="outline" onClick={() => setOpen({ action: 'expense' })}>
         <ShoppingBag /> Purchase
       </Button>
       <Button
+        size={size}
         onClick={() =>
           setOpen({ action: 'handover', prefill: { amount: mine?.cash || undefined } })
         }
         disabled={!mine?.cash}
       >
-        <ArrowRightLeft /> Hand over cash
+        <ArrowRightLeft /> {embedded ? 'Hand over' : 'Hand over cash'}
       </Button>
     </div>
   );
 
   return (
     <div>
-      <PageHeader
-        title={admin ? 'Money' : 'My money'}
-        description={
-          admin
-            ? 'Who holds the money, who is owed, where fees went, and every movement.'
-            : 'Cash you hold for the academy, what you are owed, and your purchases.'
-        }
-        actions={actions}
-      />
+      {!embedded && (
+        <PageHeader
+          title={admin ? 'Money' : 'My money'}
+          description={
+            admin
+              ? 'Who holds the money, who is owed, where fees went, and every movement.'
+              : 'Cash you hold for the academy, what you are owed, and your purchases.'
+          }
+          actions={actions}
+        />
+      )}
       <FilterBar>
         <PeriodFilter value={preset} onChange={setPreset} options={FINANCE_PERIODS} />
         {q.isFetching && !q.isPending && <Badge variant="muted">Updating…</Badge>}
+        {/* Embedded (Finance → Money): the actions sit beside the period. */}
+        {embedded && <div className="ml-auto flex shrink-0 gap-1.5">{actions}</div>}
       </FilterBar>
       {q.isPending ? (
         <ListSkeleton rows={5} />

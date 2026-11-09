@@ -123,7 +123,7 @@ function TxnRow({ t, onReverse }: { t: FundTxn; onReverse?: () => void }) {
               {t.invoice && (
                 <Link
                   className="font-medium text-primary hover:underline"
-                  to={`/invoices?invoice=${t.invoice.id}`}
+                  to={`/finance?tab=invoices&invoice=${t.invoice.id}`}
                 >
                   {t.invoice.number}
                 </Link>

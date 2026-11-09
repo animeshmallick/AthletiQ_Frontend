@@ -15,8 +15,7 @@ const m6 = () => import('@/pages/feedback/board');
 const m7 = () => import('@/pages/feedback/form');
 const m8 = () => import('@/pages/students/list');
 const m9 = () => import('@/pages/students/detail');
-const m10 = () => import('@/pages/invoices');
-const m11 = () => import('@/pages/finance');
+const m11 = () => import('@/pages/finance-hub');
 const m12 = () => import('@/pages/batches');
 const m13 = () => import('@/pages/admin/coaches');
 const m14 = () => import('@/pages/admin/registrations');
@@ -44,12 +43,10 @@ export const FeedbackPage = page(m6, 'FeedbackPage');
 export const FeedbackFormPage = page(m7, 'FeedbackFormPage');
 export const StudentsPage = page(m8, 'StudentsPage');
 export const StudentDetailPage = page(m9, 'StudentDetailPage');
-export const FeesPage = page(() => import('@/pages/fees'), 'FeesPage');
 export const MakeupsPage = page(() => import('@/pages/admin/makeups'), 'MakeupsPage');
 const calendarModule = () => import('@/pages/calendar');
 export const CalendarPage = page(calendarModule, 'CalendarPage');
-export const InvoicesPage = page(m10, 'InvoicesPage');
-export const FinancePage = page(m11, 'FinancePage');
+export const FinanceHubPage = page(m11, 'FinanceHubPage');
 export const BatchesPage = page(m12, 'BatchesPage');
 export const BatchDetailPage = page(m12, 'BatchDetailPage');
 export const CoachesPage = page(m13, 'CoachesPage');
@@ -63,7 +60,6 @@ export const AccountPage = page(m20, 'AccountPage');
 export const SubstitutionsPage = page(m21, 'SubstitutionsPage');
 export const PeoplePage = page(m22, 'PeoplePage');
 export const PayeesPage = page(m23, 'PayeesPage');
-export const MoneyPage = page(() => import('@/pages/money'), 'MoneyPage');
 
 const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/$/, m3],
@@ -73,7 +69,6 @@ const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/feedback$/, m6],
   [/^\/students$/, m8],
   [/^\/students\/[^/]+$/, m9],
-  [/^\/invoices$/, m10],
   [/^\/finance$/, m11],
   [/^\/batches$/, m12],
   [/^\/batches\/[^/]+$/, m12],

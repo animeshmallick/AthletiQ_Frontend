@@ -39,7 +39,7 @@ const ENTITY: Record<string, { label: string; icon: LucideIcon; tone: string; li
     label: 'Invoice',
     icon: IndianRupee,
     tone: 'bg-emerald-500/14 text-emerald-700 dark:text-emerald-300',
-    link: '/invoices?status=all&invoice=',
+    link: '/finance?tab=invoices&status=all&invoice=',
   },
   student: {
     label: 'Student',

@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   CalendarPlus,
   CalendarDays,
   CalendarCheck2,
@@ -16,7 +15,6 @@ import {
   Tags,
   UserPlus,
   Users,
-  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import type { Role } from '@/lib/types';
@@ -94,33 +92,14 @@ export const NAV: NavItem[] = [
     also: ['/students', '/coaches', '/payees'],
   },
   {
-    to: '/invoices',
-    label: 'Fees',
-    icon: IndianRupee,
-    roles: ['coach'],
-    group: 'main',
-  },
-  {
-    to: '/invoices',
-    label: 'Invoices',
-    tabs: ['admin'],
-    icon: IndianRupee,
-    roles: ['admin'],
-    group: 'main',
-  },
-  {
+    // Finance, Money and Invoices in one screen (tabs), for admins and coaches.
     to: '/finance',
     label: 'Finance',
-    icon: BarChart3,
-    roles: ['admin'],
-    group: 'main',
-  },
-  {
-    to: '/money',
-    label: 'Money',
-    icon: Wallet,
+    tabs: ['admin'],
+    icon: IndianRupee,
     roles: ['coach', 'admin'],
     group: 'main',
+    also: ['/invoices', '/money'],
   },
   {
     to: '/coach-sessions',

@@ -393,7 +393,7 @@ function AdminToday() {
         />
         <StatCard
           label="Outstanding"
-          to="/invoices?status=open"
+          to="/finance?tab=invoices&status=open"
           icon={<Clock />}
           tone="warning"
           loading={finance.isPending}
@@ -402,7 +402,7 @@ function AdminToday() {
         />
         <StatCard
           label="Overdue"
-          to="/invoices?status=overdue"
+          to="/finance?tab=invoices&status=overdue"
           icon={<AlertTriangle />}
           tone="destructive"
           loading={finance.isPending}

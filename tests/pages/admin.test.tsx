@@ -284,7 +284,7 @@ describe('AuditLogPage', () => {
     expect(dialog).toHaveTextContent('Effective from');
     expect(within(dialog).getByRole('link', { name: 'Open' })).toHaveAttribute(
       'href',
-      '/invoices?status=all&invoice=i1',
+      '/finance?tab=invoices&status=all&invoice=i1',
     );
   });
 });

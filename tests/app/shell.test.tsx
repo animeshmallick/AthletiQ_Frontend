@@ -63,10 +63,14 @@ describe('navigation', () => {
     const coach = navFor('coach').map((n) => n.to);
     const admin = navFor('admin').map((n) => n.to);
     expect(coach).not.toContain('/settings');
-    // Coaches get one Fees page (invoices + insights) instead of separate Invoices/Finance pages.
-    expect(navFor('coach').find((n) => n.to === '/invoices')?.label).toBe('Fees');
-    expect(coach).not.toContain('/finance');
-    expect(navFor('admin').find((n) => n.to === '/invoices')?.label).toBe('Invoices');
+    // One Finance screen (Finance, Money and Invoices tabs) for both roles; old paths redirect.
+    for (const role of ['coach', 'admin'] as const) {
+      const items = navFor(role).map((n) => n.to);
+      expect(items).toContain('/finance');
+      expect(items).not.toContain('/invoices');
+      expect(items).not.toContain('/money');
+    }
+    expect(tabsFor('admin').map((t) => t.to)).toContain('/finance');
     expect(coach).not.toContain('/registrations');
     expect(admin).toEqual(
       expect.arrayContaining(['/settings', '/registrations', '/people', '/fee-plans']),

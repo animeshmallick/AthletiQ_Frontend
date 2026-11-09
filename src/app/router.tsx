@@ -17,7 +17,7 @@ import {
   FeedbackFormPage,
   StudentsPage,
   StudentDetailPage,
-  FinancePage,
+  FinanceHubPage,
   BatchesPage,
   BatchDetailPage,
   CoachesPage,
@@ -32,9 +32,7 @@ import {
   PeoplePage,
   PayeesPage,
   CalendarPage,
-  FeesPage,
   MakeupsPage,
-  MoneyPage,
 } from './pages';
 
 function FullScreenLoader() {
@@ -45,11 +43,18 @@ function FullScreenLoader() {
   );
 }
 
-/** Coaches see finance inside their Fees page; admins get the full Finance page. */
-function FinanceRoute() {
-  const { user } = useAuth();
-  if (user?.role === 'coach') return <Navigate to="/invoices?view=insights" replace />;
-  return <FinancePage />;
+/**
+ * Old addresses (bookmarks, notifications, links in older app builds) open the matching tab of
+ * the Finance screen, keeping filters and the open invoice.
+ */
+function ToFinance({ tab }: { tab: 'invoices' | 'money' }) {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const insights = params.get('view') === 'insights';
+  params.delete('view');
+  if (!insights) params.set('tab', tab);
+  const qs = params.toString();
+  return <Navigate to={`/finance${qs ? `?${qs}` : ''}`} replace />;
 }
 
 /** Signed-in area. Unauthenticated users are sent to /login and returned afterwards. */
@@ -150,9 +155,9 @@ export const router = createBrowserRouter([
           { path: 'feedback/:studentId/:weekStart', element: <FeedbackFormPage /> },
           { path: 'students', element: <StudentsPage /> },
           { path: 'students/:id', element: <StudentDetailPage /> },
-          { path: 'invoices', element: <FeesPage /> },
-          { path: 'finance', element: <FinanceRoute /> },
-          { path: 'money', element: <MoneyPage /> },
+          { path: 'finance', element: <FinanceHubPage /> },
+          { path: 'invoices', element: <ToFinance tab="invoices" /> },
+          { path: 'money', element: <ToFinance tab="money" /> },
           { path: 'batches', element: <BatchesPage /> },
           { path: 'batches/:id', element: <BatchDetailPage /> },
           { path: 'coach-sessions', element: <CoachSessionsPage /> },

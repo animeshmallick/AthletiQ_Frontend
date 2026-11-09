@@ -311,7 +311,7 @@ function MoneySnapshot() {
           <Landmark className="size-4 text-muted-foreground" /> Money right now
         </CardTitle>
         <CardDescription>
-          <Link to="/money" className="font-medium text-primary hover:underline">
+          <Link to="/finance?tab=money" className="font-medium text-primary hover:underline">
             Open Money
           </Link>{' '}
           for the full ledger.
@@ -476,7 +476,7 @@ export function CoachInsights() {
               label="Collected"
               icon={<Wallet />}
               tone="success"
-              to="/invoices?view=insights"
+              to="/finance"
               value={money(t.collected)}
               hint="This month, my students"
             />
@@ -484,7 +484,7 @@ export function CoachInsights() {
               label="Received by me"
               icon={<HandCoins />}
               tone="success"
-              to="/invoices?view=insights"
+              to="/finance"
               value={money(fin.data?.byReceiver?.[0]?.amount ?? 0)}
               hint={plural(fin.data?.byReceiver?.[0]?.count ?? 0, 'payment') + ' this month'}
             />
@@ -493,7 +493,7 @@ export function CoachInsights() {
                 label="Cash with me"
                 icon={<Landmark />}
                 tone={mine.cash > 0 ? 'warning' : 'default'}
-                to="/money"
+                to="/finance?tab=money"
                 value={money(mine.cash)}
                 hint={mine.due > 0 ? `Academy owes me ${money(mine.due)}` : 'For the academy'}
               />
@@ -502,7 +502,7 @@ export function CoachInsights() {
               label="Outstanding"
               icon={<IndianRupee />}
               tone={t.overdue > 0 ? 'destructive' : 'warning'}
-              to="/invoices"
+              to="/finance?tab=invoices"
               value={money(t.outstanding)}
               hint={t.overdue > 0 ? `${money(t.overdue)} overdue` : 'Nothing overdue'}
             />
