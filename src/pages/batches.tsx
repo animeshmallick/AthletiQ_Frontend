@@ -640,28 +640,40 @@ export function BatchDetailPage() {
         title={b.name}
         description={`${formatTimeRange(b.startTime, b.endTime)} · ${weekdaysLabel(b.weekdays)} · ${b.location.name} · Coach ${b.coach.name}`}
         actions={
-          <>
-            <Button asChild variant="outline">
+          // One compact row: two quick links, then icon buttons.
+          <div className="flex items-center gap-1">
+            <Button asChild variant="outline" size="sm" className="gap-1 px-2.5">
               <Link to={`/attendance?batch=${b.id}`}>
                 <CalendarCheck2 /> Attendance
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" size="sm" className="gap-1 px-2.5">
               <Link to={`/lesson-plans?batch=${b.id}`}>
                 <ClipboardList /> Plans
               </Link>
             </Button>
             {user.role === 'admin' && (
-              <Button variant="outline" onClick={() => setReportOpen(true)}>
-                <FileText /> Report
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Batch report"
+                title="Batch report"
+                onClick={() => setReportOpen(true)}
+              >
+                <FileText />
               </Button>
             )}
             {user.role === 'admin' && (
-              <Button onClick={() => setEditing(true)}>
-                <Pencil /> Edit
+              <Button
+                size="icon-sm"
+                aria-label="Edit batch"
+                title="Edit batch"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil />
               </Button>
             )}
-          </>
+          </div>
         }
       />
       <Card>

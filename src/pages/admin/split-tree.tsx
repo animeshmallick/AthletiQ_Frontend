@@ -3,7 +3,6 @@ import {
   Building2,
   ChevronRight,
   CornerDownRight,
-  Pencil,
   RotateCcw,
   Split,
   Store,
@@ -22,7 +21,7 @@ import {
   CardTitle,
 } from '@/components/ui/primitives';
 import { money, moneyCompact, plural } from '@/lib/format';
-import { allocate, formatPercent, recipientLabel, SPLIT_COLORS } from '@/lib/split';
+import { allocate, DIVIDED_LABEL, formatPercent, recipientLabel, SPLIT_COLORS } from '@/lib/split';
 import type { FeePlan, SplitNode } from '@/lib/types';
 import { byRecipient, usePeople, type People } from './split-data';
 import { cn } from '@/lib/utils';
@@ -89,9 +88,9 @@ function buildRows(tree: SplitNode[], amount: number, planName: string): Row[] {
         amount: childParts[j] ?? 0,
         depth: 2,
         parentPath: `${i}`,
-        parentName: n.name,
+        parentName: n.name || DIVIDED_LABEL,
         color: SPLIT_COLORS[(leaf + j) % SPLIT_COLORS.length]!,
-        rule: ruleText(c, n.name, childFlats && c.kind === 'percent'),
+        rule: ruleText(c, n.name || 'the divided share', childFlats && c.kind === 'percent'),
       });
     });
     leaf += n.children.length || 1;
@@ -125,15 +124,7 @@ function Bar({
  * to their parent. Tapping a section highlights its path; the preview amount can be changed to see
  * a discounted or custom fee.
  */
-export function PlanSplitPanel({
-  plan,
-  onEditSplit,
-  onEditPlan,
-}: {
-  plan: FeePlan;
-  onEditSplit: () => void;
-  onEditPlan: () => void;
-}) {
+export function PlanSplitPanel({ plan, onEditSplit }: { plan: FeePlan; onEditSplit: () => void }) {
   const people = usePeople();
   const tree = useMemo(() => plan.split ?? [], [plan.split]);
   const [amount, setAmount] = useState<number | null>(plan.monthlyFee);
@@ -155,7 +146,7 @@ export function PlanSplitPanel({
     });
 
   const header: ReactNode = (
-    <CardHeader className="flex flex-row flex-wrap items-start gap-2 space-y-0">
+    <CardHeader className="flex flex-row items-center gap-2 space-y-0">
       <div className="mr-auto min-w-0">
         <CardTitle className="flex items-center gap-2">
           {plan.name}
@@ -166,14 +157,6 @@ export function PlanSplitPanel({
           {plan.daysPerWeek === 1 ? 'day' : 'days'} a week · {plural(students, 'student')}
         </CardDescription>
       </div>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 gap-1 rounded-md px-2 text-[12px] pointer-coarse:h-8 pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
-        onClick={onEditPlan}
-      >
-        <Pencil /> Plan
-      </Button>
       <Button
         size="sm"
         className="h-7 gap-1 rounded-md px-2 text-[12px] pointer-coarse:h-8 pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
@@ -357,7 +340,11 @@ function NodeRow({
           <button
             type="button"
             onClick={toggle}
-            aria-label={open ? `Collapse ${r.node.name}` : `Expand ${r.node.name}`}
+            aria-label={
+              open
+                ? `Collapse ${r.node.name || DIVIDED_LABEL}`
+                : `Expand ${r.node.name || DIVIDED_LABEL}`
+            }
             className="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-muted"
           >
             <ChevronRight className={cn('size-4 transition-transform', open && 'rotate-90')} />
@@ -378,7 +365,7 @@ function NodeRow({
           onClick={onFocus}
           className="min-w-0 flex-1 cursor-pointer truncate text-left font-semibold hover:underline"
         >
-          {r.node.name}
+          {r.node.name || DIVIDED_LABEL}
         </button>
         <Badge variant="muted" className="tabular shrink-0">
           {r.node.kind === 'flat' ? `${money(r.node.value)} flat` : formatPercent(r.node.value)}

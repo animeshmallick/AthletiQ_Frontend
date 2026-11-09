@@ -40,8 +40,9 @@ export function previewShares(tree: SplitNode[], amount: number): PreviewLine[] 
   const walk = (nodes: SplitNode[], money: number, prefix: string) => {
     const parts = allocate(nodes, money);
     nodes.forEach((n, i) => {
-      const label = prefix ? `${prefix} › ${n.name || 'Untitled'}` : n.name || 'Untitled';
-      if (n.children.length) walk(n.children, parts[i] ?? 0, label);
+      // Lines are named after who finally receives the money.
+      const label = n.name || prefix || 'Share';
+      if (n.children.length) walk(n.children, parts[i] ?? 0, '');
       else lines.push({ label, node: n, amount: parts[i] ?? 0 });
     });
   };
@@ -76,13 +77,8 @@ export function validateTree(tree: SplitNode[]): TreeError[] {
       errors.push({ path, message: 'Add a percentage section to receive what is left' });
     else if (total !== FULL)
       errors.push({ path, message: `Percentages add up to ${total / 100}%, not 100%` });
-    const names = new Set<string>();
     nodes.forEach((n, i) => {
       const at = path ? `${path}.${i}` : `${i}`;
-      const key = n.name.trim().toLowerCase();
-      if (!key) errors.push({ path: at, message: 'Give every section a name' });
-      else if (names.has(key)) errors.push({ path: at, message: `“${n.name}” is used twice` });
-      names.add(key);
       if (n.value <= 0) errors.push({ path: at, message: 'Enter a value above zero' });
       if (n.kind === 'percent' && n.value > FULL)
         errors.push({ path: at, message: 'A percentage cannot exceed 100%' });
@@ -138,26 +134,21 @@ export function recipientLabel(
   }
 }
 
+/** Shown where a divided section (which has no recipient, so no name) needs a label. */
+export const DIVIDED_LABEL = 'Divided share';
+
 /**
- * Names every section after where its money goes ("Academy", "Batch coach", a staff member or
- * payee); a divided section is named after its parts ("Academy & Society"). Repeats on a level
- * get a number ("Academy 2"), so names stay unique as the server requires.
+ * Names every section after who finally receives its money ("Academy", "Batch coach", a staff
+ * member or payee). Divided sections have no name of their own.
  */
 export function autoName<T extends SplitNode & { children: T[] }>(
   nodes: T[],
   staff: Pick<User, 'id' | 'name'>[] = [],
   payees: Pick<Payee, 'id' | 'name'>[] = [],
 ): T[] {
-  const seen = new Map<string, number>();
   return nodes.map((n) => {
     const children = autoName(n.children, staff, payees);
-    const base = children.length
-      ? [...new Set(children.map((c) => recipientLabel(c, staff, payees)))].join(' & ')
-      : recipientLabel(n, staff, payees);
-    const key = base.toLowerCase();
-    const count = (seen.get(key) ?? 0) + 1;
-    seen.set(key, count);
-    const name = (count > 1 ? `${base} ${count}` : base).slice(0, 60);
+    const name = children.length ? '' : recipientLabel(n, staff, payees).slice(0, 60);
     return { ...n, name, children };
   });
 }

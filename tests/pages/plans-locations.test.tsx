@@ -44,7 +44,7 @@ describe('FeePlansPage summary and cards', () => {
     await user.click(screen.getByRole('switch'));
     expect(await screen.findByText('Old plan')).toBeInTheDocument();
     expect(screen.getByText('Retired')).toBeInTheDocument();
-    expect(screen.getByText('day/wk')).toBeInTheDocument();
+    expect(screen.getByText('1×/wk')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Edit 5 days' }));
     expect(await screen.findByRole('dialog', { name: 'Edit fee plan' })).toBeInTheDocument();
   });

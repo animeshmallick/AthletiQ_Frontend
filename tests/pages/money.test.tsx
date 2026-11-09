@@ -46,8 +46,8 @@ describe('split maths (client copy)', () => {
       node({ name: 'Coach', value: 5000, recipient: 'batch_coach' }),
     ];
     expect(previewShares(tree, 200_000).map((l) => [l.label, l.amount])).toEqual([
-      ['Academy › Society', 35_000],
-      ['Academy › Academy', 65_000],
+      ['Society', 35_000],
+      ['Academy', 65_000],
       ['Coach', 100_000],
     ]);
     expect(nodeAmounts(tree, 200_000)).toMatchObject({ '0': 100_000, '0.0': 35_000, '1': 100_000 });
@@ -56,7 +56,6 @@ describe('split maths (client copy)', () => {
       validateTree([node({ name: '', value: 0, recipient: 'staff' })]).map((e) => e.message),
     ).toEqual([
       'Percentages add up to 0%, not 100%',
-      'Give every section a name',
       'Enter a value above zero',
       'Choose a staff member',
     ]);
@@ -65,7 +64,7 @@ describe('split maths (client copy)', () => {
 });
 
 describe('section names', () => {
-  it('follow the recipient, name divided sections after their parts, and stay unique', () => {
+  it('follow the final recipient; divided sections have no name', () => {
     const named = autoName(
       [
         node({ name: '', children: [node({}), node({ recipient: 'payee', payeeId: 'py1' })] }),
@@ -77,13 +76,7 @@ describe('section names', () => {
       [{ id: 'u1', name: 'Ravi' }],
       [{ id: 'py1', name: 'Society' }],
     );
-    expect(named.map((n) => n.name)).toEqual([
-      'Academy & Society',
-      'Ravi',
-      'Academy',
-      'Academy 2',
-      'Batch coach',
-    ]);
+    expect(named.map((n) => n.name)).toEqual(['', 'Ravi', 'Academy', 'Academy', 'Batch coach']);
     expect(named[0]!.children.map((c) => c.name)).toEqual(['Academy', 'Society']);
   });
 });
@@ -261,7 +254,7 @@ const academy: AcademyFunds = {
         amount: 125_000,
       },
       {
-        label: 'Academy › Society',
+        label: 'Society',
         account: 'payee_due',
         userId: null,
         payeeId: 'py1',

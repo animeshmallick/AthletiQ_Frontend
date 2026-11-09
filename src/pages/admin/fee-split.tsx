@@ -35,6 +35,7 @@ import {
   SPLIT_COLORS,
   validateTree,
   autoName,
+  DIVIDED_LABEL,
 } from '@/lib/split';
 import type { FeePlan, Payee, SplitNode, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -186,7 +187,9 @@ function SectionRow({
           <span className={cn('size-2.5 shrink-0 rounded-full', color)} />
         )}
         {/* Named after its recipient automatically; no name to type. */}
-        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{node.name}</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+          {node.name || DIVIDED_LABEL}
+        </span>
         <span className="tabular w-20 shrink-0 text-right text-[13px] font-semibold">
           {money(amount)}
         </span>

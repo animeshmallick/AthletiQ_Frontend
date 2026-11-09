@@ -133,24 +133,13 @@ function PlanCard({
   return (
     <Card
       className={cn(
-        'relative flex items-stretch gap-2.5 p-2.5 transition-[box-shadow,border-color] hover:shadow-e2',
+        'relative flex items-stretch gap-2 px-2.5 py-2 transition-[box-shadow,border-color] hover:shadow-e2',
         !p.isActive && 'bg-muted/30',
         selected && 'border-primary ring-2 ring-primary/25',
       )}
     >
-      <div
-        className={cn(
-          'flex w-11 shrink-0 flex-col items-center justify-center rounded-lg',
-          p.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-        )}
-      >
-        <span className="tabular text-lg leading-none font-bold">{p.daysPerWeek}</span>
-        <span className="mt-0.5 text-[9px] font-semibold tracking-wide uppercase">
-          {p.daysPerWeek === 1 ? 'day/wk' : 'days/wk'}
-        </span>
-      </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-1.5 pr-7">
+        <div className="flex items-center gap-1.5 pr-7">
           <button
             type="button"
             onClick={onSelect}
@@ -160,6 +149,15 @@ function PlanCard({
           >
             {p.name}
           </button>
+          <span
+            className={cn(
+              'tabular shrink-0 rounded-md px-1.5 py-0.5 text-[10px] leading-none font-semibold',
+              p.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+            )}
+            title={`${p.daysPerWeek} training day${p.daysPerWeek === 1 ? '' : 's'} a week`}
+          >
+            {p.daysPerWeek}×/wk
+          </span>
           {!p.isActive && (
             <Badge variant="muted" className="shrink-0">
               Retired
@@ -301,7 +299,6 @@ export function FeePlansPage() {
                     key={selected.id}
                     plan={selected}
                     onEditSplit={() => setSplitting(selected)}
-                    onEditPlan={() => setEditing(selected)}
                   />
                 </div>
               )}
