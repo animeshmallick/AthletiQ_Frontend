@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12+ animated splash: speed lines slide in, the "A" draws itself, the swoosh sweeps
-     up and the spark pops. Kept under 1s as the system recommends. -->
+<!-- Android 12+ animated splash: the gold ring sweeps round, the sprinter draws in, then the
+     head and spark pop. Kept under 1s as the system recommends. -->
 <animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt">
     <aapt:attr name="android:drawable">
@@ -9,102 +9,67 @@
             android:height="240dp"
             android:viewportWidth="1024"
             android:viewportHeight="1024">
-            <group
-                android:pivotX="512"
-                android:pivotY="512"
-                android:scaleX="0.62"
-                android:scaleY="0.62">
-                <group android:name="speed" android:translateX="-120">
-                    <path android:name="lines"
-                        android:pathData="M214,452 H330 M170,536 H318 M232,620 H316"
-                        android:strokeColor="#FFFFFF" android:strokeAlpha="0"
-                        android:strokeWidth="30" android:strokeLineCap="round" />
-                </group>
-                <path android:name="letter"
-                    android:pathData="M330,772 L548,254 L736,772"
-                    android:strokeColor="#FFFFFF" android:strokeWidth="116"
-                    android:strokeLineCap="round" android:strokeLineJoin="round"
-                    android:trimPathEnd="0" />
-                <path android:name="swoosh"
-                    android:pathData="M390,640 C500,628 640,580 796,444"
-                    android:strokeColor="#FBBF24" android:strokeWidth="66"
+            <group android:pivotX="512" android:pivotY="512" android:scaleX="0.62" android:scaleY="0.62">
+                <path android:name="ring"
+                    android:pathData="M712,181.6 A400,400 0 1,1 172.8,316"
+                    android:strokeColor="#FBBF24" android:strokeWidth="46"
                     android:strokeLineCap="round" android:trimPathEnd="0" />
-                <group android:name="star"
-                    android:pivotX="843" android:pivotY="322"
+                <group android:pivotX="540" android:pivotY="512" android:scaleX="0.86" android:scaleY="0.86"
+                    android:translateX="-28" android:translateY="16">
+                    <path android:name="runner"
+                        android:pathData="M636,360 L506,566 M626,382 L742,444 L810,360 M612,388 L500,440 L414,410 M506,566 L672,600 L640,778 M506,566 L420,706 L270,740"
+                        android:strokeColor="#FFFFFF" android:strokeWidth="94"
+                        android:strokeLineCap="round" android:strokeLineJoin="round"
+                        android:trimPathEnd="0" />
+                    <group android:name="head" android:pivotX="692" android:pivotY="236"
+                        android:scaleX="0" android:scaleY="0">
+                        <path android:pathData="M608,236 a84,84 0 1,0 168,0 a84,84 0 1,0 -168,0" android:fillColor="#FFFFFF" />
+                    </group>
+                </group>
+                <group android:name="star" android:pivotX="850" android:pivotY="190"
                     android:scaleX="0" android:scaleY="0">
-                    <path
-                        android:pathData="M826,262 l17,43 43,17 -43,17 -17,43 -17,-43 -43,-17 43,-17z"
-                        android:fillColor="#FBBF24" />
+                    <path android:pathData="M850,136 l15.3,38.7 38.7,15.3 -38.7,15.3 -15.3,38.7 -15.3,-38.7 -38.7,-15.3 38.7,-15.3z" android:fillColor="#FBBF24" />
                 </group>
             </group>
         </vector>
     </aapt:attr>
 
-    <target android:name="letter">
+    <target android:name="ring">
         <aapt:attr name="android:animation">
-            <objectAnimator
-                android:propertyName="trimPathEnd"
-                android:duration="450"
-                android:valueFrom="0"
-                android:valueTo="1"
+            <objectAnimator android:propertyName="trimPathEnd" android:duration="420"
+                android:valueFrom="0" android:valueTo="1" android:valueType="floatType"
+                android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+    <target android:name="runner">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="trimPathEnd" android:startOffset="200"
+                android:duration="420" android:valueFrom="0" android:valueTo="1"
                 android:valueType="floatType"
                 android:interpolator="@android:interpolator/fast_out_slow_in" />
         </aapt:attr>
     </target>
-    <target android:name="speed">
+    <target android:name="head">
         <aapt:attr name="android:animation">
-            <objectAnimator
-                android:propertyName="translateX"
-                android:startOffset="150"
-                android:duration="400"
-                android:valueFrom="-120"
-                android:valueTo="0"
-                android:valueType="floatType"
-                android:interpolator="@android:interpolator/decelerate_cubic" />
-        </aapt:attr>
-    </target>
-    <target android:name="lines">
-        <aapt:attr name="android:animation">
-            <objectAnimator
-                android:propertyName="strokeAlpha"
-                android:startOffset="150"
-                android:duration="400"
-                android:valueFrom="0"
-                android:valueTo="0.6"
-                android:valueType="floatType" />
-        </aapt:attr>
-    </target>
-    <target android:name="swoosh">
-        <aapt:attr name="android:animation">
-            <objectAnimator
-                android:propertyName="trimPathEnd"
-                android:startOffset="380"
-                android:duration="350"
-                android:valueFrom="0"
-                android:valueTo="1"
-                android:valueType="floatType"
-                android:interpolator="@android:interpolator/fast_out_slow_in" />
+            <set>
+                <objectAnimator android:propertyName="scaleX" android:startOffset="520"
+                    android:duration="260" android:valueFrom="0" android:valueTo="1"
+                    android:valueType="floatType" android:interpolator="@android:interpolator/overshoot" />
+                <objectAnimator android:propertyName="scaleY" android:startOffset="520"
+                    android:duration="260" android:valueFrom="0" android:valueTo="1"
+                    android:valueType="floatType" android:interpolator="@android:interpolator/overshoot" />
+            </set>
         </aapt:attr>
     </target>
     <target android:name="star">
         <aapt:attr name="android:animation">
             <set>
-                <objectAnimator
-                    android:propertyName="scaleX"
-                    android:startOffset="650"
-                    android:duration="300"
-                    android:valueFrom="0"
-                    android:valueTo="1"
-                    android:valueType="floatType"
-                    android:interpolator="@android:interpolator/overshoot" />
-                <objectAnimator
-                    android:propertyName="scaleY"
-                    android:startOffset="650"
-                    android:duration="300"
-                    android:valueFrom="0"
-                    android:valueTo="1"
-                    android:valueType="floatType"
-                    android:interpolator="@android:interpolator/overshoot" />
+                <objectAnimator android:propertyName="scaleX" android:startOffset="650"
+                    android:duration="300" android:valueFrom="0" android:valueTo="1"
+                    android:valueType="floatType" android:interpolator="@android:interpolator/overshoot" />
+                <objectAnimator android:propertyName="scaleY" android:startOffset="650"
+                    android:duration="300" android:valueFrom="0" android:valueTo="1"
+                    android:valueType="floatType" android:interpolator="@android:interpolator/overshoot" />
             </set>
         </aapt:attr>
     </target>

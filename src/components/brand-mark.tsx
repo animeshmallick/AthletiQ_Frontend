@@ -11,22 +11,32 @@ export function BrandMark({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* Same mark as the app icon: forward-leaning "A", rising swoosh and spark. */}
-      <svg viewBox="200 200 720 620" className="size-[1.45rem] drop-shadow-sm" fill="none">
+      {/* Same mark as the app icon: a sprinter inside a gold track ring, with a spark. */}
+      <svg viewBox="100 110 840 840" className="size-[1.6rem] drop-shadow-sm" fill="none">
         <path
-          d="M330 772 548 254 736 772"
+          d="M712 181.6A400 400 0 1 1 172.8 316"
+          stroke="#fbbf24"
+          strokeWidth="56"
+          strokeLinecap="round"
+        />
+        <g
+          transform="translate(512 528) scale(.86) translate(-540 -512)"
           stroke="#fff"
-          strokeWidth="120"
+          strokeWidth="104"
           strokeLinecap="round"
           strokeLinejoin="round"
-        />
+        >
+          <path d="M636 360 L506 566" />
+          <path d="M626 382 L742 444 L810 360" />
+          <path d="M612 388 L500 440 L414 410" />
+          <path d="M506 566 L672 600 L640 778" />
+          <path d="M506 566 L420 706 L270 740" />
+          <circle cx="692" cy="236" r="88" fill="#fff" stroke="none" />
+        </g>
         <path
-          d="M390 640C500 628 640 580 796 444"
-          stroke="#fbbf24"
-          strokeWidth="70"
-          strokeLinecap="round"
+          d="M850 136l15.3 38.7 38.7 15.3-38.7 15.3-15.3 38.7-15.3-38.7-38.7-15.3 38.7-15.3z"
+          fill="#fbbf24"
         />
-        <path d="M830 236l24 62 62 24-62 24-24 62-24-62-62-24 62-24z" fill="#fbbf24" />
       </svg>
     </span>
   );

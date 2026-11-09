@@ -183,13 +183,20 @@
       }
       #boot .mark .letter {
         stroke: #fff;
-        stroke-width: 116;
+        stroke-width: 94;
         animation: boot-draw 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.15s forwards;
       }
       #boot .mark .swoosh {
         stroke: #fbbf24;
-        stroke-width: 66;
-        animation: boot-draw 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.6s forwards;
+        stroke-width: 46;
+        animation: boot-draw 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
+      }
+      #boot .mark .head {
+        fill: #fff;
+        transform-box: fill-box;
+        transform-origin: center;
+        transform: scale(0);
+        animation: boot-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s forwards;
       }
       #boot .mark .speed path {
         stroke: #fff;
@@ -371,15 +378,20 @@
           d="M-40 420 C260 140 760 90 1064 220"
         />
       </svg>
-      <svg class="mark" viewBox="150 220 760 600">
-        <g class="speed">
-          <path d="M214 452H330" />
-          <path d="M170 536H318" />
-          <path d="M232 620H316" />
+      <svg class="mark" viewBox="100 110 840 840">
+        <path class="swoosh" pathLength="1" d="M712 181.6A400 400 0 1 1 172.8 316" />
+        <g transform="translate(512 528) scale(.86) translate(-540 -512)">
+          <path class="letter" pathLength="1" d="M636 360 L506 566" />
+          <path class="letter" pathLength="1" d="M626 382 L742 444 L810 360" />
+          <path class="letter" pathLength="1" d="M612 388 L500 440 L414 410" />
+          <path class="letter" pathLength="1" d="M506 566 L672 600 L640 778" />
+          <path class="letter" pathLength="1" d="M506 566 L420 706 L270 740" />
+          <circle class="head" cx="692" cy="236" r="84" />
         </g>
-        <path class="letter" pathLength="1" d="M330 772 548 254 736 772" />
-        <path class="swoosh" pathLength="1" d="M390 640C500 628 640 580 796 444" />
-        <path class="star" d="M830 236l24 62 62 24-62 24-24 62-24-62-62-24 62-24z" />
+        <path
+          class="star"
+          d="M850 136l15.3 38.7 38.7 15.3-38.7 15.3-15.3 38.7-15.3-38.7-38.7-15.3 38.7-15.3z"
+        />
       </svg>
       <div class="word">Athleti<b>Q</b></div>
       <div class="tag">TRAIN · TRACK · THRIVE</div>

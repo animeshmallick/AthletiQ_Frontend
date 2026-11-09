@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Status-bar icon: white silhouette on transparent (Android tints it). -->
+<!-- Status-bar icon: white sprinter silhouette on transparent (Android tints it). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="32"
-    android:viewportHeight="32">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M9 23 15.2 8.5h1.6L23 23h-3.3l-1.3-3.2h-5l-1.3 3.2H9zm5.4-6h3l-1.5-3.9L14.4 17z" />
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <group android:pivotX="540" android:pivotY="512" android:scaleX="1.05" android:scaleY="1.05"
+        android:translateX="-28" android:translateY="0">
+        <path android:pathData="M636,360 L506,566 M626,382 L742,444 L810,360 M612,388 L500,440 L414,410 M506,566 L672,600 L640,778 M506,566 L420,706 L270,740"
+            android:strokeColor="#FFFFFFFF" android:strokeWidth="110"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M608,236 a84,84 0 1,0 168,0 a84,84 0 1,0 -168,0" android:fillColor="#FFFFFFFF" />
+    </group>
 </vector>
