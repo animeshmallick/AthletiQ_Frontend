@@ -320,9 +320,16 @@ function DrillUsage({ d }: { d: LessonInsights }) {
   );
 }
 
-/** How the filled cells spread over the session's stages, in the coach's own stage colours. */
+/** How the filled cells spread over the session's stages, as a donut in the coach's colours. */
 function StageBalance({ stages }: { stages: LessonInsights['stages'] }) {
   const total = stages.reduce((n, s) => n + s.cells, 0);
+  const shown = stages.filter((s) => s.cells > 0);
+  const [active, setActive] = useState<string | null>(null);
+  const focus = shown.find((s) => s.id === active) ?? null;
+  const R = 15.9155; // circumference 100 → dash lengths are percentages
+  const pctOf = (s: { cells: number }) => (total ? (s.cells / total) * 100 : 0);
+  // Each slice starts where the previous ended, from 12 o'clock.
+  const offsets = shown.map((_, i) => 25 - shown.slice(0, i).reduce((n, x) => n + pctOf(x), 0));
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -330,51 +337,101 @@ function StageBalance({ stages }: { stages: LessonInsights['stages'] }) {
           <Layers3 className="size-4 text-muted-foreground" /> Time across stages
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2.5">
+      <CardContent>
         {total === 0 ? (
           <p className="text-[13px] text-muted-foreground">
             Fill in some plans to see the balance.
           </p>
         ) : (
-          <>
-            <div
-              className="flex h-3 gap-0.5 overflow-hidden rounded"
-              role="img"
-              aria-label={stages
-                .map((s) => `${s.name} ${Math.round((s.cells / total) * 100)}%`)
-                .join(', ')}
-            >
-              {stages
-                .filter((s) => s.cells > 0)
-                .map((s) => (
-                  <span
-                    key={s.id}
-                    className="h-full rounded-sm"
-                    style={{
-                      width: `${(s.cells / total) * 100}%`,
-                      background: s.color ?? '#94a3b8',
-                    }}
-                  />
-                ))}
+          <div className="flex items-center gap-3">
+            <div className="relative size-36 shrink-0">
+              <svg
+                viewBox="0 0 42 42"
+                className="size-full -rotate-0"
+                role="img"
+                aria-label="Stage share"
+              >
+                <circle
+                  cx="21"
+                  cy="21"
+                  r={R}
+                  fill="none"
+                  stroke="var(--color-muted)"
+                  strokeWidth="6"
+                />
+                {shown.map((s, i) => {
+                  const p = pctOf(s);
+                  const gap = shown.length > 1 ? 0.6 : 0;
+                  const el = (
+                    <circle
+                      key={s.id}
+                      cx="21"
+                      cy="21"
+                      r={R}
+                      fill="none"
+                      stroke={s.color ?? '#94a3b8'}
+                      strokeWidth={active === s.id ? 7.5 : 6}
+                      strokeDasharray={`${Math.max(0, p - gap)} ${100 - Math.max(0, p - gap)}`}
+                      strokeDashoffset={offsets[i]}
+                      className="cursor-pointer transition-[stroke-width,opacity] duration-150"
+                      opacity={active && active !== s.id ? 0.35 : 1}
+                      onClick={() => setActive((a) => (a === s.id ? null : s.id))}
+                      onMouseEnter={() => setActive(s.id)}
+                    >
+                      <title>{`${s.name}: ${Math.round(p)}% · ${plural(s.cells, 'item')} · ${plural(s.plans, 'plan')}`}</title>
+                    </circle>
+                  );
+                  return el;
+                })}
+              </svg>
+              <div
+                className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4 text-center"
+                aria-live="polite"
+              >
+                {focus ? (
+                  <>
+                    <span className="tabular text-[18px] leading-none font-bold">
+                      {Math.round(pctOf(focus))}%
+                    </span>
+                    <span className="mt-0.5 line-clamp-2 text-[11px] leading-tight font-medium">
+                      {focus.name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {plural(focus.cells, 'item')} · {plural(focus.plans, 'plan')}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="tabular text-[18px] leading-none font-bold">{total}</span>
+                    <span className="mt-0.5 text-[11px] text-muted-foreground">items planned</span>
+                    <span className="text-[10px] text-muted-foreground">Tap a slice</span>
+                  </>
+                )}
+              </div>
             </div>
-            <ul className="space-y-1">
+            <ul className="min-w-0 flex-1 space-y-0.5" onMouseLeave={() => setActive(null)}>
               {stages.map((s) => (
-                <li key={s.id} className="flex items-center gap-2 text-[13px]">
-                  <span
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ background: s.color ?? '#94a3b8' }}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                  <span className="tabular text-[12px] text-muted-foreground">
-                    {plural(s.cells, 'item')} · {plural(s.plans, 'plan')}
-                  </span>
-                  <span className="tabular w-9 text-right font-medium">
-                    {Math.round((s.cells / total) * 100)}%
-                  </span>
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    aria-pressed={active === s.id}
+                    onClick={() => setActive((a) => (a === s.id ? null : s.id))}
+                    className={cn(
+                      'flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1 py-0.5 text-left text-[12px] hover:bg-muted',
+                      active === s.id && 'bg-muted',
+                    )}
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: s.color ?? '#94a3b8' }}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                    <span className="tabular shrink-0 font-semibold">{Math.round(pctOf(s))}%</span>
+                  </button>
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
       </CardContent>
     </Card>
