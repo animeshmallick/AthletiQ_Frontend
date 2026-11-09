@@ -12,6 +12,7 @@ import {
   LogOut,
   MapPin,
   MessageSquareText,
+  Repeat,
   ShieldAlert,
   UserPlus,
   Users,
@@ -167,6 +168,17 @@ function CoachSessionCard({
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate font-semibold">{item.batch.name}</h3>
+            {item.asSubstitute ? (
+              <Badge variant="default">
+                <Repeat /> Substitute
+              </Badge>
+            ) : (
+              item.substitute && (
+                <Badge variant="muted">
+                  <Repeat /> Covered by {item.substitute.name}
+                </Badge>
+              )
+            )}
             {item.session?.flagged && (
               <Badge variant="warning">
                 <ShieldAlert /> Flagged

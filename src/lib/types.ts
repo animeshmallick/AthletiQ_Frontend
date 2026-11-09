@@ -182,6 +182,8 @@ export interface Batch {
   coach: { id: string; name: string; phone: string | null };
   location: { id: string; name: string; latitude: number; longitude: number; radiusMeters: number };
   memberCount: number;
+  /** Set when you only cover this batch as a substitute coach (current or upcoming days). */
+  substitution?: { id: string; fromDate: string; toDate: string } | null;
 }
 
 export interface BatchMember {
@@ -347,6 +349,8 @@ export interface DayOverviewSession {
   hasLessonPlan: boolean;
   coachSession: { checkInAt: string; checkOutAt: string | null; flagged: boolean } | null;
   cancelled: string | null;
+  /** Substitute coach covering this session, if any. */
+  substitute?: { id: string; name: string } | null;
 }
 
 export interface TodaySession {
@@ -361,6 +365,45 @@ export interface TodaySession {
   };
   session: CoachSession | null;
   cancelled: string | null;
+  /** You're covering this batch today as a substitute. */
+  asSubstitute?: boolean;
+  substitute?: { id: string; name: string } | null;
+}
+
+export type SubstitutionStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export interface Substitution {
+  id: string;
+  fromDate: string;
+  toDate: string;
+  reason: string | null;
+  status: SubstitutionStatus;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  sessions: number;
+  batch: { id: string; name: string; startTime: string; endTime: string; weekdays: number[] };
+  substitute: { id: string; name: string };
+  coach: { id: string; name: string };
+  requestedBy: { id: string; name: string };
+  reviewedBy: { id: string | null; name: string | null } | null;
+}
+
+export interface SubstitutionInsights {
+  from: string;
+  to: string;
+  totals: {
+    substitutions: number;
+    sessions: number;
+    pending: number;
+    upcoming: number;
+    active: number;
+    coveredByMe: number;
+    coveredForMe: number;
+  };
+  bySubstitute: { id: string; name: string; sessions: number; substitutions: number }[];
+  byCoach: { id: string; name: string; sessions: number; substitutions: number }[];
+  byBatch: { id: string; name: string; sessions: number; substitutions: number }[];
 }
 
 export interface LibraryItem {

@@ -10,6 +10,7 @@ import {
   ClipboardList,
   CloudRain,
   MapPin,
+  Repeat,
   UserRound,
   Users,
 } from 'lucide-react';
@@ -413,7 +414,7 @@ function WeekGrid({
                       type="button"
                       onClick={() => onOpenSession(s, d.date)}
                       aria-haspopup="dialog"
-                      title={`${s.batch.name} · ${formatTimeRange(s.batch.startTime, s.batch.endTime)}${s.cancelled ? ` · cancelled (${s.cancelled})` : ''}`}
+                      title={`${s.batch.name} · ${formatTimeRange(s.batch.startTime, s.batch.endTime)}${s.cancelled ? ` · cancelled (${s.cancelled})` : ''}${s.substitute ? ` · substitute ${s.substitute.name}` : ''}`}
                       className={cn(
                         'absolute cursor-pointer overflow-hidden rounded-md border-l-[3px] px-1 py-0.5 text-left shadow-xs transition-transform hover:z-20 hover:shadow-e2 active:scale-[0.97]',
                         batchTone(s.batch.id),
@@ -432,6 +433,7 @@ function WeekGrid({
                           s.cancelled && 'line-through',
                         )}
                       >
+                        {s.substitute && <Repeat className="mr-0.5 inline size-2.5" />}
                         {s.batch.name}
                       </span>
                       <span className="hidden truncate text-[10px] leading-tight opacity-80 sm:block">
@@ -553,6 +555,7 @@ function SessionDetails({
   date: string;
   isAdmin: boolean;
 }) {
+  const me = useUser();
   const pct = s.expectedStudents ? Math.round((s.marked / s.expectedStudents) * 100) : 0;
   return (
     <div className="space-y-1">
@@ -573,6 +576,14 @@ function SessionDetails({
         {isAdmin && (
           <span className="inline-flex items-center gap-1">
             <UserRound className="size-3" /> {s.batch.coach.name}
+          </span>
+        )}
+        {s.substitute && (
+          <span className="inline-flex items-center gap-1 font-semibold">
+            <Repeat className="size-3" />
+            {s.substitute.id === me.id
+              ? 'You’re the substitute'
+              : `Substitute: ${s.substitute.name}`}
           </span>
         )}
       </p>

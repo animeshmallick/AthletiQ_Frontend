@@ -7,6 +7,7 @@ import {
   Library,
   Lock,
   MapPin,
+  Repeat,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBlocker, useSearchParams } from 'react-router';
@@ -97,7 +98,15 @@ export function LessonPlansPage() {
       : id === ALL
         ? [...new Set((batches.data ?? []).flatMap((b) => b.weekdays))]
         : (batches.data?.find((b) => b.id === id)?.weekdays ?? []);
-  const snap = (d: string, dir: 1 | -1 = 1, id = batchId) => snapToSession(d, daysOf(id), dir);
+  const snap = (d: string, dir: 1 | -1 = 1, id = batchId) => {
+    const s = snapToSession(d, daysOf(id), dir);
+    // A substitute can only open the days they cover.
+    const cover = batches.data?.find((b) => b.id === id)?.substitution;
+    if (!cover) return s;
+    if (s < cover.fromDate) return snapToSession(cover.fromDate, daysOf(id), 1);
+    if (s > cover.toDate) return snapToSession(cover.toDate, daysOf(id), -1);
+    return s;
+  };
   const pickDate = (d: string, dir: 1 | -1 = 1) => {
     const s = snap(d, dir);
     if (s !== d && dir === 1 && isCoach)
@@ -258,6 +267,19 @@ export function LessonPlansPage() {
                 />
               ) : (
                 <>
+                  {batch?.substitution && (
+                    <div
+                      role="status"
+                      className="mb-2 flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-1.5 text-[12px]"
+                    >
+                      <Repeat aria-hidden className="size-3.5 shrink-0 text-primary" />
+                      <span>
+                        You’re the substitute coach for {batch.name} from{' '}
+                        {formatShortDate(batch.substitution.fromDate)} to{' '}
+                        {formatShortDate(batch.substitution.toDate)}.
+                      </span>
+                    </div>
+                  )}
                   {isCoach && day.data?.lockedReason && (
                     <div
                       role="status"

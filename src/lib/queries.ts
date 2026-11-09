@@ -26,6 +26,8 @@ import type {
   Invoice,
   InvoiceDetail,
   LessonInsights,
+  Substitution,
+  SubstitutionInsights,
   LessonPlan,
   LibraryItem,
   Location,
@@ -1104,5 +1106,67 @@ export function useResplit() {
     mutationFn: (body: { feePlanId?: string; from: string; to: string }) =>
       api.post<{ updated: number }>('/funds/resplit', body),
     onSuccess: () => invalidate(['funds'], ['invoices']),
+  });
+}
+
+// ─── Substitute coaches ──────────────────────────────────────────────────────
+
+export const useSubstitutions = (q: { status?: string; batchId?: string; from?: string } = {}) =>
+  useQuery({
+    queryKey: ['substitutions', 'list', q] as const,
+    queryFn: () => api.get<Substitution[]>('/substitutions', q),
+    placeholderData: keepPreviousData,
+  });
+
+export const useSubstitutionInsights = (q: { from: string; to: string }) =>
+  useQuery({
+    queryKey: ['substitutions', 'insights', q] as const,
+    queryFn: () => api.get<SubstitutionInsights>('/substitutions/insights', q),
+    placeholderData: keepPreviousData,
+  });
+
+export const useSubstituteCoaches = () =>
+  useQuery({
+    queryKey: ['substitutions', 'coaches'] as const,
+    queryFn: () => api.get<{ id: string; name: string }[]>('/substitutions/coaches'),
+    staleTime: 5 * 60_000,
+  });
+
+/** Everything a substitution touches: lists, insights, batches, the calendar and tasks. */
+const SUB_KEYS = [
+  ['substitutions'],
+  ['batches'],
+  ['attendance'],
+  ['coach-sessions'],
+  ['me', 'tasks'],
+] as const;
+
+export function useCreateSubstitution() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (body: {
+      batchId: string;
+      substituteCoachId: string;
+      fromDate: string;
+      toDate: string;
+      reason?: string | null;
+    }) => api.post<Substitution>('/substitutions', body),
+    onSuccess: () => invalidate(...SUB_KEYS),
+  });
+}
+
+export function useReviewSubstitution() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({
+      id,
+      action,
+      note,
+    }: {
+      id: string;
+      action: 'approve' | 'reject' | 'cancel';
+      note?: string | null;
+    }) => api.post<Substitution>(`/substitutions/${id}/${action}`, { note }),
+    onSuccess: () => invalidate(...SUB_KEYS),
   });
 }

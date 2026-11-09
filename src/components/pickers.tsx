@@ -92,6 +92,8 @@ export function BatchSelect({
       {batches?.map((b) => (
         <option key={b.id} value={b.id}>
           {b.name} · {formatTimeRange(b.startTime, b.endTime)}
+          {b.substitution &&
+            ` · Substitute till ${b.substitution.toDate.slice(8)}/${b.substitution.toDate.slice(5, 7)}`}
           {b.coach && ` · ${b.coach.name}`}
         </option>
       ))}
@@ -108,7 +110,7 @@ export function useBatchDateParams({
   allByDefault = false,
 }: {
   defaultDate?: string;
-  /** Coaches with several batches start on the combined "all" view instead of the first. */
+  /** With several batches, start on the combined "all" view instead of the first. */
   allByDefault?: boolean;
 } = {}) {
   const { user } = useAuth();
@@ -119,14 +121,13 @@ export function useBatchDateParams({
 
   // Auto-select the first batch for coaches with a single/obvious choice.
   useEffect(() => {
-    if (!batchId && batches.data?.length && (user?.role === 'coach' || batches.data.length === 1)) {
+    if (
+      !batchId &&
+      batches.data?.length &&
+      (user?.role === 'coach' || batches.data.length === 1 || allByDefault)
+    ) {
       const p = new URLSearchParams(params);
-      p.set(
-        'batch',
-        allByDefault && user?.role === 'coach' && batches.data.length > 1
-          ? 'all'
-          : batches.data[0]!.id,
-      );
+      p.set('batch', allByDefault && batches.data.length > 1 ? 'all' : batches.data[0]!.id);
       setParams(p, { replace: true });
     }
   }, [batchId, batches.data, user?.role, params, setParams, allByDefault]);

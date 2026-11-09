@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   MapPin,
   MessageSquareText,
+  Repeat,
   ScrollText,
   ShieldCheck,
   Tags,
@@ -120,6 +121,13 @@ export const NAV: NavItem[] = [
     group: 'manage',
   },
   { to: '/coaches', label: 'Coaches', icon: UsersRound, roles: ['admin'], group: 'manage' },
+  {
+    to: '/substitutions',
+    label: 'Substitutes',
+    icon: Repeat,
+    roles: ['coach', 'admin'],
+    group: 'manage',
+  },
   {
     to: '/registrations',
     label: 'Registrations',
