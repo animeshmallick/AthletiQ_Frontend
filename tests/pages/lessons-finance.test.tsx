@@ -3,7 +3,7 @@ import { CoachSessionsPage } from '@/pages/coach-sessions';
 import { FinancePage } from '@/pages/finance';
 import { LessonPlansPage } from '@/pages/lessons';
 import { batch } from '../fixtures';
-import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
+import { adminUser, chooseOption, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
 const stages = [
   {
@@ -207,7 +207,7 @@ describe('FinancePage', () => {
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
     expect(screen.getByText('Collected by')).toBeInTheDocument();
     expect(screen.getByText('Coach Arjun')).toBeInTheDocument();
-    await user.click(screen.getByRole('radio', { name: 'This FY' }));
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Period' }), 'fy');
     await waitFor(() =>
       expect(
         api.find('GET /finance/summary').some((c) => c.query.get('from')?.endsWith('-04-01')),

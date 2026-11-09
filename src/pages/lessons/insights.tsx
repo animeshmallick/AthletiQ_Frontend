@@ -1,6 +1,5 @@
 import {
   CalendarCheck2,
-  CalendarRange,
   CalendarX2,
   ChevronRight,
   Flame,
@@ -10,29 +9,18 @@ import {
   Target,
 } from 'lucide-react';
 import { useState } from 'react';
+import { FilterBar, PeriodFilter } from '@/components/filters';
 import { EmptyState, ErrorState, ListSkeleton, StatCard } from '@/components/common';
 import { Tooltip } from '@/components/ui/overlays';
-import {
-  Badge,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Select,
-} from '@/components/ui/primitives';
+import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/primitives';
 import { formatShortDate, formatTimeRange, plural } from '@/lib/format';
+import { periodRange, type PeriodKey } from '@/lib/periods';
 import { useLessonInsights } from '@/lib/queries';
 import type { LessonInsights } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import {
-  daysAgo,
-  pct,
-  whenLabel,
-  RANGE_OPTIONS,
-  rangeDates,
-  STATUS_META,
-  type InsightRange,
-} from './meta';
+import { daysAgo, pct, whenLabel, STATUS_META } from './meta';
+
+const LESSON_PERIODS: PeriodKey[] = ['week', 'next', '4w', 'month', 'quarter'];
 
 /** Planning health across the coach's batches (or the chosen batch, for admins). */
 export function LessonInsightsView({
@@ -42,33 +30,20 @@ export function LessonInsightsView({
   batchId?: string;
   onOpen: (batchId: string, date: string) => void;
 }) {
-  const [range, setRange] = useState<InsightRange>('4w');
-  const { from, to } = rangeDates(range);
+  const [range, setRange] = useState<PeriodKey>('4w');
+  const { from, to } = periodRange(range, { future: true });
   const q = useLessonInsights({ from, to, batchId: batchId || undefined });
 
   return (
     <div className="space-y-2.5">
-      <div className="flex items-center gap-2">
-        <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] text-muted-foreground">
-          <CalendarRange aria-hidden className="size-3.5 shrink-0" />
-          <span className="truncate">
-            {formatShortDate(from)} – {formatShortDate(to)}
-            {q.data && ` · ${plural(q.data.totals.sessions, 'session')}`}
+      <FilterBar className="mb-0">
+        <PeriodFilter value={range} onChange={setRange} options={LESSON_PERIODS} future />
+        {q.data && (
+          <span className="shrink-0 text-[12px] text-muted-foreground">
+            {plural(q.data.totals.sessions, 'session')}
           </span>
-        </p>
-        <Select
-          aria-label="Period"
-          className="h-8 w-40 shrink-0 text-[13px]"
-          value={range}
-          onChange={(e) => setRange(e.target.value as InsightRange)}
-        >
-          {RANGE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+        )}
+      </FilterBar>
       {q.isPending ? (
         <ListSkeleton rows={5} />
       ) : q.isError ? (

@@ -88,6 +88,8 @@ const valueSetter = () =>
 export type SelectProps = ComponentProps<'select'> & {
   /** Title of the phone picker; defaults to the field's label. */
   pickerTitle?: string;
+  /** Smaller trigger for toolbars and filters. */
+  compact?: boolean;
 };
 
 export function Select({
@@ -96,6 +98,7 @@ export function Select({
   id: idProp,
   disabled,
   pickerTitle,
+  compact = false,
   ref,
   'aria-label': ariaLabel,
   'aria-invalid': ariaInvalid,
@@ -205,6 +208,7 @@ export function Select({
       className={cn(
         fieldClass,
         'h-10 cursor-pointer items-center justify-between gap-2 py-2 text-left',
+        compact && 'h-8 rounded-lg px-2.5 py-1 text-[13px] md:text-[13px]',
         open && 'border-ring ring-3 ring-ring/20',
       )}
     >

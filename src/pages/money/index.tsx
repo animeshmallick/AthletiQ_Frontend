@@ -16,7 +16,8 @@ import {
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useUser } from '@/app/auth';
-import { financeRange, type FinancePreset } from '@/components/collected-by';
+import { FINANCE_PERIODS, financeRange, type FinancePreset } from '@/components/collected-by';
+import { FilterBar, PeriodFilter } from '@/components/filters';
 import { Avatar, ErrorState, ListSkeleton, PageHeader, StatCard } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
@@ -44,28 +45,6 @@ import { categoryLabel } from './meta';
 import { Ledger } from './ledger';
 
 type Open = { action: MoneyAction; prefill?: ActionPrefill } | null;
-
-function PeriodPicker({
-  value,
-  onChange,
-}: {
-  value: FinancePreset;
-  onChange: (v: FinancePreset) => void;
-}) {
-  return (
-    <Segmented
-      ariaLabel="Period"
-      value={value}
-      onChange={onChange}
-      options={[
-        { value: 'month', label: 'This month' },
-        { value: 'last-month', label: 'Last month' },
-        { value: 'quarter', label: '3 months' },
-        { value: 'fy', label: 'This FY' },
-      ]}
-    />
-  );
-}
 
 /** A row with a name, a proportional bar and an amount, plus an optional action. */
 function AmountRow({
@@ -691,10 +670,10 @@ export function MoneyPage() {
         }
         actions={actions}
       />
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <PeriodPicker value={preset} onChange={setPreset} />
+      <FilterBar>
+        <PeriodFilter value={preset} onChange={setPreset} options={FINANCE_PERIODS} />
         {q.isFetching && !q.isPending && <Badge variant="muted">Updating…</Badge>}
-      </div>
+      </FilterBar>
       {q.isPending ? (
         <ListSkeleton rows={5} />
       ) : q.isError ? (

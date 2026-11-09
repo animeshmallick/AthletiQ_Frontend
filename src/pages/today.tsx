@@ -163,7 +163,7 @@ function CoachSessionCard({
     overview && overview.expectedStudents ? (overview.marked / overview.expectedStudents) * 100 : 0;
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+      <div className="flex flex-col gap-1.5 p-1.5 pl-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate font-semibold">{item.batch.name}</h3>
@@ -194,7 +194,7 @@ function CoachSessionCard({
       <div className="grid grid-cols-2 border-t text-sm">
         <Link
           to={`/attendance?batch=${item.batch.id}`}
-          className="group flex flex-col gap-1.5 border-r p-3 transition-colors hover:bg-muted/50 sm:p-3.5"
+          className="group flex flex-col gap-1 border-r p-1.5 pl-2 transition-colors hover:bg-muted/50"
         >
           <span className="flex items-center justify-between font-medium">
             <span className="inline-flex items-center gap-2">
@@ -224,7 +224,7 @@ function CoachSessionCard({
         </Link>
         <Link
           to={`/lesson-plans?batch=${item.batch.id}&date=${today()}`}
-          className="group flex flex-col gap-1.5 p-3 transition-colors hover:bg-muted/50 sm:p-3.5"
+          className="group flex flex-col gap-1 p-1.5 pl-2 transition-colors hover:bg-muted/50"
         >
           <span className="flex items-center justify-between font-medium">
             <span className="inline-flex items-center gap-2">

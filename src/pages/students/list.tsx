@@ -11,8 +11,8 @@ import {
   Pagination,
   SearchInput,
 } from '@/components/common';
+import { FilterBar, FilterField, FilterMenu } from '@/components/filters';
 import { Button } from '@/components/ui/button';
-import { Segmented } from '@/components/ui/controls';
 import { Badge, Card, Select } from '@/components/ui/primitives';
 import { money, weekdaysLabel } from '@/lib/format';
 import { useBatches, usePrefetchStudent, useStudents } from '@/lib/queries';
@@ -68,47 +68,60 @@ export function StudentsPage() {
         }
       />
 
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+      <FilterBar>
         <SearchInput
           value={q.search}
           onChange={(v) => set({ q: v })}
           placeholder="Search name, ID, phone or guardian…"
-          className="lg:w-96"
+          className="min-w-0 flex-1 lg:max-w-96"
         />
-        <Select
-          value={q.batchId}
-          onChange={(e) => set({ batch: e.target.value })}
-          className="lg:w-64"
-          aria-label="Filter by batch"
+        <FilterMenu
+          active={
+            Number(Boolean(q.batchId)) + Number(Boolean(q.dues)) + Number(q.status !== 'active')
+          }
+          onReset={() => set({ batch: '', dues: '', status: '' })}
         >
-          <option value="">All batches</option>
-          {batches.data?.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={q.dues}
-          onChange={(e) => set({ dues: e.target.value })}
-          className="lg:w-48"
-          aria-label="Filter by fees"
-        >
-          <option value="">Any fee status</option>
-          <option value="outstanding">With unpaid fees</option>
-          <option value="overdue">Overdue fees</option>
-        </Select>
-        <Segmented
-          ariaLabel="Status"
-          value={q.status}
-          onChange={(v) => set({ status: v === 'active' ? '' : v })}
-          options={[
-            { value: 'active', label: 'Active' },
-            { value: 'left', label: 'Left' },
-            { value: 'all', label: 'All' },
-          ]}
-        />
-      </div>
+          <FilterField label="Batch">
+            <Select
+              value={q.batchId}
+              onChange={(e) => set({ batch: e.target.value })}
+              className="h-9"
+              aria-label="Filter by batch"
+            >
+              <option value="">All batches</option>
+              {batches.data?.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+          </FilterField>
+          <FilterField label="Fees">
+            <Select
+              value={q.dues}
+              onChange={(e) => set({ dues: e.target.value })}
+              className="h-9"
+              aria-label="Filter by fees"
+            >
+              <option value="">Any fee status</option>
+              <option value="outstanding">With unpaid fees</option>
+              <option value="overdue">Overdue fees</option>
+            </Select>
+          </FilterField>
+          <FilterField label="Status">
+            <Select
+              value={q.status}
+              onChange={(e) => set({ status: e.target.value === 'active' ? '' : e.target.value })}
+              className="h-9"
+              aria-label="Status"
+            >
+              <option value="active">Active</option>
+              <option value="left">Left</option>
+              <option value="all">All</option>
+            </Select>
+          </FilterField>
+        </FilterMenu>
+      </FilterBar>
 
       {students.isPending ? (
         <ListSkeleton rows={8} />
@@ -220,7 +233,7 @@ export function StudentsPage() {
                 to={`/students/${s.id}`}
                 onPointerEnter={() => prefetch(s.id)}
                 onTouchStart={() => prefetch(s.id)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40"
+                className="flex items-center gap-2 px-1.5 py-1.5 hover:bg-muted/40"
               >
                 <Avatar name={s.fullName} />
                 <div className="min-w-0 flex-1">

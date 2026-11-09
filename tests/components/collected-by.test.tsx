@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { CollectedByCard, CollectedByChart, financeRange } from '@/components/collected-by';
-import { mockApi, testQueryClient } from '../utils';
+import { chooseOption, mockApi, testQueryClient } from '../utils';
 
 const rows = [
   { userId: 'a1', name: 'Asha Admin', role: 'admin' as const, amount: 300_000, count: 2 },
@@ -35,7 +35,7 @@ describe('CollectedByCard', () => {
     );
     expect(screen.getByText('Fees collected by')).toBeInTheDocument();
     expect(await screen.findByText('Coach Ravi')).toBeInTheDocument();
-    await user.click(screen.getByRole('radio', { name: 'This FY' }));
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Period' }), 'fy');
     await waitFor(() =>
       expect(
         api.find('GET /finance/summary').some((c) => c.query.get('from')?.endsWith('-04-01')),

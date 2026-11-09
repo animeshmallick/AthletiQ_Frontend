@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/overlays';
+import { FilterField, FilterMenu } from '@/components/filters';
 import { Card, Select } from '@/components/ui/primitives';
 import { formatInstant, formatLongDate, money, today, addDays } from '@/lib/format';
 import { useAuditLogs, type AuditLog } from '@/lib/queries';
@@ -173,20 +174,26 @@ export function AuditLogPage() {
       <PageHeader
         title="Audit log"
         description="Every sensitive change, with who did it and when. Tap an entry for details."
+        actions={
+          <FilterMenu active={Number(Boolean(entityType))} onReset={() => setEntityType('')}>
+            <FilterField label="Activity">
+              <Select
+                value={entityType}
+                onChange={(e) => setEntityType(e.target.value)}
+                className="h-9"
+                aria-label="Filter by type"
+              >
+                <option value="">All activity</option>
+                {Object.entries(ENTITY).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v.label}
+                  </option>
+                ))}
+              </Select>
+            </FilterField>
+          </FilterMenu>
+        }
       />
-      <Select
-        value={entityType}
-        onChange={(e) => setEntityType(e.target.value)}
-        className="mb-3 sm:w-64"
-        aria-label="Filter by type"
-      >
-        <option value="">All activity</option>
-        {Object.entries(ENTITY).map(([k, v]) => (
-          <option key={k} value={k}>
-            {v.label}
-          </option>
-        ))}
-      </Select>
       {q.isPending ? (
         <ListSkeleton rows={8} />
       ) : q.isError ? (

@@ -1,12 +1,4 @@
-import {
-  addDays,
-  formatShortDate,
-  isoWeekday,
-  startOfMonth,
-  startOfWeek,
-  today,
-  WEEKDAYS,
-} from '@/lib/format';
+import { addDays, formatShortDate, isoWeekday, today, WEEKDAYS } from '@/lib/format';
 import type { PlanStatus } from '@/lib/types';
 
 export const STAGE_COLORS = [
@@ -63,34 +55,6 @@ export function planStatus(info?: {
   if (!info?.planId) return 'unplanned';
   if (info.filledCells === 0) return 'empty';
   return info.filledCells >= info.totalCells ? 'complete' : 'partial';
-}
-
-export type InsightRange = 'week' | 'next' | '4w' | 'month' | '3m';
-
-export const RANGE_OPTIONS: { value: InsightRange; label: string }[] = [
-  { value: 'week', label: 'This week' },
-  { value: 'next', label: 'Next 2 weeks' },
-  { value: '4w', label: 'Last 4 weeks' },
-  { value: 'month', label: 'This month' },
-  { value: '3m', label: 'Last 3 months' },
-];
-
-export function rangeDates(r: InsightRange, now = today()): { from: string; to: string } {
-  switch (r) {
-    case 'week':
-      return { from: startOfWeek(now), to: addDays(startOfWeek(now), 6) };
-    case 'next':
-      return { from: now, to: addDays(now, 13) };
-    case '4w':
-      return { from: addDays(now, -27), to: now };
-    case 'month': {
-      const from = startOfMonth(now);
-      const next = startOfMonth(addDays(from, 32));
-      return { from, to: addDays(next, -1) };
-    }
-    case '3m':
-      return { from: addDays(now, -89), to: now };
-  }
 }
 
 export const pct = (n: number | null | undefined) =>

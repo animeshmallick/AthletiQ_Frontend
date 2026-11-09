@@ -20,10 +20,11 @@ import {
   CollectedByChart,
   financeRange,
   PIE_COLORS,
+  FINANCE_PERIODS,
   type FinancePreset,
 } from '@/components/collected-by';
 import { EmptyState, ErrorState, ListSkeleton, PageHeader, StatCard } from '@/components/common';
-import { Segmented } from '@/components/ui/controls';
+import { FilterBar, FilterField, FilterMenu, PeriodFilter } from '@/components/filters';
 import {
   Card,
   CardContent,
@@ -33,7 +34,6 @@ import {
   Select,
 } from '@/components/ui/primitives';
 import {
-  formatDate,
   formatMonth,
   formatShortDate,
   money,
@@ -69,50 +69,46 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
         />
       )}
 
-      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center">
-        <Segmented
-          ariaLabel="Period"
-          value={preset}
-          onChange={setPreset}
-          options={[
-            { value: 'month', label: 'This month' },
-            { value: 'last-month', label: 'Last month' },
-            { value: 'quarter', label: '3 months' },
-            { value: 'fy', label: 'This FY' },
-          ]}
-        />
-        {isAdmin && (
-          <Select
-            value={coachId}
-            onChange={(e) => setCoachId(e.target.value)}
-            className="lg:w-56"
-            aria-label="Coach"
-          >
-            <option value="">All coaches</option>
-            {coaches.data?.data.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        )}
-        <Select
-          value={batchId}
-          onChange={(e) => setBatchId(e.target.value)}
-          className="lg:w-56"
-          aria-label="Batch"
+      <FilterBar>
+        <PeriodFilter value={preset} onChange={setPreset} options={FINANCE_PERIODS} />
+        <FilterMenu
+          active={Number(Boolean(coachId)) + Number(Boolean(batchId))}
+          onReset={() => (setCoachId(''), setBatchId(''))}
         >
-          <option value="">All batches</option>
-          {batches.data?.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </Select>
-        <p className="text-sm text-muted-foreground lg:ml-auto">
-          {formatDate(range.from)} – {formatDate(range.to)}
-        </p>
-      </div>
+          {isAdmin && (
+            <FilterField label="Coach">
+              <Select
+                value={coachId}
+                onChange={(e) => setCoachId(e.target.value)}
+                className="h-9"
+                aria-label="Coach"
+              >
+                <option value="">All coaches</option>
+                {coaches.data?.data.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </FilterField>
+          )}
+          <FilterField label="Batch">
+            <Select
+              value={batchId}
+              onChange={(e) => setBatchId(e.target.value)}
+              className="h-9"
+              aria-label="Batch"
+            >
+              <option value="">All batches</option>
+              {batches.data?.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+          </FilterField>
+        </FilterMenu>
+      </FilterBar>
 
       {q.isError ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />

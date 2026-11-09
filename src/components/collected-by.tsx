@@ -5,7 +5,7 @@
 import { HandCoins } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
-import { Segmented } from '@/components/ui/controls';
+import { PeriodFilter } from '@/components/filters';
 import {
   Badge,
   Card,
@@ -15,29 +15,16 @@ import {
   CardTitle,
   Skeleton,
 } from '@/components/ui/primitives';
-import { addMonths, endOfMonth, money, plural, startOfMonth, today } from '@/lib/format';
+import { money, plural } from '@/lib/format';
+import { periodRange, type PeriodKey } from '@/lib/periods';
 import { useFinance } from '@/lib/queries';
 import type { FinanceSummary } from '@/lib/types';
 
-export type FinancePreset = 'month' | 'last-month' | 'quarter' | 'fy';
+export type FinancePreset = Extract<PeriodKey, 'month' | 'last-month' | 'quarter' | 'fy'>;
+export const FINANCE_PERIODS: FinancePreset[] = ['month', 'last-month', 'quarter', 'fy'];
 
-export function financeRange(preset: FinancePreset): { from: string; to: string } {
-  const t = today();
-  switch (preset) {
-    case 'month':
-      return { from: startOfMonth(t), to: t };
-    case 'last-month': {
-      const s = addMonths(t, -1);
-      return { from: s, to: endOfMonth(s) };
-    }
-    case 'quarter':
-      return { from: addMonths(t, -2), to: t };
-    case 'fy': {
-      const [y, m] = t.split('-').map(Number) as [number, number];
-      return { from: `${m >= 4 ? y : y - 1}-04-01`, to: t };
-    }
-  }
-}
+/** Dates of a finance period (always ending today at the latest). */
+export const financeRange = (preset: FinancePreset) => periodRange(preset);
 
 export const PIE_COLORS = [
   'var(--chart-1)',
@@ -145,17 +132,7 @@ export function CollectedByCard({ admin }: { admin: boolean }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Segmented
-          size="sm"
-          ariaLabel="Collection period"
-          value={preset}
-          onChange={setPreset}
-          options={[
-            { value: 'month', label: 'This month' },
-            { value: 'last-month', label: 'Last month' },
-            { value: 'fy', label: 'This FY' },
-          ]}
-        />
+        <PeriodFilter value={preset} onChange={setPreset} options={['month', 'last-month', 'fy']} />
         {q.isPending ? (
           <Skeleton className="h-40 rounded-2xl" />
         ) : q.isError ? (

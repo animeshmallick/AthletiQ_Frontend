@@ -10,6 +10,7 @@ import {
   ListSkeleton,
   Pagination,
 } from '@/components/common';
+import { FilterField, FilterMenu } from '@/components/filters';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/controls';
 import {
@@ -194,49 +195,64 @@ export function Ledger({
         <CardTitle className="mr-auto flex items-center gap-2">
           <Landmark className="size-4 text-muted-foreground" /> Ledger
         </CardTitle>
-        <Select
-          aria-label="Movement type"
-          className="h-9 w-40"
-          value={type}
-          onChange={(e) => {
-            setType(e.target.value as '' | FundTxnType);
+        <FilterMenu
+          active={Number(Boolean(type)) + Number(Boolean(userId)) + Number(withReversed)}
+          onReset={() => {
+            setType('');
+            setUserId('');
+            setWithReversed(false);
             setPage(1);
           }}
         >
-          {TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </Select>
-        {admin && people.length > 0 && (
-          <Select
-            aria-label="Person"
-            className="h-9 w-40"
-            value={userId}
-            onChange={(e) => {
-              setUserId(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Everyone</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
-        )}
-        <label className="flex h-9 items-center gap-2 text-[13px] text-muted-foreground">
-          <Switch
-            checked={withReversed}
-            onCheckedChange={(v) => {
-              setWithReversed(v);
-              setPage(1);
-            }}
-          />
-          Reversed
-        </label>
+          <FilterField label="Movement">
+            <Select
+              aria-label="Movement type"
+              className="h-9"
+              value={type}
+              onChange={(e) => {
+                setType(e.target.value as '' | FundTxnType);
+                setPage(1);
+              }}
+            >
+              {TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </Select>
+          </FilterField>
+          {admin && people.length > 0 && (
+            <FilterField label="Person">
+              <Select
+                aria-label="Person"
+                className="h-9"
+                value={userId}
+                onChange={(e) => {
+                  setUserId(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Everyone</option>
+                {people.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </FilterField>
+          )}
+          <div className="flex items-center justify-between gap-2 text-[13px]">
+            <span>Show reversed entries</span>
+            <Switch
+              aria-label="Show reversed entries"
+              checked={withReversed}
+              onCheckedChange={(v) => {
+                setWithReversed(v);
+                setPage(1);
+              }}
+            />
+          </div>
+        </FilterMenu>
       </CardHeader>
       <CardContent className="p-0">
         {q.isPending ? (

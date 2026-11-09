@@ -191,7 +191,9 @@ describe('student lifecycle', () => {
       user: coachUser,
     });
     await screen.findAllByText('Anya Rao');
-    await chooseOption(user, screen.getByLabelText('Filter by fees'), 'overdue');
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
+    await chooseOption(user, await screen.findByLabelText('Filter by fees'), 'overdue');
+    expect(screen.getByRole('button', { name: 'Filters (1 on)' })).toBeInTheDocument();
     await waitFor(() => {
       const last = api.find('GET /students').at(-1)!;
       expect(last.query.get('dues')).toBe('overdue');

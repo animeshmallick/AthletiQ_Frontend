@@ -12,8 +12,9 @@ import {
   StatCard,
 } from '@/components/common';
 import { StaticMap } from '@/components/map';
+import { periodRange, type PeriodKey } from '@/lib/periods';
+import { FilterBar, FilterField, FilterMenu, PeriodFilter } from '@/components/filters';
 import { Button } from '@/components/ui/button';
-import { Segmented } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -24,14 +25,7 @@ import {
 } from '@/components/ui/overlays';
 import { Badge, Card, Input, Select, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import {
-  addDays,
-  formatClock,
-  formatDate,
-  formatDuration,
-  formatTimeRange,
-  today,
-} from '@/lib/format';
+import { formatClock, formatDate, formatDuration, formatTimeRange } from '@/lib/format';
 import {
   type CoachSessionRow,
   useAdminCheckOut,
@@ -211,8 +205,8 @@ export function CoachSessionsPage() {
   const isAdmin = user.role === 'admin';
   const [params, setParams] = useSearchParams();
   const flagged = params.get('flagged') === 'true';
-  const [from, setFrom] = useState(addDays(today(), -29));
-  const [to, setTo] = useState(today());
+  const [period, setPeriod] = useState<PeriodKey>('4w');
+  const { from, to } = periodRange(period);
   const [coachId, setCoachId] = useState('');
   const [reviewing, setReviewing] = useState<CoachSessionRow | null>(null);
   const [closing, setClosing] = useState<CoachSessionRow | null>(null);
@@ -232,50 +226,53 @@ export function CoachSessionsPage() {
         description="GPS-verified session attendance. Readings outside the location radius are flagged for review."
       />
 
-      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-end">
-        <Field label="From">
-          <Input
-            type="date"
-            value={from}
-            max={to}
-            onChange={(e) => e.target.value && setFrom(e.target.value)}
-          />
-        </Field>
-        <Field label="To">
-          <Input
-            type="date"
-            value={to}
-            min={from}
-            max={today()}
-            onChange={(e) => e.target.value && setTo(e.target.value)}
-          />
-        </Field>
-        {isAdmin && (
-          <Field label="Coach">
-            <Select
-              value={coachId}
-              onChange={(e) => setCoachId(e.target.value)}
-              className="lg:w-56"
-            >
-              <option value="">All coaches</option>
-              {coaches.data?.data.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-        <Segmented
-          ariaLabel="Filter"
-          value={flagged ? 'flagged' : 'all'}
-          onChange={(v) => setParams(v === 'flagged' ? { flagged: 'true' } : {}, { replace: true })}
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'flagged', label: 'Flagged' },
-          ]}
+      <FilterBar>
+        <PeriodFilter
+          value={period}
+          onChange={setPeriod}
+          options={['week', '4w', 'month', 'last-month', 'quarter']}
         />
-      </div>
+        <FilterMenu
+          active={Number(Boolean(coachId)) + Number(flagged)}
+          onReset={() => {
+            setCoachId('');
+            setParams({}, { replace: true });
+          }}
+        >
+          {isAdmin && (
+            <FilterField label="Coach">
+              <Select
+                aria-label="Coach"
+                className="h-9"
+                value={coachId}
+                onChange={(e) => setCoachId(e.target.value)}
+              >
+                <option value="">All coaches</option>
+                {coaches.data?.data.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </FilterField>
+          )}
+          <FilterField label="Show">
+            <Select
+              aria-label="Show"
+              className="h-9"
+              value={flagged ? 'flagged' : 'all'}
+              onChange={(e) =>
+                setParams(e.target.value === 'flagged' ? { flagged: 'true' } : {}, {
+                  replace: true,
+                })
+              }
+            >
+              <option value="all">All check-ins</option>
+              <option value="flagged">Flagged only</option>
+            </Select>
+          </FilterField>
+        </FilterMenu>
+      </FilterBar>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
