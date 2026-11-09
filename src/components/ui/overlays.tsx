@@ -12,6 +12,7 @@ import {
 } from 'react';
 import { useBackToClose } from '@/app/back-stack';
 import { usePhone } from '@/lib/use-phone';
+import { useSwipeDismiss } from './swipe-dismiss';
 import { cn } from '@/lib/utils';
 
 /**
@@ -72,10 +73,12 @@ export function DialogContent({
   hideClose,
   ...props
 }: ComponentProps<typeof D.Content> & { hideClose?: boolean }) {
+  const swipe = useSwipeDismiss();
   return (
     <D.Portal>
       <Overlay />
       <D.Content
+        {...swipe}
         className={cn(
           // Never taller than the screen below the status bar (Android edge-to-edge, iOS notch).
           'fixed z-50 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-1rem))] w-full flex-col gap-2.5 overflow-y-auto border bg-card p-3 pt-5 shadow-e3 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in sm:gap-4 sm:p-5',
@@ -86,6 +89,8 @@ export function DialogContent({
         {...props}
       >
         {children}
+        {/* Phones: drag from here to dismiss (touch only, leaves the corners for buttons). */}
+        <div aria-hidden className="absolute inset-x-14 top-0 z-20 h-10 touch-none sm:hidden" />
         {!hideClose && (
           <D.Close className="absolute top-4 right-4 cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             <X className="size-4" />
@@ -136,12 +141,15 @@ function BottomSheet({
   className?: string;
   children: ReactNode;
 }) {
+  const swipe = useSwipeDismiss();
   return (
     <D.Portal>
       <Overlay />
-      <D.Content aria-describedby={undefined} className={cn(SHEET_CLASS, className)}>
+      <D.Content aria-describedby={undefined} className={cn(SHEET_CLASS, className)} {...swipe}>
         <D.Title className="sr-only">{title}</D.Title>
         {children}
+        {/* Phones: drag from here to dismiss (touch only, leaves the corners for buttons). */}
+        <div aria-hidden className="absolute inset-x-14 top-0 z-20 h-10 touch-none sm:hidden" />
       </D.Content>
     </D.Portal>
   );
@@ -167,10 +175,12 @@ export function SheetContent({
   title,
   ...props
 }: ComponentProps<typeof D.Content> & { side?: 'left' | 'right'; title: string }) {
+  const swipe = useSwipeDismiss();
   return (
     <D.Portal>
       <Overlay />
       <D.Content
+        {...swipe}
         className={cn(
           // Phones: a bottom sheet like every other popup. Larger screens: a side drawer.
           'fixed inset-x-0 bottom-0 z-50 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-1rem))] w-full flex-col overflow-hidden rounded-t-3xl border-t bg-card pt-3 pb-[env(safe-area-inset-bottom)] shadow-xl outline-none before:absolute before:top-2 before:left-1/2 before:z-10 before:h-1.5 before:w-10 before:-translate-x-1/2 before:rounded-full before:bg-muted-foreground/25 data-[state=closed]:animate-out data-[state=open]:animate-in',
@@ -182,6 +192,8 @@ export function SheetContent({
       >
         <D.Title className="sr-only">{title}</D.Title>
         {children}
+        {/* Phones: drag from here to dismiss (touch only, leaves the corners for buttons). */}
+        <div aria-hidden className="absolute inset-x-14 top-0 z-20 h-10 touch-none sm:hidden" />
         <D.Close className="absolute top-4 right-4 cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground sm:top-[calc(1rem+env(safe-area-inset-top))]">
           <X className="size-5" />
           <span className="sr-only">Close</span>

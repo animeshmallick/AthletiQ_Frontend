@@ -13,11 +13,13 @@ import { Input, Select, Skeleton } from './ui/primitives';
 export function DateStepper({
   value,
   onChange,
+  min,
   max,
   className,
 }: {
   value: string;
   onChange: (d: string) => void;
+  min?: string;
   max?: string;
   className?: string;
 }) {
@@ -27,6 +29,7 @@ export function DateStepper({
         variant="outline"
         size="icon"
         aria-label="Previous day"
+        disabled={min !== undefined && value <= min}
         onClick={() => onChange(addDays(value, -1))}
       >
         <ChevronLeft />
@@ -35,6 +38,7 @@ export function DateStepper({
         <Input
           type="date"
           value={value}
+          min={min}
           max={max}
           onChange={(e) => e.target.value && onChange(e.target.value)}
           aria-label="Date"
@@ -50,7 +54,9 @@ export function DateStepper({
       >
         <ChevronRight />
       </Button>
-      {value !== today() && (max === undefined || today() <= max) ? (
+      {value !== today() &&
+      (max === undefined || today() <= max) &&
+      (min === undefined || today() >= min) ? (
         <Button variant="ghost" size="sm" className="ml-1" onClick={() => onChange(today())}>
           Today
         </Button>

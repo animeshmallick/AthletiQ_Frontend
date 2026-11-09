@@ -1,7 +1,6 @@
 /**
  * The phone "More" sheet: profile, every screen that isn't a tab as tiles grouped by purpose
- * (role-specific: Approvals for admins, Requests for coaches) with to-do counts, a quick screen
- * search, this device's app actions, appearance, sign out and — for admins — deployment status.
+ * (role-specific: Approvals for admins, Requests for coaches) with to-do counts, this device's app actions, appearance, sign out and — for admins — deployment status.
  */
 import {
   Bell,
@@ -11,7 +10,6 @@ import {
   Monitor,
   Moon,
   RefreshCw,
-  Search,
   Smartphone,
   Sun,
   X,
@@ -142,9 +140,6 @@ export function MoreSheet({
   const { pathname } = useLocation();
   const tabPaths = new Set(tabs.map((t) => t.to));
   const rest = items.filter((i) => !tabPaths.has(i.to));
-  const [query, setQuery] = useState('');
-  const needle = query.trim().toLowerCase();
-  const found = rest.filter((i) => `${i.label} ${i.short ?? ''}`.toLowerCase().includes(needle));
   const web = typeof __BUILD__ !== 'undefined' ? __BUILD__ : null;
   const install = useInstallPrompt();
   const [pushState, setPushState] = useState(webPushState);
@@ -224,65 +219,30 @@ export function MoreSheet({
           <ChevronRight className="size-4 text-muted-foreground" />
         </NavLink>
 
-        {/* Find a screen (handy when there are many) */}
-        {rest.length > 8 && (
-          <label className="relative block">
-            <Search
-              aria-hidden
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a screen…"
-              aria-label="Find a screen"
-              className="h-10 w-full rounded-xl border bg-card pr-3 pl-9 text-[15px] shadow-e1 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20 sm:text-sm"
-            />
-          </label>
-        )}
-
         {/* Screens, grouped by what they're for — every one a tile */}
-        {needle ? (
-          <section aria-label="Search results">
-            {found.length === 0 ? (
-              <p className="rounded-2xl border bg-card px-3 py-4 text-center text-sm text-muted-foreground shadow-e1">
-                No screen matches “{query.trim()}”.
-              </p>
-            ) : (
-              <TileGrid items={found} counts={counts} pathname={pathname} onNavigate={onNavigate} />
-            )}
-          </section>
-        ) : (
-          NAV_GROUPS.map(({ key, label }) => {
-            const group = rest.filter((i) => i.group === key);
-            if (!group.length) return null;
-            const pending = group.reduce((n, i) => n + (counts[i.to] ?? 0), 0);
-            return (
-              <section key={key} aria-labelledby={`more-${key}`}>
-                <div className="mb-1.5 flex items-center gap-2 px-1">
-                  <h3
-                    id={`more-${key}`}
-                    className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
-                  >
-                    {label(user.role)}
-                  </h3>
-                  {pending > 0 && (
-                    <span className="rounded-full bg-destructive/10 px-1.5 text-[10px] font-semibold text-destructive">
-                      {pending} to review
-                    </span>
-                  )}
-                </div>
-                <TileGrid
-                  items={group}
-                  counts={counts}
-                  pathname={pathname}
-                  onNavigate={onNavigate}
-                />
-              </section>
-            );
-          })
-        )}
+        {NAV_GROUPS.map(({ key, label }) => {
+          const group = rest.filter((i) => i.group === key);
+          if (!group.length) return null;
+          const pending = group.reduce((n, i) => n + (counts[i.to] ?? 0), 0);
+          return (
+            <section key={key} aria-labelledby={`more-${key}`}>
+              <div className="mb-1.5 flex items-center gap-2 px-1">
+                <h3
+                  id={`more-${key}`}
+                  className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+                >
+                  {label(user.role)}
+                </h3>
+                {pending > 0 && (
+                  <span className="rounded-full bg-destructive/10 px-1.5 text-[10px] font-semibold text-destructive">
+                    {pending} to review
+                  </span>
+                )}
+              </div>
+              <TileGrid items={group} counts={counts} pathname={pathname} onNavigate={onNavigate} />
+            </section>
+          );
+        })}
 
         {/* This device: notifications, app install and updates (only what applies here) */}
         {appActions.length > 0 && (

@@ -1,4 +1,5 @@
 import {
+  Repeat,
   CalendarCheck2,
   CalendarX2,
   CheckCheck,
@@ -10,7 +11,7 @@ import {
   StickyNote,
   Users,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   ATTENDANCE_META,
@@ -537,6 +538,15 @@ function MonthlyRegister({ batchId }: { batchId: string }) {
 export function AttendancePage() {
   const { batches, batchId, date, batch, setBatch, setDate } = useBatchDateParams();
   const runsToday = batch ? batch.weekdays.includes(isoWeekday(date)) : true;
+  // A substitute only works the batch on the days they cover (and never ahead of today).
+  const cover = batch?.substitution ?? null;
+  const minDate = cover?.fromDate;
+  const maxDate = cover && cover.toDate < today() ? cover.toDate : today();
+  const clamped = minDate && date < minDate ? minDate : cover && date > maxDate ? maxDate : date;
+  useEffect(() => {
+    if (clamped !== date) setDate(clamped);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setDate changes every render
+  }, [clamped, date]);
 
   return (
     <div>
@@ -551,7 +561,7 @@ export function AttendancePage() {
           batches={batches.data}
           loading={batches.isPending}
         />
-        <DateStepper value={date} onChange={setDate} max={today()} />
+        <DateStepper value={date} onChange={setDate} min={minDate} max={maxDate} />
       </div>
 
       {!batchId ? (
@@ -562,10 +572,21 @@ export function AttendancePage() {
         />
       ) : (
         <Tabs defaultValue="session">
-          <TabsList className="mb-4">
-            <TabsTrigger value="session">Session</TabsTrigger>
-            <TabsTrigger value="register">Monthly register</TabsTrigger>
-          </TabsList>
+          {cover ? (
+            <p
+              role="status"
+              className="mb-3 flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-1.5 text-[12px]"
+            >
+              <Repeat aria-hidden className="size-3.5 shrink-0 text-primary" />
+              You’re the substitute coach for {batch?.name} from {formatShortDate(cover.fromDate)}{' '}
+              to {formatShortDate(cover.toDate)}.
+            </p>
+          ) : (
+            <TabsList className="mb-4">
+              <TabsTrigger value="session">Session</TabsTrigger>
+              <TabsTrigger value="register">Monthly register</TabsTrigger>
+            </TabsList>
+          )}
           <TabsContent value="session">
             {!runsToday && (
               <p className="mb-3 text-sm text-muted-foreground">
