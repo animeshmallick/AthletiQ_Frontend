@@ -18,6 +18,9 @@ import {
   Users,
   UsersRound,
   Wallet,
+  Landmark,
+  Scale,
+  Building2,
 } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { Link } from 'react-router';
@@ -30,8 +33,8 @@ import {
   CardTitle,
   Skeleton,
 } from '@/components/ui/primitives';
-import { formatShortDate, money, plural } from '@/lib/format';
-import { useDashboard, useFinance, type Dashboard } from '@/lib/queries';
+import { formatShortDate, money, plural, startOfMonth, today } from '@/lib/format';
+import { useDashboard, useFinance, useFundsOverview, type Dashboard } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 // Charts (recharts) load on demand so the Today screen stays light.
@@ -291,6 +294,63 @@ function InsightsSkeleton() {
 }
 
 /** Admin: academy pulse, attendance, batches, coaches, follow-ups. */
+const monthRange = () => ({ from: startOfMonth(today()), to: today() });
+
+/** Admin: where the money is right now, linking to the Money page. */
+function MoneySnapshot() {
+  const q = useFundsOverview(monthRange());
+  const f = q.data?.scope === 'academy' ? q.data : undefined;
+  if (q.isPending) return <Skeleton className="h-56 rounded-2xl" />;
+  if (!f) return null;
+  const b = f.balances;
+  const owed = b.owedToStaff + b.owedToPayees;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Landmark className="size-4 text-muted-foreground" /> Money right now
+        </CardTitle>
+        <CardDescription>
+          <Link to="/money" className="font-medium text-primary hover:underline">
+            Open Money
+          </Link>{' '}
+          for the full ledger.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            { label: 'Academy', value: b.academyCash, icon: <Building2 className="size-3.5" /> },
+            { label: 'With staff', value: b.withStaff, icon: <Users className="size-3.5" /> },
+            { label: 'Owed', value: owed, icon: <Scale className="size-3.5" /> },
+          ].map((x) => (
+            <div key={x.label} className="rounded-xl bg-muted/50 px-1 py-2">
+              <p className="tabular truncate text-[15px] font-bold">{money(x.value)}</p>
+              <p className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+                {x.icon} {x.label}
+              </p>
+            </div>
+          ))}
+        </div>
+        {b.holders.length > 0 && (
+          <ul className="space-y-1 text-[13px]">
+            {b.holders.slice(0, 4).map((h) => (
+              <li key={h.userId} className="flex justify-between gap-2">
+                <span className="truncate">{h.name} holds</span>
+                <span className="tabular font-semibold">{money(h.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-[12px] text-muted-foreground">
+          This month: {money(f.period.collected)} received · {money(f.period.spent)} spent ·{' '}
+          {money(f.period.paidOut)} paid out
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AdminInsights() {
   const q = useDashboard();
   if (q.isPending) return <InsightsSkeleton />;
@@ -338,6 +398,7 @@ export function AdminInsights() {
         <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
           <CollectedByCard admin />
         </Suspense>
+        <MoneySnapshot />
         <AttendanceTrend d={d} />
         <CoachPerformance d={d} />
         <BatchHealth d={d} />
@@ -354,6 +415,8 @@ export function AdminInsights() {
 export function CoachInsights() {
   const q = useDashboard();
   const fin = useFinance({});
+  const funds = useFundsOverview(monthRange());
+  const mine = funds.data?.scope === 'self' ? funds.data : undefined;
   if (q.isPending) return <InsightsSkeleton />;
   if (q.isError || !q.data) return null;
   const d = q.data;
@@ -422,9 +485,19 @@ export function CoachInsights() {
               icon={<HandCoins />}
               tone="success"
               to="/invoices?view=insights"
-              value={money(fin.data?.byReceiver[0]?.amount ?? 0)}
-              hint={plural(fin.data?.byReceiver[0]?.count ?? 0, 'payment') + ' this month'}
+              value={money(fin.data?.byReceiver?.[0]?.amount ?? 0)}
+              hint={plural(fin.data?.byReceiver?.[0]?.count ?? 0, 'payment') + ' this month'}
             />
+            {mine && (
+              <StatCard
+                label="Cash with me"
+                icon={<Landmark />}
+                tone={mine.cash > 0 ? 'warning' : 'default'}
+                to="/money"
+                value={money(mine.cash)}
+                hint={mine.due > 0 ? `Academy owes me ${money(mine.due)}` : 'For the academy'}
+              />
+            )}
             <StatCard
               label="Outstanding"
               icon={<IndianRupee />}

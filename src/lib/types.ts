@@ -38,7 +38,138 @@ export interface FeePlan {
   monthlyFee: number;
   isActive: boolean;
   activeStudents?: number;
+  /** Admins only. [] = everything goes to the academy. */
+  split?: SplitNode[];
 }
+
+// ─── Fee split & money ledger ────────────────────────────────────────────────
+
+export type SplitKind = 'percent' | 'flat';
+export type SplitRecipient = 'academy' | 'batch_coach' | 'staff' | 'payee';
+
+/** One section of a plan's fee split. value = basis points (10000 = 100%) or paise. */
+export interface SplitNode {
+  name: string;
+  kind: SplitKind;
+  value: number;
+  recipient: SplitRecipient | null;
+  userId: string | null;
+  payeeId: string | null;
+  children: SplitNode[];
+}
+
+export interface Payee {
+  id: string;
+  name: string;
+  note: string | null;
+  isActive: boolean;
+}
+
+export interface SplitLine {
+  label: string;
+  name: string;
+  amount: number;
+}
+
+export type FundTxnType = 'fee_split' | 'handover' | 'expense' | 'payout' | 'income';
+export type FundAccount = 'cash' | 'academy_fund' | 'staff_due' | 'payee_due';
+
+export interface FundTxn {
+  id: string;
+  type: FundTxnType;
+  occurredOn: string;
+  amount: number;
+  title: string;
+  category: string | null;
+  note: string | null;
+  reference: string | null;
+  createdAt: string;
+  user: { id: string; name: string | null } | null;
+  payee: { id: string; name: string | null } | null;
+  createdBy: { id: string; name: string | null };
+  invoice: { id: string; number: string } | null;
+  reversedAt: string | null;
+  reversedBy: { id: string; name: string | null } | null;
+  reversalReason: string | null;
+  entries: {
+    account: FundAccount;
+    userId: string | null;
+    payeeId: string | null;
+    amount: number;
+    label: string | null;
+    share: boolean;
+    name: string | null;
+  }[];
+}
+
+export interface StaffAmount {
+  userId: string;
+  name: string;
+  role: Role;
+  amount: number;
+}
+
+export interface AcademyFunds {
+  scope: 'academy';
+  from: string;
+  to: string;
+  balances: {
+    academyCash: number;
+    withStaff: number;
+    academyFund: number;
+    owedToStaff: number;
+    owedToPayees: number;
+    holders: StaffAmount[];
+    staffDue: StaffAmount[];
+    payeeDue: { payeeId: string; name: string; amount: number }[];
+  };
+  period: {
+    collected: number;
+    payments: number;
+    keptByStaff: number;
+    keptBy: { userId: string; name: string; amount: number }[];
+    handedOver: number;
+    spent: number;
+    paidOut: number;
+    income: number;
+    distribution: {
+      label: string;
+      account: FundAccount;
+      userId: string | null;
+      payeeId: string | null;
+      name: string;
+      amount: number;
+    }[];
+    byRecipient: {
+      key: string;
+      kind: 'academy' | 'staff' | 'payee';
+      name: string;
+      amount: number;
+    }[];
+    expensesByCategory: { category: string; amount: number; count: number }[];
+  };
+}
+
+export interface MyFunds {
+  scope: 'self';
+  from: string;
+  to: string;
+  /** Cash I hold for the academy. */
+  cash: number;
+  /** What the academy owes me. */
+  due: number;
+  period: {
+    collected: number;
+    earned: number;
+    earnedBy: { label: string | null; amount: number }[];
+    kept: number;
+    handedOver: number;
+    spent: number;
+    paidToMe: number;
+  };
+}
+
+export type FundsOverview = AcademyFunds | MyFunds;
 
 export interface Batch {
   id: string;
@@ -340,6 +471,8 @@ export interface InvoiceDetail extends Omit<Invoice, 'student'> {
     status: string;
   };
   payments: Payment[];
+  /** Where the fee went (coaches: only their own share). */
+  split?: SplitLine[];
 }
 
 export interface FinanceSummary {

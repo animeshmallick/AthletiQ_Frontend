@@ -24,6 +24,7 @@ import {
   MoneyInput,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
+import { Segmented } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,8 @@ function MarkPaidDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const markPaid = useMarkPaid(invoice.id);
+  const isCoach = useUser().role === 'coach';
+  const [heldBy, setHeldBy] = useState<'collector' | 'academy'>('collector');
   const [mode, setMode] = useState('upi');
   const [paidOn, setPaidOn] = useState(today());
   const [reference, setReference] = useState('');
@@ -74,6 +77,7 @@ function MarkPaidDialog({
         paidOn,
         reference: nullIfEmpty(reference),
         note: nullIfEmpty(note),
+        ...(isCoach ? { heldBy } : {}),
       });
       toast.success(`${money(invoice.totalAmount)} received from ${invoice.student.fullName}`);
       onOpenChange(false);
@@ -89,7 +93,7 @@ function MarkPaidDialog({
           <DialogTitle>Confirm payment received</DialogTitle>
           <DialogDescription>
             {invoice.number} · {invoice.student.fullName}. The invoice is marked paid and the amount
-            is counted as collected by you.
+            is counted as collected by you, and split as set in the fee plan.
           </DialogDescription>
         </DialogHeader>
         <div className="rounded-xl bg-success/10 px-4 py-3">
@@ -125,6 +129,28 @@ function MarkPaidDialog({
               placeholder="Optional"
             />
           </Field>
+          {isCoach && (
+            <Field
+              label="Where is the money now?"
+              className="sm:col-span-2"
+              hint={
+                heldBy === 'collector'
+                  ? 'You keep your share; the rest is added to the cash you hold for the academy.'
+                  : 'It went straight to the academy (e.g. its UPI or bank). The academy owes you your share.'
+              }
+            >
+              <Segmented
+                ariaLabel="Where is the money now?"
+                className="w-full"
+                value={heldBy}
+                onChange={setHeldBy}
+                options={[
+                  { value: 'collector', label: 'With me' },
+                  { value: 'academy', label: 'Academy’s account' },
+                ]}
+              />
+            </Field>
+          )}
           <Field label="Note" className="sm:col-span-2">
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
@@ -427,6 +453,25 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
             </ul>
           )}
         </div>
+
+        {(inv.split?.length ?? 0) > 0 && (
+          <div>
+            <h3 className="mb-2 text-sm font-semibold">
+              {isAdmin ? 'Where this fee went' : 'Your share of this fee'}
+            </h3>
+            <ul className="divide-y rounded-xl border">
+              {inv.split!.map((l, i) => (
+                <li key={`${l.label}-${i}`} className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate">
+                    {l.label}
+                    <span className="text-muted-foreground"> → {l.name}</span>
+                  </span>
+                  <span className="tabular font-semibold">{money(l.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">

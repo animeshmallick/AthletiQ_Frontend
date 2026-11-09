@@ -193,7 +193,7 @@ describe('FeePlansPage', () => {
       route: '/fee-plans',
       user: adminUser,
     });
-    expect(await screen.findByText('4 students', { exact: false })).toBeInTheDocument();
+    expect((await screen.findAllByText('4 students', { exact: false })).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: /new plan/i }));
     await user.type(screen.getByLabelText(/^name/i), '5 days');
     await chooseOption(user, screen.getByLabelText(/days per week/i), '5');

@@ -36,6 +36,10 @@ import type {
   User,
   WeeklyFeedback,
   TasksResponse,
+  FundsOverview,
+  FundTxn,
+  Payee,
+  SplitNode,
 } from './types';
 
 type Query = Record<string, unknown>;
@@ -74,6 +78,9 @@ export const keys = {
   settings: ['settings'] as const,
   auditLogs: (q: Query) => ['audit-logs', q] as const,
   jobRuns: ['job-runs'] as const,
+  fundsOverview: (q: Query) => ['funds', 'overview', q] as const,
+  fundTxns: (q: Query) => ['funds', 'txns', q] as const,
+  payees: ['funds', 'payees'] as const,
 };
 
 /** Invalidate several key prefixes after a mutation. */
@@ -685,6 +692,7 @@ function useInvoiceMutation<B>(fn: (body: B) => Promise<InvoiceDetail>) {
         qc.invalidateQueries({ queryKey: ['invoices'] }),
         qc.invalidateQueries({ queryKey: ['finance'] }),
         qc.invalidateQueries({ queryKey: ['students'] }),
+        qc.invalidateQueries({ queryKey: ['funds'] }),
       ]);
     },
   });
@@ -692,8 +700,13 @@ function useInvoiceMutation<B>(fn: (body: B) => Promise<InvoiceDetail>) {
 
 export const useMarkPaid = (id: string) =>
   useInvoiceMutation(
-    (body: { mode: string; reference?: string | null; paidOn: string; note?: string | null }) =>
-      api.post<InvoiceDetail>(`/invoices/${id}/payments`, body),
+    (body: {
+      mode: string;
+      reference?: string | null;
+      paidOn: string;
+      note?: string | null;
+      heldBy?: 'collector' | 'academy';
+    }) => api.post<InvoiceDetail>(`/invoices/${id}/payments`, body),
   );
 
 export const useReversePayment = (id: string) =>
@@ -988,3 +1001,72 @@ export const useDashboard = () =>
     queryFn: () => api.get<Dashboard>('/dashboard'),
     staleTime: 60_000,
   });
+
+// ─── Fee split & money ───────────────────────────────────────────────────────
+
+export function useSaveSplit() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ planId, sections }: { planId: string; sections: SplitNode[] }) =>
+      api.put<SplitNode[]>(`/fee-plans/${planId}/split`, { sections }),
+    onSuccess: () => invalidate(['fee-plans']),
+  });
+}
+
+export const usePayees = (enabled = true) =>
+  useQuery({
+    queryKey: keys.payees,
+    queryFn: () => api.get<Payee[]>('/funds/payees'),
+    enabled,
+  });
+
+export function useSavePayee() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<Payee> & { id?: string }) =>
+      id ? api.patch<Payee>(`/funds/payees/${id}`, body) : api.post<Payee>('/funds/payees', body),
+    onSuccess: () => invalidate(['funds'], ['fee-plans']),
+  });
+}
+
+export const useFundsOverview = (q: { from: string; to: string }) =>
+  useQuery({
+    queryKey: keys.fundsOverview(q),
+    queryFn: () => api.get<FundsOverview>('/funds/overview', q),
+    placeholderData: keepPreviousData,
+  });
+
+export const useFundTxns = (q: Query) =>
+  useQuery({
+    queryKey: keys.fundTxns(q),
+    queryFn: ({ signal }) => api.page<FundTxn[]>('/funds/txns', q, signal),
+    placeholderData: keepPreviousData,
+  });
+
+export type FundAction = 'handovers' | 'expenses' | 'payouts' | 'income';
+
+export function useFundAction(action: FundAction) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.post<FundTxn>(`/funds/${action}`, body),
+    onSuccess: () => invalidate(['funds']),
+  });
+}
+
+export function useReverseFundTxn() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.post<FundTxn>(`/funds/txns/${id}/reverse`, { reason }),
+    onSuccess: () => invalidate(['funds']),
+  });
+}
+
+export function useResplit() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (body: { feePlanId?: string; from: string; to: string }) =>
+      api.post<{ updated: number }>('/funds/resplit', body),
+    onSuccess: () => invalidate(['funds'], ['invoices']),
+  });
+}

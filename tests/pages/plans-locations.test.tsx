@@ -32,7 +32,7 @@ describe('FeePlansPage summary and cards', () => {
       route: '/fee-plans',
       user: adminUser,
     });
-    expect(await screen.findByText('3 days')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Show 3 days' })).toBeInTheDocument();
     expect(stat('Active plans')).toHaveTextContent('2');
     expect(stat('Students')).toHaveTextContent('4');
     // 3 × ₹2,600 + 1 × ₹4,000 = ₹11,800 a month; average ₹2,950.

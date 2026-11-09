@@ -16,6 +16,7 @@ import {
   UserPlus,
   Users,
   UsersRound,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import type { Role } from '@/lib/types';
@@ -101,6 +102,13 @@ export const NAV: NavItem[] = [
     label: 'Finance',
     icon: BarChart3,
     roles: ['admin'],
+    group: 'main',
+  },
+  {
+    to: '/money',
+    label: 'Money',
+    icon: Wallet,
+    roles: ['coach', 'admin'],
     group: 'main',
   },
 

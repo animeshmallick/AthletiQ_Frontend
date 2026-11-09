@@ -59,7 +59,7 @@ export const chartTooltipStyle = {
 type Row = FinanceSummary['byReceiver'][number];
 
 /** Donut + list for the given rows. */
-export function CollectedByChart({ rows }: { rows: Row[] }) {
+export function CollectedByChart({ rows = [] }: { rows?: Row[] }) {
   const total = rows.reduce((n, r) => n + r.amount, 0);
   if (!rows.length) {
     return (

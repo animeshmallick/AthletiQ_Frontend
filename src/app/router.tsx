@@ -31,6 +31,7 @@ import {
   CalendarPage,
   FeesPage,
   MakeupsPage,
+  MoneyPage,
 } from './pages';
 
 function FullScreenLoader() {
@@ -148,6 +149,7 @@ export const router = createBrowserRouter([
           { path: 'students/:id', element: <StudentDetailPage /> },
           { path: 'invoices', element: <FeesPage /> },
           { path: 'finance', element: <FinanceRoute /> },
+          { path: 'money', element: <MoneyPage /> },
           { path: 'batches', element: <BatchesPage /> },
           { path: 'batches/:id', element: <BatchDetailPage /> },
           { path: 'coach-sessions', element: <CoachSessionsPage /> },

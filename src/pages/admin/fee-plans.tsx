@@ -25,6 +25,8 @@ import { money, moneyCompact, plural } from '@/lib/format';
 import { useFeePlans, useSaveFeePlan } from '@/lib/queries';
 import type { FeePlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { SplitBar, SplitDialog } from './fee-split';
+import { AllPlansDistribution, PlanSplitPanel } from './split-tree';
 
 function PlanDialog({ plan, onClose }: { plan?: FeePlan; onClose: () => void }) {
   const save = useSaveFeePlan();
@@ -113,12 +115,16 @@ const SESSIONS_PER_WEEK_TO_MONTH = 52 / 12;
 function PlanCard({
   p,
   share,
+  selected,
   onEdit,
+  onSelect,
 }: {
   p: FeePlan;
   /** This plan's share of all students on active plans (0–100). */
   share: number;
+  selected: boolean;
   onEdit: () => void;
+  onSelect: () => void;
 }) {
   const students = p.activeStudents ?? 0;
   // Whole rupees (amounts are paise).
@@ -127,8 +133,9 @@ function PlanCard({
   return (
     <Card
       className={cn(
-        'relative flex items-stretch gap-3 p-3 transition-shadow hover:shadow-e2',
+        'relative flex items-stretch gap-3 p-3 transition-[box-shadow,border-color] hover:shadow-e2',
         !p.isActive && 'bg-muted/30',
+        selected && 'border-primary ring-2 ring-primary/25',
       )}
     >
       <div
@@ -144,7 +151,15 @@ function PlanCard({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2 pr-8">
-          <p className="min-w-0 truncate text-[14px] leading-tight font-semibold">{p.name}</p>
+          <button
+            type="button"
+            onClick={onSelect}
+            aria-pressed={selected}
+            aria-label={`Show ${p.name}`}
+            className="min-w-0 cursor-pointer truncate text-left text-[14px] leading-tight font-semibold after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none"
+          >
+            {p.name}
+          </button>
           {!p.isActive && (
             <Badge variant="muted" className="shrink-0">
               Retired
@@ -179,11 +194,14 @@ function PlanCard({
             {plural(students, 'student')}
           </span>
         </div>
+        <div className="relative z-10">
+          <SplitBar plan={p} onEdit={onSelect} />
+        </div>
       </div>
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-1.5 right-1.5 size-8"
+        className="absolute top-1.5 right-1.5 z-10 size-8"
         aria-label={`Edit ${p.name}`}
         onClick={onEdit}
       >
@@ -196,7 +214,9 @@ function PlanCard({
 export function FeePlansPage() {
   const q = useFeePlans();
   const [editing, setEditing] = useState<FeePlan | 'new' | null>(null);
+  const [splitting, setSplitting] = useState<FeePlan | null>(null);
   const [showRetired, setShowRetired] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const all = useMemo(
     () =>
       [...(q.data ?? [])].sort(
@@ -213,6 +233,8 @@ export function FeePlansPage() {
   const students = active.reduce((n, p) => n + (p.activeStudents ?? 0), 0);
   const monthly = active.reduce((n, p) => n + p.monthlyFee * (p.activeStudents ?? 0), 0);
   const avgFee = students ? Math.round(monthly / students) : null;
+  const withSplit = active.filter((p) => p.split?.length).length;
+  const selected = shown.find((p) => p.id === selectedId) ?? shown[0];
   const newButton = (
     <Button onClick={() => setEditing('new')}>
       <Plus /> New plan
@@ -234,9 +256,10 @@ export function FeePlansPage() {
         <EmptyState icon={<Tags />} title="No fee plans yet" action={newButton} />
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-4 gap-1.5 rounded-2xl border bg-card p-1.5 shadow-e1">
+          <div className="grid grid-cols-5 gap-1.5 rounded-2xl border bg-card p-1.5 shadow-e1">
             {[
               { label: 'Active plans', value: active.length },
+              { label: 'With split', value: `${withSplit}/${active.length}` },
               { label: 'Students', value: students },
               { label: 'Avg fee', value: avgFee === null ? '—' : moneyCompact(avgFee) },
               { label: 'Per month', value: moneyCompact(monthly) },
@@ -247,6 +270,7 @@ export function FeePlansPage() {
               </div>
             ))}
           </div>
+          <AllPlansDistribution plans={active} />
           {retired > 0 && (
             <div className="flex justify-end">
               <label className="flex h-9 items-center gap-2 rounded-xl border bg-card px-3 text-[13px] text-muted-foreground">
@@ -262,27 +286,43 @@ export function FeePlansPage() {
               description="Turn on Retired to see older plans."
             />
           ) : (
-            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-              {shown.map((p) => (
-                <PlanCard
-                  key={p.id}
-                  p={p}
-                  share={
-                    students && p.isActive
-                      ? Math.round(((p.activeStudents ?? 0) / students) * 100)
-                      : 0
-                  }
-                  onEdit={() => setEditing(p)}
-                />
-              ))}
+            <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
+                {shown.map((p) => (
+                  <PlanCard
+                    key={p.id}
+                    p={p}
+                    share={
+                      students && p.isActive
+                        ? Math.round(((p.activeStudents ?? 0) / students) * 100)
+                        : 0
+                    }
+                    selected={p.id === selected?.id}
+                    onEdit={() => setEditing(p)}
+                    onSelect={() => setSelectedId(p.id)}
+                  />
+                ))}
+              </div>
+              {selected && (
+                <div className="lg:sticky lg:top-4">
+                  <PlanSplitPanel
+                    key={selected.id}
+                    plan={selected}
+                    onEditSplit={() => setSplitting(selected)}
+                    onEditPlan={() => setEditing(selected)}
+                  />
+                </div>
+              )}
             </div>
           )}
           <p className="px-0.5 text-[11px] text-muted-foreground">
             “Per month” is the list price of every student on an active plan, before custom fees and
-            discounts. Price changes apply to invoices generated from now on.
+            discounts. Price changes apply to invoices generated from now on. Select a plan to see
+            how its fee is distributed; split changes apply to fees received from then on.
           </p>
         </div>
       )}
+      {splitting && <SplitDialog plan={splitting} onClose={() => setSplitting(null)} />}
       {editing && (
         <PlanDialog
           plan={editing === 'new' ? undefined : editing}

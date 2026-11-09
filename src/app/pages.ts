@@ -57,6 +57,7 @@ export const FeePlansPage = page(m17, 'FeePlansPage');
 export const SettingsPage = page(m18, 'SettingsPage');
 export const AuditLogPage = page(m19, 'AuditLogPage');
 export const AccountPage = page(m20, 'AccountPage');
+export const MoneyPage = page(() => import('@/pages/money'), 'MoneyPage');
 
 const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/$/, m3],

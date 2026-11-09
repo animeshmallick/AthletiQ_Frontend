@@ -121,7 +121,7 @@ export function DeploymentsInfo({ className }: { className?: string }) {
       <p className="pt-2 text-[11px] font-semibold tracking-wider text-sidebar-muted uppercase">
         Deployments
       </p>
-      <Row icon={<Server />} label="API server" status={apiStatus}>
+      <Row icon={<Server />} label="Backend server" status={apiStatus}>
         {ready.isError ? (
           'Not reachable right now'
         ) : !r ? (
@@ -144,7 +144,7 @@ export function DeploymentsInfo({ className }: { className?: string }) {
           </>
         )}
       </Row>
-      <Row icon={<Globe />} label="Web app" status={web ? 'ok' : 'unknown'}>
+      <Row icon={<Globe />} label="Frontend server" status={web ? 'ok' : 'unknown'}>
         <span className="block">
           {web?.commit ?? 'dev'} · built {relativeTime(web?.builtAt)} ({stamp(web?.builtAt)})
         </span>
