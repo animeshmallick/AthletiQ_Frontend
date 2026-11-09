@@ -47,7 +47,10 @@ async function boot(
       sessions: [],
       summary: { sessions: 0, flagged: 0, unreviewedFlagged: 0, missingCheckOut: 0, totalHours: 0 },
     }),
-    'GET /admin/audit-logs': () => ({ data: [], meta: { total: 0, page: 1, pageSize: 25 } }),
+    'GET /activity/logs': () => ({
+      data: [],
+      meta: { total: 0, page: 1, pageSize: 50, totalPages: 0 },
+    }),
     ...routes,
   });
   await router.navigate(path);
@@ -110,6 +113,9 @@ describe('route guards', () => {
     ).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Attendance' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+    // Coaches get their own activity log, not the academy's.
+    expect(screen.getAllByRole('link', { name: 'My activity' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: 'Audit log' })).not.toBeInTheDocument();
   });
 
   it('opens every screen from the phone "More" sheet', async () => {

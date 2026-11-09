@@ -171,7 +171,7 @@ export const router = createBrowserRouter([
           { path: 'locations', element: admin(<LocationsPage />) },
           { path: 'fee-plans', element: admin(<FeePlansPage />) },
           { path: 'settings', element: admin(<SettingsPage />) },
-          { path: 'audit-log', element: admin(<AuditLogPage />) },
+          { path: 'audit-log', element: <AuditLogPage /> },
           { path: '*', element: <NotFound /> },
         ],
       },

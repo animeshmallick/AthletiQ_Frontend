@@ -79,7 +79,6 @@ export const keys = {
   projection: (days: number) => ['finance', 'projection', days] as const,
   registrations: (q: Query) => ['registrations', q] as const,
   settings: ['settings'] as const,
-  auditLogs: (q: Query) => ['audit-logs', q] as const,
   jobRuns: ['job-runs'] as const,
   fundsOverview: (q: Query) => ['funds', 'overview', q] as const,
   fundTxns: (q: Query) => ['funds', 'txns', q] as const,
@@ -839,21 +838,184 @@ export type AuditLog = {
   actor: { id: string; name: string } | null;
 };
 
-/** Audit log, 100 entries at a time; the next page is fetched as the list nears its end. */
-export const AUDIT_PAGE_SIZE = 100;
-export const useAuditLogs = (q: Query) =>
+// ─── Activity (audit trail, request log, failures) ───────────────────────────
+// Admins see the whole academy; coaches see only their own activity.
+
+export type ActivityLog = AuditLog & {
+  actorId: string | null;
+  actor: { id: string; name: string; role?: string } | null;
+};
+type Count = { n: number };
+export type ActivityPerson = { id: string; name: string; role: string; n: number };
+export type ActivityInsights = {
+  from: string;
+  to: string;
+  totals: {
+    events: number;
+    people: number;
+    records: number;
+    sensitive: number;
+    activeDays: number;
+    perDay: number;
+    previous: number;
+    change: number | null;
+  };
+  busiestDay: ({ date: string } & Count) | null;
+  busiestHour: number | null;
+  byDay: ({ date: string } & Count)[];
+  byHour: number[];
+  byEntity: ({ entityType: string } & Count)[];
+  byAction: ({ action: string } & Count)[];
+  byActor: ActivityPerson[];
+  notable: ActivityLog[];
+};
+export type RouteStat = {
+  method: string;
+  route: string;
+  n: number;
+  failed: number;
+  avgMs: number;
+  maxMs: number;
+};
+export type RequestInsights = {
+  totals: {
+    total: number;
+    writes: number;
+    failed: number;
+    avgMs: number;
+    p95Ms: number;
+    people: number;
+  };
+  byRoute: RouteStat[];
+  slowest: RouteStat[];
+  byPerson: (ActivityPerson & { failed: number })[];
+};
+export type ErrorInsights = {
+  totals: { total: number; server: number; client: number; routes: number; users: number };
+  byDay: ({ date: string; server: number } & Count)[];
+  byStatus: ({ status: number } & Count)[];
+  byCode: ({ code: string | null } & Count)[];
+  byRoute: ({
+    method: string;
+    route: string;
+    server: number;
+    last: string;
+    sample: string | null;
+  } & Count)[];
+};
+export type ApiRequest = {
+  id: string;
+  method: string;
+  route: string;
+  status: number;
+  durationMs: number;
+  code: string | null;
+  message: string | null;
+  userId: string | null;
+  requestId: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  user: { id: string; name: string } | null;
+};
+export type ActivitySummary = {
+  generatedAt: string;
+  scope: 'academy' | 'self';
+  totals: {
+    events: number;
+    people: number;
+    records: number;
+    activeDays: number;
+    spanDays: number;
+    sensitive: number;
+    first: string | null;
+    last: string | null;
+  };
+  busiestDay: ({ date: string } & Count) | null;
+  busiestHour: number | null;
+  byMonth: ({ month: string } & Count)[];
+  byHour: number[];
+  topActions: ({ action: string } & Count)[];
+  topActors: ActivityPerson[];
+  byEntity: ({ entityType: string } & Count)[];
+  sensitive: ({ action: string } & Count)[];
+  errors: { total: number; server: number; routes: number } | null;
+  highlights: string[];
+};
+type Range = { from: string; to: string };
+const nextPage = (last: { meta?: PageMeta }) =>
+  last.meta && last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined;
+
+export const ACTIVITY_PAGE_SIZE = 50;
+export const useActivityLogs = (q: Query) =>
   useInfiniteQuery({
-    queryKey: keys.auditLogs(q),
+    queryKey: ['activity', 'logs', q],
     queryFn: ({ pageParam, signal }) =>
-      api.page<AuditLog[]>(
-        '/admin/audit-logs',
-        { ...q, page: pageParam, pageSize: AUDIT_PAGE_SIZE },
+      api.page<ActivityLog[]>(
+        '/activity/logs',
+        { ...q, page: pageParam, pageSize: ACTIVITY_PAGE_SIZE },
         signal,
       ),
     initialPageParam: 1,
-    getNextPageParam: (last) =>
-      last.meta && last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,
+    getNextPageParam: nextPage,
   });
+
+export const useActivityInsights = (r: Range, enabled = true) =>
+  useQuery({
+    queryKey: ['activity', 'insights', r],
+    queryFn: ({ signal }) => api.get<ActivityInsights>('/activity/insights', r, signal),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+
+export const useRequestInsights = (r: Range, enabled = true) =>
+  useQuery({
+    queryKey: ['activity', 'requests', r],
+    queryFn: ({ signal }) => api.get<RequestInsights>('/activity/requests/insights', r, signal),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+
+export const useErrorInsights = (r: Range, enabled = true) =>
+  useQuery({
+    queryKey: ['activity', 'errors', 'insights', r],
+    queryFn: ({ signal }) => api.get<ErrorInsights>('/activity/errors/insights', r, signal),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+
+export const useApiErrors = (q: Range & Query, enabled = true) =>
+  useInfiniteQuery({
+    queryKey: ['activity', 'errors', 'list', q],
+    queryFn: ({ pageParam, signal }) =>
+      api.page<ApiRequest[]>(
+        '/activity/errors',
+        { ...q, page: pageParam, pageSize: ACTIVITY_PAGE_SIZE },
+        signal,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: nextPage,
+    enabled,
+  });
+
+/** Every recorded change and failed request (newest first). */
+export const useApiRequests = (q: Range & Query, enabled = true) =>
+  useInfiniteQuery({
+    queryKey: ['activity', 'requests', 'list', q],
+    queryFn: ({ pageParam, signal }) =>
+      api.page<ApiRequest[]>(
+        '/activity/requests',
+        { ...q, page: pageParam, pageSize: ACTIVITY_PAGE_SIZE },
+        signal,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: nextPage,
+    enabled,
+  });
+
+/** Reads the whole log on the server (slow on a big log), so it runs only when asked. */
+export const useActivitySummary = () =>
+  useMutation({ mutationFn: () => api.post<ActivitySummary>('/activity/summary', {}) });
 
 export const useJobRuns = () =>
   useQuery({

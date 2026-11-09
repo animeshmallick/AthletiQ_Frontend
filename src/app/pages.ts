@@ -23,7 +23,7 @@ const m15 = () => import('@/pages/coach-sessions');
 const m16 = () => import('@/pages/admin/locations');
 const m17 = () => import('@/pages/admin/fee-plans');
 const m18 = () => import('@/pages/admin/settings');
-const m19 = () => import('@/pages/admin/audit-log');
+const m19 = () => import('@/pages/activity');
 const m20 = () => import('@/pages/account');
 const m21 = () => import('@/pages/substitutions');
 const m22 = () => import('@/pages/admin/people');

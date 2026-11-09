@@ -145,6 +145,8 @@ export const NAV: NavItem[] = [
 
   { to: '/settings', label: 'Settings', icon: Cog, roles: ['admin'], group: 'system' },
   { to: '/audit-log', label: 'Audit log', icon: ScrollText, roles: ['admin'], group: 'system' },
+  // Coaches see only their own activity on the same screen.
+  { to: '/audit-log', label: 'My activity', icon: ScrollText, roles: ['coach'], group: 'system' },
 ];
 
 export function navFor(role: Role) {
