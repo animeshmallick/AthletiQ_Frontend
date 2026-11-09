@@ -9,8 +9,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useForm, type Control } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import {
   ConfirmDialog,
@@ -33,37 +31,51 @@ import {
 import { Badge, Card } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { formatDate, formatInstant, formatPhone, today, weekdaysLabel } from '@/lib/format';
-import { applyServerErrors } from '@/lib/forms';
 import { useRegistrations, useReviewRegistration } from '@/lib/queries';
 import type { Registration } from '@/lib/types';
-import { EnrollmentFields, enrollmentSchema, type EnrollmentValues } from '../students/forms';
+import { Field } from '@/components/common';
+import { Input } from '@/components/ui/primitives';
+import type { BatchPick } from '@/lib/queries';
+import { BatchPicks } from '../students/forms';
 
 function ApproveStudentDialog({ reg, onClose }: { reg: Registration; onClose: () => void }) {
   const review = useReviewRegistration();
-  const form = useForm<EnrollmentValues>({
-    resolver: zodResolver(enrollmentSchema),
-    defaultValues: {
-      joiningDate: today(),
-      batchId: reg.preferredBatch?.id ?? '',
-      // Filled from the chosen batch's days (see EnrollmentFields).
-      trainingDays: [],
-      feePlanId: '',
-      customMonthlyFee: null,
-      monthlyDiscount: 0,
-    },
-  });
+  // Every batch the parent picked (older requests have just one).
+  const asked = (reg.details as { preferredBatchIds?: string[] } | null)?.preferredBatchIds ?? [];
+  const initial = asked.length ? asked : reg.preferredBatch ? [reg.preferredBatch.id] : [''];
+  const [joiningDate, setJoiningDate] = useState(today());
+  const [picks, setPicks] = useState<BatchPick[]>(
+    initial.map((batchId) => ({ batchId, monthlyDiscount: 0 })),
+  );
+  const [error, setError] = useState<string | undefined>();
 
-  const onSubmit = form.handleSubmit(async (v) => {
+  async function submit() {
+    if (!picks.length || picks.some((p) => !p.batchId))
+      return setError('Pick a batch for every row');
     try {
-      await review.mutateAsync({ id: reg.id, action: 'approve', body: v });
+      await review.mutateAsync({
+        id: reg.id,
+        action: 'approve',
+        body: {
+          joiningDate,
+          batches: picks.map((p) => ({
+            batchId: p.batchId,
+            customMonthlyFee: p.customMonthlyFee ?? null,
+            monthlyDiscount: p.monthlyDiscount ?? 0,
+          })),
+        },
+      });
       toast.success(`${reg.fullName} enrolled`, {
-        description: 'Their first month’s invoice has been generated.',
+        description:
+          picks.length > 1
+            ? 'An invoice for each batch’s first month has been generated.'
+            : 'Their first month’s invoice has been generated.',
       });
       onClose();
     } catch (err) {
-      applyServerErrors(err, form.setError, 'Could not approve');
+      toast.error('Could not approve', { description: errorMessage(err) });
     }
-  });
+  }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -71,51 +83,33 @@ function ApproveStudentDialog({ reg, onClose }: { reg: Registration; onClose: ()
         <DialogHeader>
           <DialogTitle>Enrol {reg.fullName}</DialogTitle>
           <DialogDescription>
-            Confirm the batch, days and fee.{' '}
-            {reg.preferredBatch && `They asked for ${reg.preferredBatch.name}`}
-            {reg.preferredDays?.length ? ` on ${weekdaysLabel(reg.preferredDays)}.` : ''}
+            Confirm the batches and fees. Students train every day their batches run; each batch is
+            billed on its own plan.
+            {reg.preferredDays?.length ? ` They prefer ${weekdaysLabel(reg.preferredDays)}.` : ''}
           </DialogDescription>
         </DialogHeader>
-        <form id="approve-form" onSubmit={onSubmit} noValidate className="space-y-3">
-          {reg.preferredDays?.length ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl bg-accent/60 px-3 py-2 text-[13px]">
-              <span className="text-muted-foreground">
-                Asked for <b className="text-foreground">{weekdaysLabel(reg.preferredDays)}</b>
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="tonal"
-                onClick={() =>
-                  form.setValue(
-                    'trainingDays',
-                    [...reg.preferredDays!].sort((a, b) => a - b),
-                    {
-                      shouldValidate: true,
-                    },
-                  )
-                }
-              >
-                Use these days
-              </Button>
-            </div>
-          ) : null}
-          <EnrollmentFields
-            control={form.control as unknown as Control<EnrollmentValues & Record<string, unknown>>}
-            setValue={form.setValue as never}
-            errors={form.formState.errors}
+        <div className="space-y-3">
+          <Field label="Joining date" required hint="Each batch’s invoice is issued on this day.">
+            <Input
+              type="date"
+              value={joiningDate}
+              onChange={(e) => setJoiningDate(e.target.value)}
+            />
+          </Field>
+          <BatchPicks
+            value={picks}
+            onChange={(v) => {
+              setPicks(v);
+              setError(undefined);
+            }}
+            error={error}
           />
-        </form>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            form="approve-form"
-            variant="success"
-            loading={form.formState.isSubmitting}
-          >
+          <Button variant="success" loading={review.isPending} onClick={() => void submit()}>
             <CheckCircle2 /> Approve & enrol
           </Button>
         </DialogFooter>

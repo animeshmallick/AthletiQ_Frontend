@@ -26,7 +26,7 @@ import {
 } from '@/components/common';
 import { BackLink } from '@/components/back-link';
 import { Button } from '@/components/ui/button';
-import { Checkbox, Switch, WeekdayPicker } from '@/components/ui/controls';
+import { Switch, WeekdayPicker } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -51,6 +51,7 @@ import {
   formatTime,
   formatTimeRange,
   isoWeekday,
+  money,
   plural,
   today,
   WEEKDAYS,
@@ -61,6 +62,7 @@ import {
   useBatch,
   useBatches,
   useDashboard,
+  useFeePlans,
   useLocations,
   useSaveBatch,
   useUsers,
@@ -76,6 +78,7 @@ const schema = z
     coachId: z.string().min(1, 'Pick a coach'),
     locationId: z.string().min(1, 'Pick a location'),
     sportId: z.string().min(1, 'Pick a sport'),
+    feePlanId: z.string().min(1, 'Pick a fee plan'),
     weekdays: z.array(z.number()).min(1, 'Pick at least one day'),
     startTime: z.string().min(1, 'Required'),
     endTime: z.string().min(1, 'Required'),
@@ -107,6 +110,7 @@ export function BatchDialog({
   const coaches = useUsers({ role: 'coach', status: 'active', pageSize: 100 });
   const locations = useLocations({ active: 'true' });
   const sports = useSports();
+  const plans = useFeePlans({ active: 'true' });
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: batch
@@ -115,6 +119,7 @@ export function BatchDialog({
           coachId: batch.coach.id,
           locationId: batch.location.id,
           sportId: batch.sport.id,
+          feePlanId: batch.feePlan.id,
           weekdays: batch.weekdays,
           startTime: batch.startTime.slice(0, 5),
           endTime: batch.endTime.slice(0, 5),
@@ -126,6 +131,7 @@ export function BatchDialog({
           coachId: '',
           locationId: '',
           sportId: '',
+          feePlanId: '',
           weekdays: [1, 2, 3, 4, 5, 6],
           startTime: '06:00',
           endTime: '08:00',
@@ -135,19 +141,18 @@ export function BatchDialog({
   });
   const { register, control, handleSubmit, formState, reset } = form;
   const e = formState.errors;
-  const [applyToStudents, setApplyToStudents] = useState(false);
   useEffect(() => {
     if (!open) reset();
   }, [open, reset]);
-  // Closing the dialog (any way) clears the one-off "apply to students" choice.
-  const close = (o: boolean) => {
-    if (!o) setApplyToStudents(false);
-    onOpenChange(o);
-  };
+  const close = (o: boolean) => onOpenChange(o);
   const watchedDays = useWatch({ control, name: 'weekdays' });
+  const watchedPlan = useWatch({ control, name: 'feePlanId' });
+  // Plans priced for as many days a week as the batch runs (plus the current one).
+  const fitting = (plans.data ?? []).filter(
+    (p) => p.daysPerWeek === watchedDays.length || p.id === batch?.feePlan.id,
+  );
   const daysChanged =
     !!batch && [...watchedDays].sort().join() !== [...batch.weekdays].sort().join();
-  const canApply = daysChanged && batch!.memberCount > 0;
 
   const onSubmit = handleSubmit(async (v) => {
     try {
@@ -155,11 +160,10 @@ export function BatchDialog({
         id: batch?.id,
         ...v,
         capacity: Number(v.capacity),
-        ...(canApply && applyToStudents ? { applyDaysToStudents: true } : {}),
       });
       toast.success(
         batch
-          ? canApply && applyToStudents
+          ? daysChanged && batch.memberCount
             ? `Batch updated · ${plural(batch.memberCount, 'student')} now train on the new days`
             : 'Batch updated'
           : 'Batch created',
@@ -235,23 +239,31 @@ export function BatchDialog({
               )}
             />
           </Field>
-          {canApply && (
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-primary/25 bg-accent/50 p-3 sm:col-span-2">
-              <Checkbox
-                checked={applyToStudents}
-                onCheckedChange={(c) => setApplyToStudents(c === true)}
-                className="mt-0.5"
-              />
-              <span className="text-[13px] leading-snug">
-                <span className="font-semibold">
-                  Also update all {plural(batch!.memberCount, 'student')} in this batch
-                </span>
-                <span className="mt-0.5 block text-muted-foreground">
-                  Their training days become {weekdaysLabel([...watchedDays].sort((a, b) => a - b))}{' '}
-                  from today. History is kept and fees don&apos;t change.
-                </span>
-              </span>
-            </label>
+          <Field
+            label="Fee plan"
+            required
+            error={e.feePlanId?.message}
+            hint={
+              batch && watchedPlan && watchedPlan !== batch.feePlan.id && batch.memberCount
+                ? `Applies to ${plural(batch.memberCount, 'student')} from their next invoice.`
+                : `Every student in the batch is billed this. Plans for ${watchedDays.length} day${watchedDays.length === 1 ? '' : 's'} a week.`
+            }
+            className="sm:col-span-2"
+          >
+            <Select required {...register('feePlanId')}>
+              <option value="">Select…</option>
+              {fitting.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} · {money(p.monthlyFee)}/month
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {fitting.length === 0 && (plans.data?.length ?? 0) > 0 && (
+            <p className="rounded-xl bg-warning/12 px-3 py-2 text-[13px] sm:col-span-2">
+              No active plan is for {watchedDays.length} day{watchedDays.length === 1 ? '' : 's'} a
+              week. Add one under Fee plans, or change the days.
+            </p>
           )}
           <Field label="Starts" required error={e.startTime?.message}>
             <Input type="time" {...register('startTime')} />

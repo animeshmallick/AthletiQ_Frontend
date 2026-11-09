@@ -14,7 +14,7 @@ import {
 import { FilterBar, FilterField, FilterMenu } from '@/components/filters';
 import { Button } from '@/components/ui/button';
 import { Badge, Card, Select } from '@/components/ui/primitives';
-import { money, weekdaysLabel } from '@/lib/format';
+import { money } from '@/lib/format';
 import { useBatches, usePrefetchStudent, useStudents } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import { StudentFormDialog } from './forms';
@@ -156,8 +156,8 @@ export function StudentsPage() {
               <thead className="border-b bg-muted/40 text-left text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Student</th>
-                  <th className="px-4 py-2.5 font-medium">Batch</th>
-                  <th className="px-4 py-2.5 font-medium">Days</th>
+                  <th className="px-4 py-2.5 font-medium">Batches</th>
+                  <th className="px-4 py-2.5 font-medium">Plan</th>
                   <th className="px-4 py-2.5 text-right font-medium">Fee</th>
                   <th className="px-4 py-2.5 text-right font-medium">Outstanding</th>
                   <th className="w-8" />
@@ -191,19 +191,26 @@ export function StudentsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {s.batch ? (
-                        <>
-                          <p>{s.batch.name}</p>
-                          {isAdmin && s.coach && (
-                            <p className="text-xs text-muted-foreground">{s.coach.name}</p>
-                          )}
-                        </>
+                      {s.batches.length ? (
+                        s.batches.map((b) => (
+                          <p key={b.id} className="leading-snug">
+                            {b.name}
+                            {isAdmin && (
+                              <span className="text-xs text-muted-foreground">
+                                {' '}
+                                · {b.coachName}
+                              </span>
+                            )}
+                          </p>
+                        ))
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {s.trainingDays ? weekdaysLabel(s.trainingDays) : '—'}
+                      {s.batches.length
+                        ? [...new Set(s.batches.map((b) => b.planName))].join(', ')
+                        : '—'}
                     </td>
                     <td className="tabular px-4 py-3 text-right">{money(s.effectiveFee)}</td>
                     <td className="tabular px-4 py-3 text-right">
@@ -253,8 +260,7 @@ export function StudentsPage() {
                     )}
                   </p>
                   <p className="truncate text-[12px] text-muted-foreground">
-                    {s.batch?.name ?? 'No batch'}
-                    {s.trainingDays ? ` · ${weekdaysLabel(s.trainingDays)}` : ''}
+                    {s.batches.length ? s.batches.map((b) => b.name).join(', ') : 'No batch'}
                     <span className="tabular"> · {money(s.effectiveFee)}/mo</span>
                   </p>
                 </div>

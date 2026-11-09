@@ -8,6 +8,11 @@ import { api, requestBlob } from './api';
 export const RATING_LABELS = ['Beginner', 'Developing', 'Competent', 'Advanced', 'Excellent'];
 /** 345 → "3.45"; 300 → "3.0". */
 export const score = (x100: number) => (x100 / 100).toFixed(x100 % 10 === 0 ? 1 : 2);
+export const BANDS: Record<string, string> = { A: 'Beginner', B: 'Intermediate', C: 'Advanced' };
+/** "B1" → "Intermediate". */
+export const bandOf = (code: string | null | undefined) =>
+  code ? (BANDS[code[0]!] ?? null) : null;
+
 export const ratingLabel = (x100: number) =>
   RATING_LABELS[Math.min(4, Math.max(0, Math.round(x100 / 100) - 1))]!;
 
@@ -27,6 +32,8 @@ export interface SkillArea {
 }
 export interface Level {
   id: string;
+  /** "B1": the letter is the band (A Beginner, B Intermediate, C Advanced). */
+  code: string | null;
   name: string;
   minScore: number;
   position: number;
@@ -43,6 +50,7 @@ export interface AssessmentLite {
   month: string;
   average: number;
   levelName: string | null;
+  levelCode?: string | null;
   comment: string | null;
   goals: string | null;
   updatedAt: string;
@@ -74,6 +82,7 @@ export interface StudentSkills {
     month: string;
     average: number;
     levelName: string | null;
+    levelCode?: string | null;
     levelPosition: number | null;
     change: number | null;
   };
@@ -86,6 +95,7 @@ type Mover = {
   average: number;
   change: number;
   levelName: string | null;
+  levelCode?: string | null;
   levelChange: number;
 };
 export interface SkillInsights {
@@ -124,7 +134,7 @@ export interface SkillInsights {
   levels: {
     sportId: string;
     sportName: string;
-    levels: { name: string; n: number }[];
+    levels: { code?: string | null; name: string; n: number }[];
     unranked: number;
     promoted: number;
     demoted: number;
@@ -187,7 +197,7 @@ export interface FrameworkInput {
     name: string;
     skills: { id?: string; name: string; description?: string | null }[];
   }[];
-  levels: { name: string; minScore: number }[];
+  levels: { code?: string | null; name: string; minScore: number }[];
 }
 
 export function useSaveFramework() {

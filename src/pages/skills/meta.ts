@@ -27,17 +27,18 @@ export function addMonth(m: string, n: number) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`;
 }
 
-/** Colours for well-known level names (matches the PDF). */
-export function levelTone(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes('bronze')) return 'bg-amber-700/12 text-amber-800 dark:text-amber-300';
-  if (n.includes('silver')) return 'bg-slate-500/14 text-slate-700 dark:text-slate-300';
-  if (n.includes('gold')) return 'bg-yellow-500/18 text-yellow-800 dark:text-yellow-300';
-  if (n.includes('elite') || n.includes('platinum'))
-    return 'bg-violet-500/14 text-violet-700 dark:text-violet-300';
-  if (n.includes('foundation') || n.includes('starter'))
-    return 'bg-cyan-500/14 text-cyan-800 dark:text-cyan-300';
-  return 'bg-primary/10 text-primary';
+/** Badge colours by band: A Beginner (teal), B Intermediate (blue), C Advanced (violet). */
+export function levelTone(code: string | null | undefined) {
+  switch (code?.[0]) {
+    case 'A':
+      return 'bg-teal-500/14 text-teal-800 dark:text-teal-300';
+    case 'B':
+      return 'bg-blue-500/14 text-blue-800 dark:text-blue-300';
+    case 'C':
+      return 'bg-violet-500/14 text-violet-700 dark:text-violet-300';
+    default:
+      return 'bg-primary/10 text-primary';
+  }
 }
 
 /** Heat colour for an average (× 100) on the 1–5 scale. */

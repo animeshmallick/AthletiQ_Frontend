@@ -120,7 +120,15 @@ export function InsightsTab({
                 <ul className="space-y-1">
                   {s.levels.map((l) => (
                     <li key={l.name} className="flex items-center gap-2 text-[13px]">
-                      <LevelBadge name={l.name} className="w-24 justify-center" />
+                      <LevelBadge
+                        name={l.name}
+                        code={l.code}
+                        short
+                        className="w-12 justify-center"
+                      />
+                      <span className="w-40 truncate text-[12px] text-muted-foreground">
+                        {l.name}
+                      </span>
                       <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                         <span
                           className="block h-full rounded-full bg-primary/70"
@@ -316,7 +324,9 @@ function Movers({
                   <span className="font-medium">{m.fullName}</span>
                   <span className="text-muted-foreground"> · {m.batchName}</span>
                 </span>
-                {m.levelChange !== 0 && m.levelName && <LevelBadge name={m.levelName} />}
+                {m.levelChange !== 0 && m.levelName && (
+                  <LevelBadge name={m.levelName} code={m.levelCode} short />
+                )}
                 <span className="tabular-nums">{score(m.average)}</span>
                 <Change value={m.change} />
               </Link>

@@ -61,7 +61,6 @@ import {
   formatDate,
   formatPhone,
   formatShortDate,
-  formatTimeRange,
   money,
   plural,
   today,
@@ -84,10 +83,11 @@ import {
   MakeupDialog,
   RejoinDialog,
   StudentFormDialog,
-  TransferDialog,
+  AddBatchDialog,
 } from './forms';
 import { ReportDialog, slug, STUDENT_REPORT_INCLUDES } from '@/components/report-dialog';
 import { ProgressTab, StudentPhoto } from './progress';
+import { BatchCards } from './batch-cards';
 
 const CHART_COLORS = [
   'var(--chart-1)',
@@ -118,48 +118,20 @@ function InfoRow({
   );
 }
 
-function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
+function Overview({
+  s,
+  canManage,
+  isAdmin,
+}: {
+  s: StudentDetail;
+  canManage: boolean;
+  isAdmin: boolean;
+}) {
   const cancelMakeup = useCancelMakeup(s.id);
-  const e = s.currentEnrollment;
   return (
     <div className="grid gap-3 lg:grid-cols-3">
       <div className="space-y-3 lg:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Training</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {e ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Batch</p>
-                  <Link to={`/batches/${e.batchId}`} className="font-medium hover:underline">
-                    {e.batchName}
-                  </Link>
-                  <p className="text-sm text-muted-foreground">
-                    {formatTimeRange(e.startTime, e.endTime)} · {e.locationName}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Coach</p>
-                  <p className="font-medium">{e.coachName}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Training days</p>
-                  <p className="font-medium">{weekdaysLabel(e.trainingDays)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">In this batch since</p>
-                  <p className="font-medium">{formatDate(e.effectiveFrom)}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Not enrolled in a batch{s.leftOn ? ` — left on ${formatDate(s.leftOn)}` : ''}.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <BatchCards s={s} isAdmin={isAdmin} canManage={canManage} />
 
         {s.upcomingMakeups.length > 0 && (
           <Card>
@@ -286,29 +258,24 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
             <CardTitle>Fees</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Plan</span>
-              <span>{s.feePlan.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Base</span>
-              <span className="tabular">{money(s.effectiveFee.base)}</span>
-            </div>
-            {s.effectiveFee.discount > 0 && (
-              <div className="flex justify-between text-success">
-                <span>Discount</span>
-                <span className="tabular">− {money(s.effectiveFee.discount)}</span>
+            {s.memberships.map((m) => (
+              <div key={m.enrollmentId} className="flex justify-between gap-2">
+                <span className="min-w-0 truncate text-muted-foreground">{m.batchName}</span>
+                <span className="tabular">{money(m.fee.total)}</span>
               </div>
-            )}
+            ))}
             <div className="flex justify-between border-t pt-2 font-semibold">
               <span>Monthly</span>
               <span className="tabular">{money(s.effectiveFee.total)}</span>
             </div>
             <p className="pt-1 text-xs text-muted-foreground">
-              Billed on day {Number((s.billingAnchorDate ?? s.joiningDate).slice(8))} of every month{' '}
-              {s.billingAnchorDate
-                ? `(rejoined ${formatDate(s.billingAnchorDate)}).`
-                : `(joined ${formatDate(s.joiningDate)}).`}
+              {s.memberships.length > 1
+                ? 'Each batch has its own invoice, on its own billing day.'
+                : s.memberships[0]
+                  ? `Billed on day ${s.memberships[0].billingDay} of every month.`
+                  : 'Not billed: not in any batch.'}
+              {s.effectiveFee.discount > 0 &&
+                ` Includes ${money(s.effectiveFee.discount)} in discounts.`}
             </p>
           </CardContent>
         </Card>
@@ -536,7 +503,7 @@ export function StudentDetailPage() {
   const isAdmin = user.role === 'admin';
   const q = useStudent(id);
   const [dialog, setDialog] = useState<
-    'edit' | 'transfer' | 'makeup' | 'leave' | 'rejoin' | 'delete' | null
+    'edit' | 'add-batch' | 'makeup' | 'leave' | 'rejoin' | 'delete' | null
   >(null);
   const deleteStudent = useDeleteStudent();
   const [reportOpen, setReportOpen] = useState(false);
@@ -640,8 +607,8 @@ export function StudentDetailPage() {
                   <DropdownMenuItem onSelect={() => setDialog('edit')}>
                     <Pencil /> Edit details & fee
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setDialog('transfer')}>
-                    <ArrowRightLeft /> Change batch or days
+                  <DropdownMenuItem onSelect={() => setDialog('add-batch')}>
+                    <ArrowRightLeft /> Add to another batch
                   </DropdownMenuItem>
                   <DropdownMenuItem destructive onSelect={() => setDialog('leave')}>
                     <UserMinus /> Mark as left
@@ -690,7 +657,7 @@ export function StudentDetailPage() {
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
-          <Overview s={s} canManage={active} />
+          <Overview s={s} canManage={active} isAdmin={isAdmin} />
         </TabsContent>
         <TabsContent value="progress">
           <ProgressTab id={s.id} />
@@ -709,8 +676,8 @@ export function StudentDetailPage() {
       {isAdmin && dialog === 'edit' && (
         <StudentFormDialog open onOpenChange={(o) => !o && setDialog(null)} student={s} />
       )}
-      {isAdmin && dialog === 'transfer' && (
-        <TransferDialog open onOpenChange={(o) => !o && setDialog(null)} student={s} />
+      {isAdmin && dialog === 'add-batch' && (
+        <AddBatchDialog open onOpenChange={(o) => !o && setDialog(null)} student={s} />
       )}
       {isAdmin && dialog === 'leave' && (
         <LeaveDialog open onOpenChange={(o) => !o && setDialog(null)} student={s} />

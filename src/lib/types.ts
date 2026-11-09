@@ -183,6 +183,8 @@ export interface Batch {
   location: { id: string; name: string; latitude: number; longitude: number; radiusMeters: number };
   /** What the batch trains; decides the skills its students are assessed on. */
   sport: { id: string; name: string };
+  /** The batch's price: every student in it is billed this plan. */
+  feePlan: { id: string; name: string; monthlyFee: number; daysPerWeek: number };
   memberCount: number;
   /** Set when you only cover this batch as a substitute coach (current or upcoming days). */
   substitution?: { id: string; fromDate: string; toDate: string } | null;
@@ -211,12 +213,15 @@ export interface StudentListItem {
   status: 'active' | 'left';
   joiningDate: string;
   leftOn: string | null;
-  feePlan: { id: string; name: string; monthlyFee: number };
-  customMonthlyFee: number | null;
-  monthlyDiscount: number;
-  batch: { id: string; name: string } | null;
-  coach: { id: string; name: string } | null;
-  trainingDays: number[] | null;
+  /** Current batches (coaches see only their own), each with its monthly fee. */
+  batches: {
+    id: string;
+    name: string;
+    coachId: string;
+    coachName: string;
+    planName: string;
+    fee: number;
+  }[];
   outstanding: number;
   overdue: number;
   effectiveFee: number;
@@ -249,6 +254,27 @@ export interface Makeup {
   status?: 'pending' | 'approved';
 }
 
+/** A student's current batch, with its plan, own price and next invoice. */
+export interface Membership {
+  enrollmentId: string;
+  batchId: string;
+  batchName: string;
+  coachId: string;
+  coachName: string;
+  locationName: string;
+  weekdays: number[];
+  startTime: string;
+  endTime: string;
+  since: string;
+  plan: { id: string; name: string; monthlyFee: number; daysPerWeek: number };
+  customMonthlyFee: number | null;
+  monthlyDiscount: number;
+  fee: { base: number; discount: number; total: number };
+  /** Day of the month this batch's invoices are issued. */
+  billingDay: number;
+  nextInvoice: { issueDate: string; periodStart: string; periodEnd: string } | null;
+}
+
 export interface StudentDetail {
   id: string;
   code: string;
@@ -268,15 +294,10 @@ export interface StudentDetail {
   status: 'active' | 'left';
   leftOn: string | null;
   leftReason: string | null;
-  feePlanId: string;
-  customMonthlyFee: number | null;
-  monthlyDiscount: number;
-  billingStartsOn: string;
-  billingAnchorDate: string | null;
-  cycleOffset: number;
-  feePlan: { id: string; name: string; monthlyFee: number; daysPerWeek: number };
+  /** Current batches, each billed on its own. */
+  memberships: Membership[];
+  /** Monthly total across all current batches. */
   effectiveFee: { base: number; discount: number; total: number };
-  currentEnrollment: Enrollment | null;
   enrollmentHistory: Enrollment[];
   upcomingMakeups: Makeup[];
   billing: { outstanding: number; overdue: number; paid: number; invoiceCount: number };

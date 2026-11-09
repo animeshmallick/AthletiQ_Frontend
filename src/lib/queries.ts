@@ -269,6 +269,11 @@ function useStudentMutation<B>(fn: (body: B) => Promise<StudentDetail>) {
         qc.invalidateQueries({ queryKey: ['students'] }),
         qc.invalidateQueries({ queryKey: ['batches'] }),
         qc.invalidateQueries({ queryKey: ['attendance'] }),
+        // Joining or leaving batches issues / stops invoices.
+        qc.invalidateQueries({ queryKey: ['invoices'] }),
+        qc.invalidateQueries({ queryKey: ['finance'] }),
+        qc.invalidateQueries({ queryKey: ['funds'] }),
+        qc.invalidateQueries({ queryKey: ['skills'] }),
       ]);
     },
   });
@@ -280,14 +285,48 @@ export const useUpdateStudent = (id: string) =>
   useStudentMutation((body: Record<string, unknown>) =>
     api.patch<StudentDetail>(`/students/${id}`, body),
   );
-export const useTransferStudent = (id: string) =>
+/** A batch to join, with this student's own price adjustments (the plan comes from the batch). */
+export interface BatchPick {
+  batchId: string;
+  customMonthlyFee?: number | null;
+  monthlyDiscount?: number;
+}
+
+/** Adds a student to another batch (billed separately from the day they join). */
+export const useJoinBatch = (id: string) =>
+  useStudentMutation((body: BatchPick & { effectiveFrom: string; reason?: string | null }) =>
+    api.post<StudentDetail>(`/students/${id}/batches`, body),
+  );
+/** Changes one membership's custom fee / discount (from its next invoice). */
+export const useUpdateMembership = (id: string) =>
   useStudentMutation(
-    (body: {
+    ({
+      enrollmentId,
+      ...body
+    }: {
+      enrollmentId: string;
+      customMonthlyFee?: number | null;
+      monthlyDiscount?: number;
+    }) => api.patch<StudentDetail>(`/students/${id}/batches/${enrollmentId}`, body),
+  );
+/** Moves a membership to another batch; billing continues on the same day. */
+export const useMoveMembership = (id: string) =>
+  useStudentMutation(
+    ({
+      enrollmentId,
+      ...body
+    }: {
+      enrollmentId: string;
       batchId: string;
-      trainingDays: number[];
       effectiveFrom: string;
       reason?: string | null;
-    }) => api.post<StudentDetail>(`/students/${id}/transfer`, body),
+    }) => api.post<StudentDetail>(`/students/${id}/batches/${enrollmentId}/move`, body),
+  );
+/** Ends one membership (its invoices stop). */
+export const useLeaveBatch = (id: string) =>
+  useStudentMutation(
+    ({ enrollmentId, ...body }: { enrollmentId: string; leftOn: string; reason?: string | null }) =>
+      api.post<StudentDetail>(`/students/${id}/batches/${enrollmentId}/leave`, body),
   );
 export const useStudentLeave = (id: string) =>
   useStudentMutation((body: { leftOn: string; reason?: string | null }) =>
@@ -1070,15 +1109,8 @@ export function useRestoreSession() {
 }
 
 export const useRejoinStudent = (id: string) =>
-  useStudentMutation(
-    (body: {
-      rejoinDate: string;
-      batchId: string;
-      trainingDays: number[];
-      feePlanId?: string;
-      customMonthlyFee?: number | null;
-      monthlyDiscount?: number;
-    }) => api.post<StudentDetail>(`/students/${id}/rejoin`, body),
+  useStudentMutation((body: { rejoinDate: string; batches: BatchPick[]; reason?: string | null }) =>
+    api.post<StudentDetail>(`/students/${id}/rejoin`, body),
   );
 
 export function useDeleteStudent() {

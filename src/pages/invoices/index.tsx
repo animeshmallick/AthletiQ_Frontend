@@ -142,6 +142,8 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
                   <p className="truncate text-xs text-muted-foreground">
                     <span className="font-mono">{inv.number}</span> ·{' '}
                     {formatShortDate(inv.periodStart)} – {formatShortDate(inv.periodEnd)}
+                    {/* A student in several batches has an invoice per batch. */}
+                    {inv.batchName ? ` · ${inv.batchName}` : ''}
                   </p>
                 </div>
                 <div className="hidden text-right text-xs text-muted-foreground sm:block">

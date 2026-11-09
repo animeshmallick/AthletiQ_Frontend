@@ -1,18 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, type ReactNode } from 'react';
-import {
-  Controller,
-  useForm,
-  useWatch,
-  type Control,
-  type FieldErrors,
-  type UseFormSetValue,
-} from 'react-hook-form';
+import { AlertTriangle, ArrowRightLeft, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Field, MoneyInput } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { WeekdayPicker } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -24,212 +17,211 @@ import {
 import { Input, Select, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { formatTimeRange, isoWeekday, money, today, weekdaysLabel } from '@/lib/format';
-import {
-  applyServerErrors,
-  nullIfEmpty,
-  optionalPhoneSchema,
-  phoneSchema,
-  trainingDaysSchema,
-  sameDays,
-} from '@/lib/forms';
+import { applyServerErrors, nullIfEmpty, optionalPhoneSchema, phoneSchema } from '@/lib/forms';
 import {
   useBatches,
   useBookMakeup,
   useCreateStudent,
-  useFeePlans,
+  useJoinBatch,
+  useLeaveBatch,
+  useMoveMembership,
   useRejoinStudent,
   useStudentLeave,
-  useTransferStudent,
+  useUpdateMembership,
   useUpdateStudent,
+  type BatchPick,
 } from '@/lib/queries';
-import type { StudentDetail } from '@/lib/types';
+import type { Batch, Membership, StudentDetail } from '@/lib/types';
 import { useUser } from '@/app/auth';
-import { AlertTriangle } from 'lucide-react';
 
-// ─── Shared enrollment & fee fields ──────────────────────────────────────────
+// ─── Picking batches ─────────────────────────────────────────────────────────
 
-export const enrollmentSchema = z.object({
-  joiningDate: z.string().min(1, 'Pick the joining date'),
-  batchId: z.string().min(1, 'Pick a batch'),
-  trainingDays: trainingDaysSchema,
-  feePlanId: z.string().min(1, 'Pick a fee plan'),
-  customMonthlyFee: z.number().nullable(),
-  monthlyDiscount: z.number().min(0),
-});
-export type EnrollmentValues = z.infer<typeof enrollmentSchema>;
+/** "Mon · Wed · Fri · 5:00–6:30 pm · Coach Ravi" */
+const batchLine = (b: Batch) =>
+  `${weekdaysLabel(b.weekdays)} · ${formatTimeRange(b.startTime, b.endTime)} · ${b.coach.name}`;
 
-/**
- * Batch → training days → fee plan, with smart defaults: picking days suggests the plan priced for
- * that many days per week, and the effective monthly fee is previewed live.
- */
-export function EnrollmentFields({
-  control,
-  setValue,
-  errors,
-  showJoining = true,
+const feeOf = (b: Batch | undefined, pick: BatchPick) =>
+  Math.max(0, (pick.customMonthlyFee ?? b?.feePlan.monthlyFee ?? 0) - (pick.monthlyDiscount ?? 0));
+
+/** One batch choice: the batch (days, time, coach and plan come from it) and optional fee tweaks. */
+function BatchPickRow({
+  value,
+  onChange,
+  onRemove,
+  options,
+  error,
+  index,
 }: {
-  control: Control<EnrollmentValues & Record<string, unknown>>;
-  setValue: UseFormSetValue<EnrollmentValues & Record<string, unknown>>;
-  errors: FieldErrors<EnrollmentValues>;
-  showJoining?: boolean;
+  value: BatchPick;
+  onChange: (v: BatchPick) => void;
+  onRemove?: () => void;
+  options: Batch[];
+  error?: string;
+  index: number;
 }) {
-  const batches = useBatches({ active: 'true' });
-  const plans = useFeePlans({ active: 'true' });
-  const [batchId, days, planId, custom, discount] = useWatch({
-    control,
-    name: ['batchId', 'trainingDays', 'feePlanId', 'customMonthlyFee', 'monthlyDiscount'],
-  }) as [string, number[], string, number | null, number];
-  const batch = batches.data?.find((b) => b.id === batchId);
-  const plan = plans.data?.find((p) => p.id === planId);
-
-  // Suggest the plan matching the number of training days.
-  useEffect(() => {
-    if (!plans.data || !days?.length) return;
-    const current = plans.data.find((p) => p.id === planId);
-    if (current && current.daysPerWeek === days.length) return;
-    const match = plans.data.find((p) => p.daysPerWeek === days.length);
-    if (match) setValue('feePlanId', match.id, { shouldValidate: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [days?.length, plans.data]);
-
-  // Students train on every day the batch runs: the days come from the batch.
-  useEffect(() => {
-    if (!batch) return;
-    const next = [...batch.weekdays].sort((a, b) => a - b);
-    if (!sameDays(next, days)) setValue('trainingDays', next, { shouldValidate: !!days?.length });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batch?.id, batch?.weekdays.join()]);
-
-  const base = custom ?? plan?.monthlyFee ?? 0;
-  const total = Math.max(0, base - (discount ?? 0));
-
+  const batch = options.find((b) => b.id === value.batchId);
+  const adjusted =
+    (value.customMonthlyFee !== null && value.customMonthlyFee !== undefined) ||
+    !!value.monthlyDiscount;
+  const [showFee, setShowFee] = useState(adjusted);
+  const full = (b: Batch) => b.memberCount >= b.capacity && b.id !== value.batchId;
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {showJoining && (
+    <div className="space-y-2 rounded-xl border bg-card p-2.5">
+      <div className="flex items-start gap-2">
         <Field
-          label="Joining date"
+          label={index === 0 ? 'Batch' : `Batch ${index + 1}`}
           required
-          htmlFor="joiningDate"
-          error={errors.joiningDate?.message}
-          hint="Billing cycles start on this day every month."
+          error={error}
+          className="min-w-0 flex-1"
         >
-          <Controller
-            control={control}
-            name="joiningDate"
-            render={({ field }) => (
-              <Input id="joiningDate" type="date" {...field} value={field.value as string} />
-            )}
-          />
+          <Select
+            value={value.batchId}
+            aria-label={`Batch ${index + 1}`}
+            onChange={(e) => onChange({ ...value, batchId: e.target.value })}
+            aria-invalid={!!error}
+          >
+            <option value="">Select a batch…</option>
+            {options.map((b) => (
+              <option key={b.id} value={b.id} disabled={full(b)}>
+                {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
+                {full(b) ? ' (full)' : ` (${b.memberCount}/${b.capacity})`}
+              </option>
+            ))}
+          </Select>
         </Field>
+        {onRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="mt-6 shrink-0"
+            aria-label={`Remove batch ${index + 1}`}
+            onClick={onRemove}
+          >
+            <Trash2 className="text-muted-foreground" />
+          </Button>
+        )}
+      </div>
+      {batch && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
+          <span>{batchLine(batch)}</span>
+          <span aria-hidden>·</span>
+          <span>
+            {batch.feePlan.name} · <b className="text-foreground">{money(feeOf(batch, value))}</b>
+            /month
+          </span>
+          <button
+            type="button"
+            className="ml-auto inline-flex cursor-pointer items-center gap-1 font-medium text-primary hover:underline"
+            onClick={() => setShowFee((x) => !x)}
+          >
+            <SlidersHorizontal className="size-3.5" /> {showFee ? 'Hide fee' : 'Adjust fee'}
+          </button>
+        </div>
       )}
-      <Field
-        label="Batch"
-        required
-        htmlFor="batchId"
-        error={errors.batchId?.message}
-        className={showJoining ? '' : 'sm:col-span-2'}
-      >
-        <Controller
-          control={control}
-          name="batchId"
-          render={({ field }) => (
-            <Select
-              id="batchId"
-              {...field}
-              value={field.value as string}
-              aria-invalid={!!errors.batchId}
-            >
-              <option value="">Select a batch…</option>
-              {batches.data?.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
-                  {b.capacity ? ` (${b.memberCount}/${b.capacity})` : ''}
-                </option>
-              ))}
-            </Select>
-          )}
-        />
-      </Field>
-      <Field
-        label="Training days"
-        required
-        error={errors.trainingDays?.message}
-        hint={
-          batch
-            ? `Every day ${batch.name} runs (${weekdaysLabel(batch.weekdays)}).`
-            : 'Set by the batch: pick a batch first.'
-        }
-        className="sm:col-span-2"
-      >
-        <Controller
-          control={control}
-          name="trainingDays"
-          render={({ field }) => (
-            <WeekdayPicker
-              value={field.value as number[]}
-              onChange={field.onChange}
-              allowed={batch?.weekdays ?? []}
-              invalid={!!errors.trainingDays}
-              disabled
-            />
-          )}
-        />
-      </Field>
-      <Field label="Fee plan" required htmlFor="feePlanId" error={errors.feePlanId?.message}>
-        <Controller
-          control={control}
-          name="feePlanId"
-          render={({ field }) => (
-            <Select id="feePlanId" {...field} value={field.value as string}>
-              <option value="">Select a plan…</option>
-              {plans.data?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {money(p.monthlyFee)}/mo
-                </option>
-              ))}
-            </Select>
-          )}
-        />
-      </Field>
-      <Field
-        label="Custom monthly fee"
-        htmlFor="customFee"
-        hint="Leave empty to use the plan price."
-      >
-        <Controller
-          control={control}
-          name="customMonthlyFee"
-          render={({ field }) => (
+      {batch && showFee && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Field label="Custom monthly fee" hint={`Plan price: ${money(batch.feePlan.monthlyFee)}`}>
             <MoneyInput
-              id="customFee"
-              value={field.value as number | null}
-              onChange={field.onChange}
-              placeholder={plan ? String(plan.monthlyFee / 100) : ''}
+              value={value.customMonthlyFee ?? null}
+              onChange={(v) => onChange({ ...value, customMonthlyFee: v })}
+              placeholder={String(batch.feePlan.monthlyFee / 100)}
             />
-          )}
-        />
-      </Field>
-      <Field label="Monthly discount" htmlFor="discount">
-        <Controller
-          control={control}
-          name="monthlyDiscount"
-          render={({ field }) => (
+          </Field>
+          <Field label="Monthly discount">
             <MoneyInput
-              id="discount"
-              value={field.value as number}
-              onChange={(v) => field.onChange(v ?? 0)}
+              value={value.monthlyDiscount ?? 0}
+              onChange={(v) => onChange({ ...value, monthlyDiscount: v ?? 0 })}
               placeholder="0"
             />
+          </Field>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One or more batches for a student. The student trains every day each batch runs and is billed
+ * each batch's plan separately (with optional custom fee / discount per batch).
+ */
+export function BatchPicks({
+  value,
+  onChange,
+  error,
+  exclude = [],
+}: {
+  value: BatchPick[];
+  onChange: (v: BatchPick[]) => void;
+  error?: string;
+  /** Batches the student is already in (not offered again). */
+  exclude?: string[];
+}) {
+  const batches = useBatches({ active: 'true' });
+  const all = (batches.data ?? []).filter((b) => !exclude.includes(b.id));
+  const total = value.reduce(
+    (n, p) =>
+      n +
+      feeOf(
+        all.find((b) => b.id === p.batchId),
+        p,
+      ),
+    0,
+  );
+  return (
+    <div className="space-y-2">
+      {value.map((pick, i) => (
+        <BatchPickRow
+          key={i}
+          index={i}
+          value={pick}
+          // Each batch can be picked once.
+          options={all.filter(
+            (b) => b.id === pick.batchId || !value.some((p) => p.batchId === b.id),
           )}
+          error={i === 0 ? error : undefined}
+          onChange={(v) => onChange(value.map((p, j) => (j === i ? v : p)))}
+          onRemove={value.length > 1 ? () => onChange(value.filter((_, j) => j !== i)) : undefined}
         />
-      </Field>
-      <div className="flex flex-col justify-end rounded-xl bg-accent px-4 py-3 text-accent-foreground">
-        <p className="text-xs font-medium">Billed every month</p>
-        <p className="tabular text-xl font-semibold">{money(total)}</p>
+      ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange([...value, { batchId: '', monthlyDiscount: 0 }])}
+          disabled={value.length >= Math.min(10, all.length)}
+        >
+          <Plus /> Add another batch
+        </Button>
+        <p className="rounded-xl bg-accent px-3 py-1.5 text-accent-foreground">
+          <span className="text-xs font-medium">Billed every month </span>
+          <span className="tabular text-base font-semibold">{money(total)}</span>
+          {value.length > 1 && (
+            <span className="text-xs text-muted-foreground"> · one invoice per batch</span>
+          )}
+        </p>
       </div>
     </div>
   );
 }
+
+const batchPicksSchema = z
+  .array(
+    z.object({
+      batchId: z.string(),
+      customMonthlyFee: z.number().nullable().optional(),
+      monthlyDiscount: z.number().min(0).optional(),
+    }),
+  )
+  .refine((l) => l.length > 0 && l.every((p) => p.batchId), 'Pick a batch for every row');
+
+const pickPayload = (l: BatchPick[]) =>
+  l.map((p) => ({
+    batchId: p.batchId,
+    customMonthlyFee: p.customMonthlyFee ?? null,
+    monthlyDiscount: p.monthlyDiscount ?? 0,
+  }));
 
 // ─── Create / edit student ───────────────────────────────────────────────────
 
@@ -246,13 +238,11 @@ const profileSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const createSchema = profileSchema.extend(enrollmentSchema.shape);
-const editSchema = profileSchema.extend({
-  joiningDate: z.string().min(1),
-  feePlanId: z.string().min(1, 'Pick a fee plan'),
-  customMonthlyFee: z.number().nullable(),
-  monthlyDiscount: z.number().min(0),
+const createSchema = profileSchema.extend({
+  joiningDate: z.string().min(1, 'Pick the joining date'),
+  batches: batchPicksSchema,
 });
+const editSchema = profileSchema.extend({ joiningDate: z.string().min(1) });
 
 type CreateValues = z.infer<typeof createSchema>;
 
@@ -369,25 +359,17 @@ export function StudentFormDialog({
           medicalNotes: student.medicalNotes ?? '',
           notes: student.notes ?? '',
           joiningDate: student.joiningDate,
-          feePlanId: student.feePlanId,
-          customMonthlyFee: student.customMonthlyFee,
-          monthlyDiscount: student.monthlyDiscount,
-          batchId: student.currentEnrollment?.batchId ?? '',
-          trainingDays: student.currentEnrollment?.trainingDays ?? [],
+          batches: [],
         }
       : {
           fullName: '',
           gender: '',
           phone: '',
           joiningDate: today(),
-          batchId: '',
-          trainingDays: [],
-          feePlanId: '',
-          customMonthlyFee: null,
-          monthlyDiscount: 0,
+          batches: [{ batchId: '', monthlyDiscount: 0 }],
         },
   });
-  const { register, handleSubmit, control, setValue, formState, reset } = form;
+  const { register, handleSubmit, control, formState, reset } = form;
 
   useEffect(() => {
     if (!open) reset();
@@ -399,21 +381,18 @@ export function StudentFormDialog({
         ? await update.mutateAsync({
             ...profilePayload(v),
             ...(v.joiningDate !== student!.joiningDate ? { joiningDate: v.joiningDate } : {}),
-            feePlanId: v.feePlanId,
-            customMonthlyFee: v.customMonthlyFee,
-            monthlyDiscount: v.monthlyDiscount,
           })
         : await create.mutateAsync({
             ...profilePayload(v),
             joiningDate: v.joiningDate,
-            batchId: v.batchId,
-            trainingDays: v.trainingDays,
-            feePlanId: v.feePlanId,
-            customMonthlyFee: v.customMonthlyFee,
-            monthlyDiscount: v.monthlyDiscount,
+            batches: pickPayload(v.batches),
           });
       toast.success(editing ? 'Student updated' : `${saved.fullName} registered (${saved.code})`, {
-        description: editing ? undefined : 'Their first month’s invoice has been generated.',
+        description: editing
+          ? undefined
+          : v.batches.length > 1
+            ? 'An invoice for each batch’s first month has been generated.'
+            : 'Their first month’s invoice has been generated.',
       });
       onOpenChange(false);
       onSaved?.(saved);
@@ -426,9 +405,7 @@ export function StudentFormDialog({
     }
   });
 
-  const enrollmentControl = control as unknown as Control<
-    EnrollmentValues & Record<string, unknown>
-  >;
+  const joiningLocked = !!student && student.billing.invoiceCount > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -437,25 +414,44 @@ export function StudentFormDialog({
           <DialogTitle>{editing ? `Edit ${student!.fullName}` : 'Register a student'}</DialogTitle>
           <DialogDescription>
             {editing
-              ? 'Update contact details and fees. Use “Change batch” to move batches.'
-              : 'Add the student, place them in a batch and set their fee.'}
+              ? 'Update contact details. Batches and fees are managed on each batch card.'
+              : 'Add the student and place them in one or more batches. Each batch is billed on its own plan.'}
           </DialogDescription>
         </DialogHeader>
         <form id="student-form" onSubmit={onSubmit} noValidate className="space-y-3 sm:space-y-4">
           <ProfileFields register={register} errors={formState.errors} />
           <Separator />
-          {editing ? (
-            <FeeOnlyFields
-              control={enrollmentControl}
-              errors={formState.errors}
-              joiningLocked={student!.billing.invoiceCount > 0}
-              register={register}
+          <Field
+            label="Joining date"
+            required
+            htmlFor="joiningDate"
+            error={formState.errors.joiningDate?.message}
+            hint={
+              joiningLocked
+                ? 'Locked — invoices already use it as the billing day.'
+                : 'Each batch’s monthly invoice is issued on this day.'
+            }
+          >
+            <Input
+              id="joiningDate"
+              type="date"
+              disabled={joiningLocked}
+              {...register('joiningDate')}
             />
-          ) : (
-            <EnrollmentFields
-              control={enrollmentControl}
-              setValue={setValue as never}
-              errors={formState.errors}
+          </Field>
+          {!editing && (
+            <Controller
+              control={control}
+              name="batches"
+              render={({ field }) => (
+                <BatchPicks
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={
+                    formState.errors.batches?.message ?? formState.errors.batches?.root?.message
+                  }
+                />
+              )}
             />
           )}
         </form>
@@ -472,110 +468,10 @@ export function StudentFormDialog({
   );
 }
 
-function FeeOnlyFields({
-  control,
-  errors,
-  joiningLocked,
-  register,
-}: {
-  control: Control<EnrollmentValues & Record<string, unknown>>;
-  errors: FieldErrors<CreateValues>;
-  joiningLocked: boolean;
-  register: ReturnType<typeof useForm<CreateValues>>['register'];
-}) {
-  const plans = useFeePlans({ active: 'true' });
-  const [planId, custom, discount] = useWatch({
-    control,
-    name: ['feePlanId', 'customMonthlyFee', 'monthlyDiscount'],
-  }) as [string, number | null, number];
-  const plan = plans.data?.find((p) => p.id === planId);
-  const total = Math.max(0, (custom ?? plan?.monthlyFee ?? 0) - (discount ?? 0));
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Field
-        label="Joining date"
-        htmlFor="joiningDate"
-        hint={
-          joiningLocked
-            ? 'Locked — invoices already use it as the billing anchor.'
-            : 'Anchors the monthly billing cycle.'
-        }
-      >
-        <Input id="joiningDate" type="date" disabled={joiningLocked} {...register('joiningDate')} />
-      </Field>
-      <Field label="Fee plan" required htmlFor="feePlanId" error={errors.feePlanId?.message}>
-        <Controller
-          control={control}
-          name="feePlanId"
-          render={({ field }) => (
-            <Select id="feePlanId" {...field} value={field.value as string}>
-              {plans.data?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {money(p.monthlyFee)}/mo
-                </option>
-              ))}
-            </Select>
-          )}
-        />
-      </Field>
-      <Field label="Custom monthly fee" htmlFor="customFee" hint="Applies from the next invoice.">
-        <Controller
-          control={control}
-          name="customMonthlyFee"
-          render={({ field }) => (
-            <MoneyInput
-              id="customFee"
-              value={field.value as number | null}
-              onChange={field.onChange}
-            />
-          )}
-        />
-      </Field>
-      <Field label="Monthly discount" htmlFor="discount">
-        <Controller
-          control={control}
-          name="monthlyDiscount"
-          render={({ field }) => (
-            <MoneyInput
-              id="discount"
-              value={field.value as number}
-              onChange={(v) => field.onChange(v ?? 0)}
-            />
-          )}
-        />
-      </Field>
-      <div className="rounded-xl bg-accent px-4 py-3 text-accent-foreground sm:col-span-2">
-        <p className="text-xs font-medium">Next invoices will be</p>
-        <p className="tabular text-xl font-semibold">{money(total)} / month</p>
-      </div>
-    </div>
-  );
-}
+// ─── Batch memberships ───────────────────────────────────────────────────────
 
-// ─── Transfer / training days ────────────────────────────────────────────────
-
-const transferSchema = z.object({
-  batchId: z.string().min(1, 'Pick a batch'),
-  trainingDays: trainingDaysSchema,
-  effectiveFrom: z.string().min(1, 'Pick a date'),
-  reason: z.string().max(500).optional(),
-});
-
-/** Keeps a dialog's training days valid for the selected batch whenever the batch changes. */
-function useDaysFollowBatch(
-  batch: { id: string; weekdays: number[] } | undefined,
-  days: number[],
-  setDays: (d: number[]) => void,
-) {
-  useEffect(() => {
-    if (!batch) return;
-    const next = [...batch.weekdays].sort((a, b) => a - b);
-    if (!sameDays(next, days)) setDays(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batch?.id, batch?.weekdays.join()]);
-}
-
-export function TransferDialog({
+/** Adds the student to another batch (its own invoice, from the day they join it). */
+export function AddBatchDialog({
   student,
   open,
   onOpenChange,
@@ -584,33 +480,116 @@ export function TransferDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
-  const transfer = useTransferStudent(student.id);
-  const batches = useBatches({ active: 'true' });
-  const form = useForm<z.infer<typeof transferSchema>>({
-    resolver: zodResolver(transferSchema),
-    defaultValues: {
-      batchId: student.currentEnrollment?.batchId ?? '',
-      trainingDays: student.currentEnrollment?.trainingDays ?? [],
-      effectiveFrom: today(),
-      reason: '',
-    },
-  });
-  const { control, register, handleSubmit, formState } = form;
-  const selectedBatchId = useWatch({ control, name: 'batchId' });
-  const batch = batches.data?.find((b) => b.id === selectedBatchId);
-  const sameBatch = selectedBatchId === student.currentEnrollment?.batchId;
-  const transferDays = useWatch({ control, name: 'trainingDays' });
-  useDaysFollowBatch(batch, transferDays, (d) =>
-    form.setValue('trainingDays', d, { shouldValidate: true, shouldDirty: true }),
+  const join = useJoinBatch(student.id);
+  const batches = useBatchesData() ?? [];
+  const [pick, setPick] = useState<BatchPick[]>([{ batchId: '', monthlyDiscount: 0 }]);
+  const [from, setFrom] = useState(today());
+  const [error, setError] = useState<string | undefined>();
+
+  async function submit() {
+    const p = pick[0]!;
+    if (!p.batchId) return setError('Pick a batch');
+    try {
+      await join.mutateAsync({ ...pickPayload([p])[0]!, effectiveFrom: from });
+      toast.success('Added to the batch', {
+        description: 'Its first month’s invoice has been generated.',
+      });
+      onOpenChange(false);
+    } catch (err) {
+      toast.error('Could not add to the batch', { description: errorMessage(err) });
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Add {student.fullName} to another batch</DialogTitle>
+          <DialogDescription>
+            They’ll train every day that batch runs, and it is billed separately on its own plan.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <BatchPickRow
+            index={0}
+            value={pick[0]!}
+            onChange={(v) => {
+              setPick([v]);
+              setError(undefined);
+            }}
+            options={batches.filter((b) => !student.memberships.some((m) => m.batchId === b.id))}
+            error={error}
+          />
+          <Field label="Starts on" required hint="Billing for this batch is anchored on this day.">
+            <Input
+              type="date"
+              min={student.joiningDate}
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </Field>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button loading={join.isPending} onClick={() => void submit()}>
+            <Plus /> Add to batch
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+/** Active batches (shared query). */
+function useBatchesData() {
+  return useBatches({ active: 'true' }).data;
+}
+
+const moveSchema = z.object({
+  batchId: z.string().min(1, 'Pick a batch'),
+  effectiveFrom: z.string().min(1, 'Pick a date'),
+  reason: z.string().max(500).optional(),
+});
+
+/** Moves one membership to another batch; billing continues on the same day. */
+export function MoveBatchDialog({
+  student,
+  membership,
+  open,
+  onOpenChange,
+}: {
+  student: StudentDetail;
+  membership: Membership;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const move = useMoveMembership(student.id);
+  const batches = useBatchesData() ?? [];
+  const options = batches.filter(
+    (b) => b.id !== membership.batchId && !student.memberships.some((m) => m.batchId === b.id),
+  );
+  const form = useForm<z.infer<typeof moveSchema>>({
+    resolver: zodResolver(moveSchema),
+    defaultValues: { batchId: '', effectiveFrom: today(), reason: '' },
+  });
+  const { register, handleSubmit, formState, control } = form;
+  const targetId = useWatch({ control, name: 'batchId' });
+  const target = batches.find((b) => b.id === targetId);
 
   const onSubmit = handleSubmit(async (v) => {
     try {
-      await transfer.mutateAsync({ ...v, reason: nullIfEmpty(v.reason) });
-      toast.success(sameBatch ? 'Training days updated' : `Moved to ${batch?.name}`);
+      await move.mutateAsync({
+        enrollmentId: membership.enrollmentId,
+        batchId: v.batchId,
+        effectiveFrom: v.effectiveFrom,
+        reason: nullIfEmpty(v.reason),
+      });
+      toast.success(`Moved to ${target?.name ?? 'the new batch'}`);
       onOpenChange(false);
     } catch (err) {
-      applyServerErrors(err, form.setError, 'Could not change batch');
+      applyServerErrors(err, form.setError, 'Could not move the student');
     }
   });
 
@@ -618,52 +597,39 @@ export function TransferDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Change batch or days</DialogTitle>
+          <DialogTitle>Move from {membership.batchName}</DialogTitle>
           <DialogDescription>
-            Permanent change from the chosen date. History and attendance in the old batch are kept.
+            History stays. Invoices keep the same day of the month ({membership.billingDay}); the
+            new batch’s plan applies from the next invoice.
           </DialogDescription>
         </DialogHeader>
-        <form id="transfer-form" onSubmit={onSubmit} noValidate className="space-y-3">
-          <Field label="Batch" required error={formState.errors.batchId?.message}>
-            <Controller
-              control={control}
-              name="batchId"
-              render={({ field }) => (
-                <Select {...field}>
-                  {batches.data?.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            />
+        <form id="move-form" onSubmit={onSubmit} noValidate className="space-y-3">
+          <Field label="New batch" required error={formState.errors.batchId?.message}>
+            <Select {...register('batchId')}>
+              <option value="">Select a batch…</option>
+              {options.map((b) => (
+                <option key={b.id} value={b.id} disabled={b.memberCount >= b.capacity}>
+                  {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
+                  {b.memberCount >= b.capacity ? ' (full)' : ''}
+                </option>
+              ))}
+            </Select>
           </Field>
+          {target && (
+            <p className="rounded-xl bg-muted/60 px-3 py-2 text-[13px]">
+              {batchLine(target)} · {target.feePlan.name} <b>{money(target.feePlan.monthlyFee)}</b>
+              /month
+              {(membership.customMonthlyFee !== null || membership.monthlyDiscount > 0) &&
+                ' · their custom fee / discount carries over'}
+            </p>
+          )}
           <Field
-            label="Training days"
+            label="Moves on"
             required
-            error={formState.errors.trainingDays?.message}
-            hint="Every day the batch runs."
+            error={formState.errors.effectiveFrom?.message}
+            hint={`Their last day in ${membership.batchName} is the day before.`}
           >
-            <Controller
-              control={control}
-              name="trainingDays"
-              render={({ field }) => (
-                <WeekdayPicker
-                  value={field.value}
-                  onChange={field.onChange}
-                  allowed={batch?.weekdays}
-                  disabled
-                />
-              )}
-            />
-          </Field>
-          <Field label="Effective from" required error={formState.errors.effectiveFrom?.message}>
-            <Input
-              type="date"
-              min={student.currentEnrollment?.effectiveFrom}
-              {...register('effectiveFrom')}
-            />
+            <Input type="date" min={membership.since} {...register('effectiveFrom')} />
           </Field>
           <Field label="Reason">
             <Input placeholder="e.g. School timing changed" {...register('reason')} />
@@ -673,8 +639,140 @@ export function TransferDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="transfer-form" loading={formState.isSubmitting}>
-            {sameBatch ? 'Update days' : 'Move student'}
+          <Button type="submit" form="move-form" loading={formState.isSubmitting}>
+            <ArrowRightLeft /> Move
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Ends one membership: no more invoices for that batch. */
+export function LeaveBatchDialog({
+  student,
+  membership,
+  open,
+  onOpenChange,
+}: {
+  student: StudentDetail;
+  membership: Membership;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const leave = useLeaveBatch(student.id);
+  const [leftOn, setLeftOn] = useState(today());
+  const [reason, setReason] = useState('');
+  async function submit() {
+    try {
+      await leave.mutateAsync({
+        enrollmentId: membership.enrollmentId,
+        leftOn,
+        reason: nullIfEmpty(reason),
+      });
+      toast.success(`Left ${membership.batchName}`);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error('Could not update', { description: errorMessage(err) });
+    }
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Leave {membership.batchName}</DialogTitle>
+          <DialogDescription>
+            {student.fullName} stays in their other batches. No more invoices for this batch; the
+            current month was prepaid (adjust or refund that invoice if needed).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Field label="Last day in this batch" required>
+            <Input
+              type="date"
+              min={membership.since}
+              value={leftOn}
+              onChange={(e) => setLeftOn(e.target.value)}
+            />
+          </Field>
+          <Field label="Reason">
+            <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+          </Field>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" loading={leave.isPending} onClick={() => void submit()}>
+            Leave batch
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** One membership's custom fee and discount. */
+export function MembershipFeeDialog({
+  student,
+  membership,
+  open,
+  onOpenChange,
+}: {
+  student: StudentDetail;
+  membership: Membership;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const update = useUpdateMembership(student.id);
+  const [custom, setCustom] = useState<number | null>(membership.customMonthlyFee);
+  const [discount, setDiscount] = useState(membership.monthlyDiscount);
+  const total = Math.max(0, (custom ?? membership.plan.monthlyFee) - discount);
+  async function submit() {
+    try {
+      await update.mutateAsync({
+        enrollmentId: membership.enrollmentId,
+        customMonthlyFee: custom,
+        monthlyDiscount: discount,
+      });
+      toast.success('Fee updated', { description: 'Applies from the next invoice.' });
+      onOpenChange(false);
+    } catch (err) {
+      toast.error('Could not update the fee', { description: errorMessage(err) });
+    }
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Fee for {membership.batchName}</DialogTitle>
+          <DialogDescription>
+            Plan: {membership.plan.name} · {money(membership.plan.monthlyFee)}/month. Changes apply
+            from the next invoice.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Custom monthly fee" hint="Leave empty to use the plan price.">
+            <MoneyInput
+              value={custom}
+              onChange={setCustom}
+              placeholder={String(membership.plan.monthlyFee / 100)}
+            />
+          </Field>
+          <Field label="Monthly discount">
+            <MoneyInput value={discount} onChange={(v) => setDiscount(v ?? 0)} placeholder="0" />
+          </Field>
+          <div className="rounded-xl bg-accent px-4 py-3 text-accent-foreground sm:col-span-2">
+            <p className="text-xs font-medium">Next invoices for this batch</p>
+            <p className="tabular text-xl font-semibold">{money(total)} / month</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button loading={update.isPending} onClick={() => void submit()}>
+            Save fee
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -713,8 +811,13 @@ export function MakeupDialog({
   // Coaches book only in batches they coach; admins in any batch.
   const bookable = (batches.data ?? []).filter((b) => isAdmin || b.coach.id === me.id);
   const batch = batches.data?.find((b) => b.id === selectedBatchId);
-  const homeCoachId = student.currentEnrollment?.coachId;
-  const otherCoach = isAdmin && !!batch && !!homeCoachId && batch.coach.id !== homeCoachId;
+  // A batch whose coach isn't one of the student's own coaches.
+  const coaches = student.memberships.map((m) => m.coachName);
+  const otherCoach =
+    isAdmin &&
+    !!batch &&
+    student.memberships.length > 0 &&
+    !student.memberships.some((m) => m.coachId === batch.coach.id);
   const runs = !batch || !date || batch.weekdays.includes(isoWeekday(date));
 
   const onSubmit = handleSubmit(async (v) => {
@@ -775,9 +878,8 @@ export function MakeupDialog({
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-foreground dark:text-warning" />
               <span>
                 <b className="font-semibold">Different coach.</b> This session is with{' '}
-                {batch!.coach.name}, not {student.fullName}’s usual coach (
-                {student.currentEnrollment?.coachName}). {batch!.coach.name} will see them on the
-                attendance list that day.
+                {batch!.coach.name}, not {student.fullName}’s usual coach ({coaches.join(', ')}).{' '}
+                {batch!.coach.name} will see them on the attendance list that day.
               </span>
             </div>
           )}
@@ -843,9 +945,9 @@ export function LeaveDialog({
         <DialogHeader>
           <DialogTitle>Mark {student.fullName} as left</DialogTitle>
           <DialogDescription>
-            They’ll be removed from their batch after the last day and no further months are
-            invoiced. Fees are prepaid, so the current month is already billed — cancel, adjust or
-            refund that invoice if needed.
+            They’ll leave every batch after the last day and no further months are invoiced. Fees
+            are prepaid, so the current month is already billed — cancel, adjust or refund those
+            invoices if needed.
           </DialogDescription>
         </DialogHeader>
         <form id="leave-form" onSubmit={onSubmit} className="space-y-3">
@@ -894,9 +996,7 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 
 const rejoinSchema = z.object({
   rejoinDate: z.string().min(1, 'Pick the rejoin date'),
-  batchId: z.string().min(1, 'Pick a batch'),
-  trainingDays: trainingDaysSchema,
-  feePlanId: z.string().min(1, 'Pick a fee plan'),
+  batches: batchPicksSchema,
 });
 
 export function RejoinDialog({
@@ -909,32 +1009,19 @@ export function RejoinDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const rejoin = useRejoinStudent(student.id);
-  const batches = useBatches({ active: 'true' });
-  const plans = useFeePlans({ active: 'true' });
   const last = student.enrollmentHistory[0];
   const form = useForm<z.infer<typeof rejoinSchema>>({
     resolver: zodResolver(rejoinSchema),
     defaultValues: {
       rejoinDate: today(),
-      batchId: last?.batchId ?? '',
-      trainingDays: last?.trainingDays ?? [],
-      feePlanId: student.feePlanId,
+      batches: [{ batchId: last?.batchId ?? '', monthlyDiscount: 0 }],
     },
   });
   const { control, register, handleSubmit, formState } = form;
-  const selectedBatchId = useWatch({ control, name: 'batchId' });
-  const batch = batches.data?.find((b) => b.id === selectedBatchId);
-  const rejoinDays = useWatch({ control, name: 'trainingDays' });
-  useDaysFollowBatch(batch, rejoinDays, (d) =>
-    form.setValue('trainingDays', d, { shouldValidate: true, shouldDirty: true }),
-  );
 
   const onSubmit = handleSubmit(async (v) => {
     try {
-      await rejoin.mutateAsync({
-        ...v,
-        feePlanId: v.feePlanId === student.feePlanId ? undefined : v.feePlanId,
-      });
+      await rejoin.mutateAsync({ rejoinDate: v.rejoinDate, batches: pickPayload(v.batches) });
       toast.success(`${student.fullName} is back!`, {
         description: 'Billing restarts from the rejoin date.',
       });
@@ -946,11 +1033,11 @@ export function RejoinDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Rejoin {student.fullName}</DialogTitle>
           <DialogDescription>
-            Billing restarts from the rejoin date, which becomes the new monthly invoice day.
+            Each batch is billed from the rejoin date, which becomes its monthly invoice day.
             Earlier invoices stay as they are.
           </DialogDescription>
         </DialogHeader>
@@ -963,44 +1050,17 @@ export function RejoinDialog({
           >
             <Input type="date" min={student.leftOn ?? undefined} {...register('rejoinDate')} />
           </Field>
-          <Field label="Batch" required error={formState.errors.batchId?.message}>
-            <Select {...register('batchId')}>
-              <option value="">Select a batch…</option>
-              {batches.data?.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} · {formatTimeRange(b.startTime, b.endTime)} · {b.coach.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field
-            label="Training days"
-            required
-            error={formState.errors.trainingDays?.message}
-            hint="Every day the batch runs."
-          >
-            <Controller
-              control={control}
-              name="trainingDays"
-              render={({ field }) => (
-                <WeekdayPicker
-                  value={field.value}
-                  onChange={field.onChange}
-                  allowed={batch?.weekdays}
-                  disabled
-                />
-              )}
-            />
-          </Field>
-          <Field label="Fee plan" required error={formState.errors.feePlanId?.message}>
-            <Select {...register('feePlanId')}>
-              {plans.data?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {money(p.monthlyFee)}/mo
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <Controller
+            control={control}
+            name="batches"
+            render={({ field }) => (
+              <BatchPicks
+                value={field.value}
+                onChange={field.onChange}
+                error={formState.errors.batches?.message ?? formState.errors.batches?.root?.message}
+              />
+            )}
+          />
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

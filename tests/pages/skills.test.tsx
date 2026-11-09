@@ -232,8 +232,8 @@ describe('Sports & skills', () => {
         },
       ],
       levels: [
-        { name: 'Foundation', minScore: 100 },
-        { name: 'Bronze', minScore: 250 },
+        { code: null, name: 'Foundation', minScore: 100 },
+        { code: null, name: 'Bronze', minScore: 250 },
       ],
     });
   });

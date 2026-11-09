@@ -33,7 +33,6 @@ import {
   type FrameworkInput,
   type SportListItem,
 } from '@/lib/skills';
-import { LevelBadge } from '../skills/ui';
 
 type Draft = {
   areas: {
@@ -42,7 +41,7 @@ type Draft = {
     name: string;
     skills: { key: string; id?: string; name: string; description: string }[];
   }[];
-  levels: { key: string; name: string; min: string }[];
+  levels: { key: string; code: string; name: string; min: string }[];
 };
 
 let seq = 0;
@@ -60,7 +59,12 @@ function toDraft(s: Framework): Draft {
           .filter((x) => x.isActive)
           .map((x) => ({ key: x.id, id: x.id, name: x.name, description: x.description ?? '' })),
       })),
-    levels: s.levels.map((l) => ({ key: l.id, name: l.name, min: (l.minScore / 100).toFixed(2) })),
+    levels: s.levels.map((l) => ({
+      key: l.id,
+      code: l.code ?? '',
+      name: l.name,
+      min: (l.minScore / 100).toFixed(2),
+    })),
   };
 }
 
@@ -147,6 +151,7 @@ function Editor({ sport }: { sport: SportListItem }) {
         })),
       })),
       levels: draft.levels.map((l) => ({
+        code: l.code.trim().toUpperCase() || null,
         name: l.name.trim(),
         minScore: Math.round(Number(l.min) * 100),
       })),
@@ -312,20 +317,32 @@ function Editor({ sport }: { sport: SportListItem }) {
       <SectionDivider>Levels</SectionDivider>
       <Card className="space-y-1.5 p-2.5">
         <p className="text-[12px] text-muted-foreground">
-          A student’s level follows their latest assessment average (1–5) and can go up or down.
+          A student’s level follows their latest assessment average (1–5) and can go up or down. The
+          code’s letter is the band: A Beginner, B Intermediate, C Advanced.
         </p>
         {[...draft.levels]
           .map((l, i) => ({ l, i }))
           .sort((a, b) => Number(a.l.min) - Number(b.l.min))
           .map(({ l, i }) => (
             <div key={l.key} className="flex items-center gap-1.5">
-              <LevelBadge
-                name={l.name || 'Level'}
-                className="hidden w-20 justify-center sm:inline-flex"
+              <Input
+                value={l.code}
+                maxLength={2}
+                aria-label="Level code"
+                placeholder="B1"
+                className="h-8 w-14 text-center font-semibold uppercase"
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    levels: d.levels.map((x, j) =>
+                      j === i ? { ...x, code: e.target.value.toUpperCase() } : x,
+                    ),
+                  }))
+                }
               />
               <Input
                 value={l.name}
-                maxLength={40}
+                maxLength={60}
                 aria-label="Level name"
                 className="h-8 flex-1"
                 onChange={(e) =>
@@ -365,7 +382,10 @@ function Editor({ sport }: { sport: SportListItem }) {
           variant="ghost"
           size="sm"
           onClick={() =>
-            setDraft((d) => ({ ...d, levels: [...d.levels, { key: k(), name: '', min: '' }] }))
+            setDraft((d) => ({
+              ...d,
+              levels: [...d.levels, { key: k(), code: '', name: '', min: '' }],
+            }))
           }
         >
           <Plus /> Add level

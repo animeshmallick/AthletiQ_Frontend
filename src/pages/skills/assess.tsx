@@ -104,7 +104,7 @@ export function AssessTab({ batchId, month }: { batchId: string; month: string }
                     )}
                   </span>
                 </span>
-                {c?.levelName && <LevelBadge name={c.levelName} />}
+                {c?.levelName && <LevelBadge name={c.levelName} code={c.levelCode} short />}
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" />
               </button>
             );

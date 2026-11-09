@@ -94,7 +94,7 @@ describe('student lifecycle', () => {
     ...studentDetail,
     status: 'left' as const,
     leftOn: '2026-03-20',
-    currentEnrollment: null,
+    memberships: [],
   };
 
   it('rejoins a student who left', async () => {
@@ -111,7 +111,7 @@ describe('student lifecycle', () => {
           description: null,
         },
       ],
-      'POST /students/s1/rejoin': () => ({ ...studentDetail, billingAnchorDate: '2026-05-05' }),
+      'POST /students/s1/rejoin': () => studentDetail,
     });
     const { user } = await renderPage(<StudentDetailPage />, {
       path: '/students/:id',
@@ -124,23 +124,44 @@ describe('student lifecycle', () => {
     await user.type(date, '2026-05-05');
     await user.click(screen.getByRole('button', { name: 'Rejoin student' }));
     await waitFor(() => expect(api.find('POST /students/s1/rejoin')).toHaveLength(1));
+    // Rejoins the batch they were last in (more can be added), at its plan price.
     expect(api.find('POST /students/s1/rejoin')[0]!.body).toEqual({
       rejoinDate: '2026-05-05',
-      batchId: 'b1',
-      trainingDays: [1, 2, 3, 4, 5, 6],
+      batches: [{ batchId: 'b1', customMonthlyFee: null, monthlyDiscount: 0 }],
     });
   });
 
-  it('explains the billing day after a rejoin', async () => {
-    mockApi({ 'GET /students/s1': () => ({ ...studentDetail, billingAnchorDate: '2026-05-05' }) });
-    await renderPage(<StudentDetailPage />, {
+  it('shows each batch with its own billing day and next invoice', async () => {
+    const second = {
+      ...studentDetail.memberships[0]!,
+      enrollmentId: 'e2',
+      batchId: 'b2',
+      batchName: 'Weekend Squad',
+      billingDay: 5,
+      fee: { base: 150_000, discount: 0, total: 150_000 },
+      nextInvoice: { issueDate: '2026-05-05', periodStart: '2026-05-05', periodEnd: '2026-06-04' },
+    };
+    mockApi({
+      'GET /students/s1': () => ({
+        ...studentDetail,
+        memberships: [studentDetail.memberships[0]!, second],
+        effectiveFee: { base: 400_000, discount: 20_000, total: 380_000 },
+      }),
+    });
+    const { user } = await renderPage(<StudentDetailPage />, {
       path: '/students/:id',
       route: '/students/s1',
       user: adminUser,
     });
-    expect(await screen.findByText(/Billed on day 5 of every month/)).toHaveTextContent(
-      'rejoined 5 May 2026',
-    );
+    expect(await screen.findByText(/billed on day 5 · next 5 May 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/billed on day 10/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Each batch has its own invoice, on its own billing day\. Includes ₹200/),
+    ).toBeVisible();
+    // Per-batch actions.
+    await user.click(screen.getByRole('button', { name: 'Manage Weekend Squad' }));
+    expect(await screen.findByRole('menuitem', { name: /leave this batch/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /move to another batch/i })).toBeInTheDocument();
   });
 
   it('deletes a mistaken record and surfaces the guard message', async () => {
@@ -167,7 +188,7 @@ describe('student lifecycle', () => {
       extraRoutes: [{ path: '/students', element: <div>Students list</div> }],
     });
     const deleteFlow = async () => {
-      await user.click(await screen.findByRole('button', { name: /Manage/ }));
+      await user.click(await screen.findByRole('button', { name: 'Manage' }));
       await user.click(await screen.findByRole('menuitem', { name: /delete record/i }));
       await user.click(screen.getByRole('button', { name: 'Delete permanently' }));
     };

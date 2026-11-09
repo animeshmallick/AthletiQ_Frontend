@@ -1,7 +1,7 @@
 /** Small pieces shared by the skills screens. */
 import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { score } from '@/lib/skills';
+import { bandOf, score } from '@/lib/skills';
 import { cn } from '@/lib/utils';
 import { addMonth, levelTone, monthName } from './meta';
 
@@ -63,16 +63,31 @@ export function Change({ value, className }: { value: number | null; className?:
   );
 }
 
-export function LevelBadge({ name, className }: { name: string; className?: string }) {
+/** "B1 · Lower Intermediate" — coloured by band; `short` shows just the code. */
+export function LevelBadge({
+  name,
+  code,
+  short = false,
+  className,
+}: {
+  name: string;
+  code?: string | null;
+  short?: boolean;
+  className?: string;
+}) {
   return (
     <span
+      title={code ? `${code} · ${name}${bandOf(code) ? ` (${bandOf(code)})` : ''}` : name}
       className={cn(
-        'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-        levelTone(name),
+        'inline-flex max-w-full shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+        levelTone(code),
         className,
       )}
     >
-      {name}
+      {code && <span className="font-bold">{code}</span>}
+      {(!code || !short) && (
+        <span className={cn('truncate', code && 'font-medium')}>{code ? `· ${name}` : name}</span>
+      )}
     </span>
   );
 }

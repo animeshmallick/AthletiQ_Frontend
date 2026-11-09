@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Link } from 'react-router';
 import { z } from 'zod';
+import { cn } from '@/lib/utils';
 import { Field } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Segmented, WeekdayPicker } from '@/components/ui/controls';
@@ -41,7 +42,7 @@ const studentSchema = z.object({
   email: z.union([z.literal(''), z.email('Enter a valid email')]).optional(),
   address: z.string().max(500).optional(),
   medicalNotes: z.string().max(1000).optional(),
-  preferredBatchId: z.string().optional(),
+  preferredBatchIds: z.array(z.string()),
   preferredDays: z.array(z.number()),
   message: z.string().max(1000).optional(),
   consent: z.boolean().refine((v) => v, 'Please accept to continue'),
@@ -85,13 +86,12 @@ function StudentForm({
       preferredDays: [],
       consent: false,
       gender: '',
-      preferredBatchId: '',
+      preferredBatchIds: [],
     },
   });
   const { register, handleSubmit, control, formState } = form;
   const e = formState.errors;
-  const preferredBatchId = useWatch({ control, name: 'preferredBatchId' });
-  const batch = options?.batches.find((b) => b.id === preferredBatchId);
+  const picked = useWatch({ control, name: 'preferredBatchIds' });
 
   const onSubmit = handleSubmit(async (v) => {
     try {
@@ -105,8 +105,10 @@ function StudentForm({
         email: nullIfEmpty(v.email),
         address: nullIfEmpty(v.address),
         medicalNotes: nullIfEmpty(v.medicalNotes),
-        preferredBatchId: v.preferredBatchId || null,
-        preferredDays: v.preferredDays.length ? v.preferredDays : null,
+        preferredBatchIds: v.preferredBatchIds,
+        // Days only matter when no batch is picked (a batch's days are fixed).
+        preferredDays:
+          !v.preferredBatchIds.length && v.preferredDays.length ? v.preferredDays : null,
         message: nullIfEmpty(v.message),
         consent: true,
         website: v.website,
@@ -186,36 +188,59 @@ function StudentForm({
 
       <div className="space-y-3 rounded-xl border bg-muted/30 p-4">
         <p className="text-sm font-medium">Training preference</p>
-        <Field label="Preferred batch" htmlFor="s-batch">
-          <Select id="s-batch" {...register('preferredBatchId')}>
-            <option value="">No preference — the academy will suggest one</option>
-            {options?.batches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} · {b.location.name} · {formatTimeRange(b.startTime, b.endTime)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field
-          label="Preferred days"
-          hint={
-            batch
-              ? `${batch.name} runs ${weekdaysLabel(batch.weekdays)}.`
-              : 'Most students train 3–5 days a week.'
-          }
-        >
-          <Controller
-            control={control}
-            name="preferredDays"
-            render={({ field }) => (
-              <WeekdayPicker
-                value={field.value}
-                onChange={field.onChange}
-                allowed={batch?.weekdays}
-              />
-            )}
-          />
-        </Field>
+        <Controller
+          control={control}
+          name="preferredBatchIds"
+          render={({ field }) => (
+            <fieldset className="space-y-1.5">
+              <legend className="mb-1 text-[13px] text-muted-foreground">
+                Pick one or more batches — students train every day a batch runs. Leave empty and
+                the academy will suggest one.
+              </legend>
+              {options?.batches.map((b) => {
+                const on = field.value.includes(b.id);
+                return (
+                  <label
+                    key={b.id}
+                    className={cn(
+                      'flex cursor-pointer items-start gap-2.5 rounded-xl border bg-card px-3 py-2 text-sm transition-colors',
+                      on && 'border-primary bg-primary/5',
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 size-4 accent-primary"
+                      checked={on}
+                      onChange={() =>
+                        field.onChange(
+                          on ? field.value.filter((x) => x !== b.id) : [...field.value, b.id],
+                        )
+                      }
+                    />
+                    <span className="min-w-0">
+                      <span className="block font-medium">{b.name}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {weekdaysLabel(b.weekdays)} · {formatTimeRange(b.startTime, b.endTime)} ·{' '}
+                        {b.location.name}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+          )}
+        />
+        {!picked.length && (
+          <Field label="Preferred days" hint="Most students train 3–5 days a week.">
+            <Controller
+              control={control}
+              name="preferredDays"
+              render={({ field }) => (
+                <WeekdayPicker value={field.value} onChange={field.onChange} />
+              )}
+            />
+          </Field>
+        )}
       </div>
 
       <Field label="Anything else?" htmlFor="s-msg">

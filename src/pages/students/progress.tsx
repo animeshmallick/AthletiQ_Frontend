@@ -134,7 +134,13 @@ function SportProgress({ p, showBatch }: { p: StudentSkills; showBatch: boolean 
             <Change value={p.current.change} />
           </p>
         </div>
-        {p.current.levelName && <LevelBadge name={p.current.levelName} className="text-[13px]" />}
+        {p.current.levelName && (
+          <LevelBadge
+            name={p.current.levelName}
+            code={p.current.levelCode}
+            className="text-[13px]"
+          />
+        )}
       </Card>
 
       <div className="grid grid-cols-1 gap-2.5 *:min-w-0 lg:grid-cols-2">

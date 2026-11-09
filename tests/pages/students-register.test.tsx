@@ -58,25 +58,19 @@ describe('StudentsPage', () => {
 
     await user.type(await screen.findByLabelText(/full name/i), 'Kabir Singh');
     await user.type(screen.getByLabelText(/mobile \(whatsapp\)/i), '9876501234');
-    await chooseOption(user, screen.getByLabelText(/^batch/i), 'b1');
-    // Students train on every day the batch runs (Mon–Sat): selected and locked.
-    for (const d of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']) {
-      const day = screen.getByRole('button', { name: d });
-      expect(day).toHaveAttribute('aria-pressed', 'true');
-      expect(day).toBeDisabled();
-    }
-    expect(screen.getByRole('button', { name: 'Sunday' })).toBeDisabled();
-    await chooseOption(user, screen.getByLabelText(/fee plan/i), 'p5');
+    await chooseOption(user, screen.getByLabelText('Batch 1'), 'b1');
+    // The batch decides the days, time, coach and plan (the student trains every day it runs).
+    expect(screen.getByRole('dialog')).toHaveTextContent('6 days · ₹2,500/month');
+    await user.click(screen.getByRole('button', { name: /adjust fee/i }));
+    await user.type(screen.getByRole('textbox', { name: /monthly discount/i }), '200');
+    expect(screen.getByText(/Billed every month/).parentElement).toHaveTextContent('₹2,300');
 
     await user.click(screen.getByRole('button', { name: 'Register student' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/students/s9'));
     expect(api.find('POST /students')[0]!.body).toMatchObject({
       fullName: 'Kabir Singh',
       phone: '9876501234',
-      batchId: 'b1',
-      trainingDays: [1, 2, 3, 4, 5, 6],
-      feePlanId: 'p5',
-      monthlyDiscount: 0,
+      batches: [{ batchId: 'b1', customMonthlyFee: null, monthlyDiscount: 20_000 }],
     });
   });
 });
@@ -118,7 +112,7 @@ describe('StudentDetailPage', () => {
     expect(screen.getByText('Asthma')).toBeInTheDocument();
     expect(screen.getAllByText('₹2,300').length).toBeGreaterThan(0);
     expect(screen.getByText(/Billed on day 10 of every month/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Manage/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Manage' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Attendance' }));
     expect(await screen.findByText('100%')).toBeInTheDocument();
@@ -132,7 +126,7 @@ describe('StudentDetailPage', () => {
       user: coachUser,
     });
     expect(await screen.findByRole('heading', { name: 'Anya Rao' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Manage/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Manage' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^makeup$/i })).toBeInTheDocument();
   });
 });
@@ -168,18 +162,21 @@ describe('RegisterPage (public)', () => {
 
     await user.type(screen.getByLabelText(/student’s full name/i), 'Diya Kapoor');
     await user.type(screen.getByLabelText(/mobile \(whatsapp\)/i), '9876501234');
-    await chooseOption(user, screen.getByLabelText(/preferred batch/i), 'b1');
-    expect(screen.getByRole('button', { name: 'Tuesday' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Monday' }));
-    await user.click(screen.getByRole('checkbox'));
+    // With no batch picked, parents can say which days suit them…
+    expect(screen.getByRole('button', { name: 'Monday' })).toBeInTheDocument();
+    const boxes = screen.getAllByRole('checkbox');
+    // …picking a batch (one or more) replaces that: a batch's days are fixed.
+    await user.click(boxes[0]!);
+    expect(screen.queryByRole('button', { name: 'Monday' })).toBeNull();
+    await user.click(boxes.at(-1)!); // consent
     await user.click(screen.getByRole('button', { name: /submit registration/i }));
 
     expect(await screen.findByText('Registration received')).toBeInTheDocument();
     expect(api.find('POST /public/register/student')[0]!.body).toMatchObject({
       fullName: 'Diya Kapoor',
       phone: '9876501234',
-      preferredBatchId: 'b1',
-      preferredDays: [1],
+      preferredBatchIds: ['b1'],
+      preferredDays: null,
       consent: true,
     });
   });

@@ -1,0 +1,113 @@
+import { within } from '@testing-library/react';
+import { BatchDialog } from '@/pages/batches';
+import { StudentDetailPage } from '@/pages/students/detail';
+import { batch, studentDetail } from '../fixtures';
+import {
+  adminUser,
+  chooseOption,
+  mockApi,
+  renderPage,
+  screen,
+  selectValue,
+  waitFor,
+} from '../utils';
+
+const weekend = {
+  ...batch,
+  id: 'b2',
+  name: 'Weekend Squad',
+  weekdays: [6, 7],
+  coach: { id: 'coach-2', name: 'Neha', phone: null },
+  feePlan: { id: 'p2', name: '2 days', monthlyFee: 150_000, daysPerWeek: 2 },
+  memberCount: 3,
+};
+
+async function open() {
+  const api = mockApi({
+    'GET /students/s1': () => studentDetail,
+    'GET /batches': () => [batch, weekend],
+    'PATCH /students/s1/batches/e1': () => studentDetail,
+    'POST /students/s1/batches/e1/move': () => studentDetail,
+    'POST /students/s1/batches/e1/leave': () => studentDetail,
+    'POST /students/s1/batches': () => studentDetail,
+  });
+  const r = await renderPage(<StudentDetailPage />, {
+    path: '/students/:id',
+    route: '/students/s1',
+    user: adminUser,
+  });
+  await screen.findByText(/billed on day 10/);
+  return { api, ...r };
+}
+
+describe('batch memberships on the student page', () => {
+  it('changes one batch’s fee', async () => {
+    const { api, user } = await open();
+    await user.click(screen.getByRole('button', { name: 'Manage Morning U-12' }));
+    await user.click(await screen.findByRole('menuitem', { name: /change fee/i }));
+    const dialog = await screen.findByRole('dialog', { name: /Fee for Morning U-12/ });
+    const custom = within(dialog).getByRole('textbox', { name: /custom monthly fee/i });
+    await user.type(custom, '2000');
+    expect(dialog).toHaveTextContent('₹1,800 / month'); // 2,000 − 200 discount
+    await user.click(within(dialog).getByRole('button', { name: 'Save fee' }));
+    await waitFor(() => expect(api.find('PATCH /students/s1/batches/e1')).toHaveLength(1));
+    expect(api.find('PATCH /students/s1/batches/e1')[0]!.body).toEqual({
+      customMonthlyFee: 200_000,
+      monthlyDiscount: 20_000,
+    });
+  });
+
+  it('moves to another batch, keeping the billing day', async () => {
+    const { api, user } = await open();
+    await user.click(screen.getByRole('button', { name: 'Manage Morning U-12' }));
+    await user.click(await screen.findByRole('menuitem', { name: /move to another batch/i }));
+    const dialog = await screen.findByRole('dialog', { name: /Move from Morning U-12/ });
+    expect(dialog).toHaveTextContent('same day of the month (10)');
+    await chooseOption(user, within(dialog).getByLabelText(/new batch/i), 'b2');
+    expect(dialog).toHaveTextContent('2 days ₹1,500/month');
+    await user.click(within(dialog).getByRole('button', { name: /move/i }));
+    await waitFor(() => expect(api.find('POST /students/s1/batches/e1/move')).toHaveLength(1));
+    expect(api.find('POST /students/s1/batches/e1/move')[0]!.body).toMatchObject({
+      batchId: 'b2',
+    });
+  });
+
+  it('adds the student to another batch', async () => {
+    const { api, user } = await open();
+    await user.click(screen.getByRole('button', { name: 'Add to batch' }));
+    const dialog = await screen.findByRole('dialog', { name: /another batch/ });
+    // Batches the student is already in aren't offered.
+    await chooseOption(user, within(dialog).getByLabelText('Batch 1'), 'b2');
+    expect(dialog).toHaveTextContent('2 days · ₹1,500/month');
+    await user.click(within(dialog).getByRole('button', { name: /add to batch/i }));
+    await waitFor(() => expect(api.find('POST /students/s1/batches')).toHaveLength(1));
+    expect(api.find('POST /students/s1/batches')[0]!.body).toMatchObject({
+      batchId: 'b2',
+      customMonthlyFee: null,
+      monthlyDiscount: 0,
+    });
+  });
+});
+
+describe('batch form', () => {
+  it('offers only fee plans priced for the batch’s days', async () => {
+    mockApi({
+      'GET /users': () => ({ data: [], meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } }),
+      'GET /locations': () => [],
+      'GET /sports': () => [],
+      'GET /fee-plans': () => [
+        { id: 'p3', name: '3 days', daysPerWeek: 3, monthlyFee: 250_000, isActive: true },
+        { id: 'p6', name: '6 days', daysPerWeek: 6, monthlyFee: 400_000, isActive: true },
+      ],
+    });
+    await renderPage(<BatchDialog open onOpenChange={() => {}} />, {
+      path: '/',
+      route: '/',
+      user: adminUser,
+    });
+    const plan = await screen.findByLabelText(/fee plan/i);
+    // New batches default to Mon–Sat: only the 6-day plan fits, so it is picked for you.
+    await waitFor(() => expect(selectValue(plan)).toBe('p6'));
+    expect(plan).toHaveAttribute('title', 'Only one option available');
+  });
+});
