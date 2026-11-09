@@ -564,7 +564,7 @@ export function SplitDialog({ plan, onClose }: { plan: FeePlan; onClose: () => v
           )}
         </div>
 
-        <DialogFooter className="sm:justify-between">
+        <DialogFooter className="justify-between *:flex-none">
           {plan.split?.length ? (
             <Button variant="ghost" className="text-destructive" onClick={() => void clearSplit()}>
               Remove split
@@ -572,7 +572,7 @@ export function SplitDialog({ plan, onClose }: { plan: FeePlan; onClose: () => v
           ) : (
             <span />
           )}
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>

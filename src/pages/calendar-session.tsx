@@ -70,7 +70,7 @@ function Tile({
   tone?: 'success' | 'warning' | 'muted' | 'destructive';
 }) {
   return (
-    <div className="min-w-0 rounded-xl border bg-card p-2.5">
+    <div className="min-w-0 rounded-lg border bg-card px-2 py-1.5">
       <p
         className={cn(
           'mb-0.5 flex items-center gap-1 text-[11px] font-medium [&_svg]:size-3.5',
@@ -83,7 +83,7 @@ function Tile({
         {icon}
         {label}
       </p>
-      <p className="tabular truncate text-[15px] leading-tight font-bold">{value}</p>
+      <p className="tabular truncate text-[14px] leading-tight font-bold">{value}</p>
       {hint && <p className="truncate text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
@@ -131,7 +131,7 @@ export function SessionDialog({
 }) {
   return (
     <Dialog open={Boolean(s)} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="gap-2 p-2.5 pt-4 sm:max-w-xl sm:gap-2.5 sm:p-3.5">
         {s && <Body s={s} date={date} todayDate={todayDate} now={now} isAdmin={isAdmin} />}
       </DialogContent>
     </Dialog>
@@ -169,7 +169,7 @@ function Body({
 
   return (
     <>
-      <DialogHeader className={cn('mr-6 rounded-xl border-l-4 px-3 py-2', batchTone(id))}>
+      <DialogHeader className={cn('mr-6 rounded-lg border-l-4 px-2.5 py-1.5', batchTone(id))}>
         <DialogTitle className={cn(s.cancelled && 'line-through')}>{s.batch.name}</DialogTitle>
         <DialogDescription className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px]">
           <span>
@@ -177,7 +177,7 @@ function Body({
             {formatLongDate(date)} · {formatTimeRange(s.batch.startTime, s.batch.endTime)}
           </span>
         </DialogDescription>
-        <div className="flex flex-wrap gap-1 pt-1">
+        <div className="flex flex-wrap gap-1 pt-0.5">
           {live && <Badge variant={live === 'Live now' ? 'success' : 'default'}>{live}</Badge>}
           {s.cancelled && (
             <Badge variant="muted">
@@ -203,11 +203,11 @@ function Body({
       </DialogHeader>
 
       {!s.cancelled && (
-        <section aria-label="This session" className="space-y-2">
+        <section aria-label="This session" className="space-y-1.5">
           <h3 className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
             This session
           </h3>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-1">
             <Tile
               icon={<CalendarCheck2 />}
               label="Attendance"
@@ -276,14 +276,14 @@ function Body({
         </section>
       )}
 
-      <section aria-label="Last 4 weeks" className="space-y-2">
+      <section aria-label="Last 4 weeks" className="space-y-1.5">
         <h3 className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
           Last 4 weeks
         </h3>
         {trend.loading || plans.isPending ? (
           <Skeleton className="h-16 rounded-xl" />
         ) : (
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-1">
             <Tile
               icon={<Users />}
               label="Attendance"
@@ -343,7 +343,7 @@ function Body({
       </section>
 
       {/* One row on every screen: two quick actions and the batch. */}
-      <div className="flex gap-1.5 border-t pt-2.5 *:flex-1">
+      <div className="flex gap-1.5 border-t pt-2 *:flex-1">
         {!s.cancelled && (
           <>
             <Button
