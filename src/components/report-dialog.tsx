@@ -1,7 +1,7 @@
 /**
  * Pick what a PDF report covers, then view it in the app, share it (WhatsApp etc.) or download it.
  */
-import { Check, Download, Eye, FileText, Share2 } from 'lucide-react';
+import { Check, Copy, Download, Eye, FileText, Link2, Share2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AppUpdateNeeded, saveFile, shareFile } from '@/app/share-file';
@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from '@/components/ui/overlays';
 import { errorMessage, requestBlob } from '@/lib/api';
+import { formatDate } from '@/lib/format';
+import { useCreateReportLink, useReportLinks, useRevokeReportLink } from '@/lib/skills';
 import { cn } from '@/lib/utils';
 
 export interface ReportOption {
@@ -32,6 +34,7 @@ export function ReportDialog({
   path,
   filename,
   includes,
+  studentId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,6 +46,8 @@ export function ReportDialog({
   filename: (value: string) => string;
   /** What the report contains (shown as a short checklist). */
   includes: string[];
+  /** A student's report: also offer private share links for parents. */
+  studentId?: string;
 }) {
   const [choice, setChoice] = useState(options[0]?.value ?? 'all');
   const [busy, setBusy] = useState<'view' | 'share' | 'download' | null>(null);
@@ -150,6 +155,7 @@ export function ReportDialog({
               Preparing the PDF… large batches can take a few seconds.
             </p>
           )}
+          {studentId && open && <ShareLinks studentId={studentId} title={title} />}
         </DialogContent>
       </Dialog>
     </>
@@ -157,15 +163,108 @@ export function ReportDialog({
 }
 
 export const STUDENT_REPORT_INCLUDES = [
-  'Key insights',
-  'Attendance by month',
-  'Streaks & weekdays',
-  'Skills progress',
-  'Coach notes',
-  'Batch history',
-  'Fees & payments',
-  'Full timeline',
+  'Highlights',
+  'Skill wheel & level',
+  'Every skill rated',
+  'Progress over time',
+  'Coach remarks & goals',
+  'Attendance trends',
+  'Weekly notes',
+  'Fees status',
 ];
+
+/**
+ * Private links parents can open without signing in. They ask for the student's registration
+ * number first, expire after 30 days and can be revoked.
+ */
+function ShareLinks({ studentId, title }: { studentId: string; title: string }) {
+  const links = useReportLinks(studentId);
+  const create = useCreateReportLink(studentId);
+  const revoke = useRevokeReportLink(studentId);
+  const [fresh, setFresh] = useState<string | null>(null);
+
+  async function make() {
+    try {
+      const link = await create.mutateAsync();
+      setFresh(link.url);
+      const text = `${title}: ${link.url}\nOpen it with the student’s registration number. Valid for 30 days.`;
+      if (navigator.share) await navigator.share({ title, text }).catch(() => undefined);
+      else {
+        await navigator.clipboard?.writeText(text);
+        toast.success('Link copied');
+      }
+    } catch (err) {
+      toast.error('Could not create the link', { description: errorMessage(err) });
+    }
+  }
+
+  return (
+    <section className="space-y-2 border-t pt-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-sm font-semibold">
+            <Link2 className="size-4 text-primary" /> Private link for parents
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Always shows the latest report · opens with the registration number · 30 days
+          </p>
+        </div>
+        <Button size="sm" variant="tonal" loading={create.isPending} onClick={() => void make()}>
+          <Share2 /> New link
+        </Button>
+      </div>
+      {fresh && (
+        <div className="flex items-center gap-2 rounded-xl bg-success/10 px-2.5 py-1.5 text-xs">
+          <span className="min-w-0 flex-1 truncate font-mono">{fresh}</span>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7"
+            aria-label="Copy link"
+            onClick={() =>
+              void navigator.clipboard?.writeText(fresh).then(() => toast.success('Link copied'))
+            }
+          >
+            <Copy />
+          </Button>
+        </div>
+      )}
+      {(links.data?.length ?? 0) > 0 && (
+        <ul className="divide-y rounded-xl border text-xs">
+          {links.data!.map((l) => (
+            <li key={l.id} className="flex items-center gap-2 px-2.5 py-1.5">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">
+                  Made {formatDate(l.createdAt.slice(0, 10))}
+                  {l.createdBy ? ` by ${l.createdBy}` : ''}
+                </span>
+                <span className="block text-muted-foreground">
+                  Until {formatDate(l.expiresAt.slice(0, 10))} · opened {l.views}×
+                </span>
+              </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7"
+                aria-label="Revoke link"
+                title="Revoke"
+                onClick={() =>
+                  revoke.mutate(l.id, {
+                    onSuccess: () => toast.success('Link revoked'),
+                    onError: (e) =>
+                      toast.error('Could not revoke', { description: errorMessage(e) }),
+                  })
+                }
+              >
+                <Trash2 className="text-destructive" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export const BATCH_REPORT_INCLUDES = [
   'Summary & insights',

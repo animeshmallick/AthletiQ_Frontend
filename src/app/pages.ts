@@ -60,6 +60,13 @@ export const AccountPage = page(m20, 'AccountPage');
 export const SubstitutionsPage = page(m21, 'SubstitutionsPage');
 export const PeoplePage = page(m22, 'PeoplePage');
 export const PayeesPage = page(m23, 'PayeesPage');
+const skillsModule = () => import('@/pages/skills');
+export const SkillsPage = page(skillsModule, 'SkillsPage');
+const sportsModule = () => import('@/pages/admin/sports');
+export const SportsPage = page(sportsModule, 'SportsPage');
+const shareModule = () => import('@/pages/public/share');
+export const ShareReportPage = page(shareModule, 'ShareReportPage');
+export const ShareInvoicePage = page(shareModule, 'ShareInvoicePage');
 
 const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/$/, m3],
@@ -80,6 +87,8 @@ const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/settings$/, m18],
   [/^\/audit-log$/, m19],
   [/^\/account$/, m20],
+  [/^\/skills$/, skillsModule],
+  [/^\/sports$/, sportsModule],
 ];
 
 const started = new Set<() => Promise<unknown>>();

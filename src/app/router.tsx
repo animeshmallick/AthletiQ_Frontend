@@ -28,6 +28,10 @@ import {
   SettingsPage,
   AuditLogPage,
   AccountPage,
+  SkillsPage,
+  SportsPage,
+  ShareReportPage,
+  ShareInvoicePage,
   SubstitutionsPage,
   PeoplePage,
   PayeesPage,
@@ -136,6 +140,23 @@ export const router = createBrowserRouter([
           { path: '/reset-password', element: <ResetPasswordPage /> },
         ],
       },
+      // Shared links for parents: no sign-in, the page asks for the registration number.
+      {
+        path: '/share/report/:token',
+        element: (
+          <Suspense fallback={<FullScreenLoader />}>
+            <ShareReportPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/share/invoice/:id',
+        element: (
+          <Suspense fallback={<FullScreenLoader />}>
+            <ShareInvoicePage />
+          </Suspense>
+        ),
+      },
       {
         path: '/register',
         element: (
@@ -172,6 +193,8 @@ export const router = createBrowserRouter([
           { path: 'fee-plans', element: admin(<FeePlansPage />) },
           { path: 'settings', element: admin(<SettingsPage />) },
           { path: 'audit-log', element: <AuditLogPage /> },
+          { path: 'skills', element: <SkillsPage /> },
+          { path: 'sports', element: admin(<SportsPage />) },
           { path: '*', element: <NotFound /> },
         ],
       },

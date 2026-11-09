@@ -30,7 +30,6 @@ import {
   optionalPhoneSchema,
   phoneSchema,
   trainingDaysSchema,
-  daysForBatch,
   sameDays,
 } from '@/lib/forms';
 import {
@@ -93,13 +92,13 @@ export function EnrollmentFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days?.length, plans.data]);
 
-  // When a batch is chosen, training days follow it (pre-filled with the batch's days).
+  // Students train on every day the batch runs: the days come from the batch.
   useEffect(() => {
     if (!batch) return;
-    const next = daysForBatch(batch.weekdays, days);
+    const next = [...batch.weekdays].sort((a, b) => a - b);
     if (!sameDays(next, days)) setValue('trainingDays', next, { shouldValidate: !!days?.length });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batch?.id]);
+  }, [batch?.id, batch?.weekdays.join()]);
 
   const base = custom ?? plan?.monthlyFee ?? 0;
   const total = Math.max(0, base - (discount ?? 0));
@@ -156,7 +155,9 @@ export function EnrollmentFields({
         required
         error={errors.trainingDays?.message}
         hint={
-          batch ? `${batch.name} runs ${weekdaysLabel(batch.weekdays)}.` : 'Pick a batch first.'
+          batch
+            ? `Every day ${batch.name} runs (${weekdaysLabel(batch.weekdays)}).`
+            : 'Set by the batch: pick a batch first.'
         }
         className="sm:col-span-2"
       >
@@ -169,6 +170,7 @@ export function EnrollmentFields({
               onChange={field.onChange}
               allowed={batch?.weekdays ?? []}
               invalid={!!errors.trainingDays}
+              disabled
             />
           )}
         />
@@ -567,10 +569,10 @@ function useDaysFollowBatch(
 ) {
   useEffect(() => {
     if (!batch) return;
-    const next = daysForBatch(batch.weekdays, days);
+    const next = [...batch.weekdays].sort((a, b) => a - b);
     if (!sameDays(next, days)) setDays(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batch?.id]);
+  }, [batch?.id, batch?.weekdays.join()]);
 }
 
 export function TransferDialog({
@@ -637,7 +639,12 @@ export function TransferDialog({
               )}
             />
           </Field>
-          <Field label="Training days" required error={formState.errors.trainingDays?.message}>
+          <Field
+            label="Training days"
+            required
+            error={formState.errors.trainingDays?.message}
+            hint="Every day the batch runs."
+          >
             <Controller
               control={control}
               name="trainingDays"
@@ -646,6 +653,7 @@ export function TransferDialog({
                   value={field.value}
                   onChange={field.onChange}
                   allowed={batch?.weekdays}
+                  disabled
                 />
               )}
             />
@@ -965,7 +973,12 @@ export function RejoinDialog({
               ))}
             </Select>
           </Field>
-          <Field label="Training days" required error={formState.errors.trainingDays?.message}>
+          <Field
+            label="Training days"
+            required
+            error={formState.errors.trainingDays?.message}
+            hint="Every day the batch runs."
+          >
             <Controller
               control={control}
               name="trainingDays"
@@ -974,6 +987,7 @@ export function RejoinDialog({
                   value={field.value}
                   onChange={field.onChange}
                   allowed={batch?.weekdays}
+                  disabled
                 />
               )}
             />

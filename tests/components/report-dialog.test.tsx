@@ -36,7 +36,7 @@ describe('ReportDialog', () => {
     const onClose = jest.fn();
     const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     render(<Harness onClose={onClose} />);
-    expect(screen.getByText('Skills progress')).toBeInTheDocument();
+    expect(screen.getByText('Every skill rated')).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: /Morning U-12/ }));
     await user.click(screen.getByRole('button', { name: /Download/ }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());

@@ -181,6 +181,8 @@ export interface Batch {
   isActive: boolean;
   coach: { id: string; name: string; phone: string | null };
   location: { id: string; name: string; latitude: number; longitude: number; radiusMeters: number };
+  /** What the batch trains; decides the skills its students are assessed on. */
+  sport: { id: string; name: string };
   memberCount: number;
   /** Set when you only cover this batch as a substitute coach (current or upcoming days). */
   substitution?: { id: string; fromDate: string; toDate: string } | null;
@@ -250,6 +252,8 @@ export interface Makeup {
 export interface StudentDetail {
   id: string;
   code: string;
+  /** Registration number (1001…): only shown on the profile; parents type it to open shared links. */
+  registrationNo: number;
   fullName: string;
   dateOfBirth: string | null;
   gender: 'male' | 'female' | 'other' | null;

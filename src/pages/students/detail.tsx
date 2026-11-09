@@ -32,7 +32,6 @@ import { useUser } from '@/app/auth';
 import {
   ATTENDANCE_META,
   AttendanceBadge,
-  Avatar,
   ConfirmDialog,
   EmptyState,
   ErrorState,
@@ -88,6 +87,7 @@ import {
   TransferDialog,
 } from './forms';
 import { ReportDialog, slug, STUDENT_REPORT_INCLUDES } from '@/components/report-dialog';
+import { ProgressTab, StudentPhoto } from './progress';
 
 const CHART_COLORS = [
   'var(--chart-1)',
@@ -585,13 +585,14 @@ export function StudentDetailPage() {
         open={reportOpen}
         onOpenChange={setReportOpen}
         title={`${s.fullName} - report`}
-        description="A detailed PDF with insights, history and a timeline. Share it on WhatsApp or download it."
+        description="A progress report for parents: skills, level, coach remarks, attendance and fees. Share the PDF, or a private link that opens with the student’s registration number."
         options={reportOptions}
         path={(v) => `/reports/students/${s.id}/pdf?batchId=${v}`}
         filename={(v) =>
           `${slug(s.fullName)}-${s.code}-${v === 'all' ? 'report' : slug(reportOptions.find((o) => o.value === v)?.label ?? 'batch')}.pdf`
         }
         includes={STUDENT_REPORT_INCLUDES}
+        studentId={s.id}
       />
       <Link
         to="/students"
@@ -600,7 +601,7 @@ export function StudentDetailPage() {
         <ArrowLeft className="size-4" /> Students
       </Link>
       <div className="mb-4 flex flex-wrap items-center gap-3 sm:mb-4 sm:gap-3">
-        <Avatar name={s.fullName} className="size-12 text-base sm:size-14 sm:text-lg" />
+        <StudentPhoto id={s.id} name={s.fullName} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <h1 className="text-xl leading-tight font-bold tracking-tight sm:text-2xl">
@@ -609,7 +610,8 @@ export function StudentDetailPage() {
             <Badge variant={active ? 'success' : 'muted'}>{active ? 'Active' : 'Left'}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {s.code} · Joined {formatDate(s.joiningDate)}
+            {s.code} · Reg. no. <b className="font-semibold text-foreground">{s.registrationNo}</b>{' '}
+            · Joined {formatDate(s.joiningDate)}
           </p>
         </div>
         <Button
@@ -682,12 +684,16 @@ export function StudentDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="progress">Progress</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <Overview s={s} canManage={active} />
+        </TabsContent>
+        <TabsContent value="progress">
+          <ProgressTab id={s.id} />
         </TabsContent>
         <TabsContent value="attendance">
           <AttendanceTab id={s.id} />

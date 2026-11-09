@@ -44,7 +44,7 @@ import {
   CardTitle,
 } from '@/components/ui/primitives';
 import { money, moneyCompact, plural } from '@/lib/format';
-import { useFundsOverview, useUsers } from '@/lib/queries';
+import { useFundsOverview, usePayable, useUsers } from '@/lib/queries';
 import { SPLIT_COLORS } from '@/lib/split';
 import type { AcademyFunds, MyFunds } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -289,7 +289,7 @@ function AdminMoney({
       </section>
 
       <SectionDivider>By person</SectionDivider>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 *:min-w-0 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Who holds the cash</CardTitle>
@@ -414,7 +414,7 @@ function AdminMoney({
       </div>
 
       <SectionDivider>This period</SectionDivider>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 *:min-w-0 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Money flow</CardTitle>
@@ -584,7 +584,7 @@ function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to:
       </div>
 
       <SectionDivider>This period</SectionDivider>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 *:min-w-0 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>My money flow</CardTitle>
@@ -657,6 +657,9 @@ export function MoneyPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [open, setOpen] = useState<Open>(null);
   const funds = q.data?.scope === 'academy' ? q.data : undefined;
   const mine = q.data?.scope === 'self' ? q.data : undefined;
+  // Coaches: payees of their batches that are owed something.
+  const payable = usePayable(!admin);
+  const canPay = (payable.data?.payees ?? []).some((p) => p.owed > 0) && !!payable.data?.cash;
 
   const size = embedded ? ('sm' as const) : undefined;
   const actions = admin ? (
@@ -695,6 +698,11 @@ export function MoneyPage({ embedded = false }: { embedded?: boolean } = {}) {
       >
         <ArrowRightLeft /> {embedded ? 'Hand over' : 'Hand over cash'}
       </Button>
+      {canPay && (
+        <Button size={size} variant="outline" onClick={() => setOpen({ action: 'payout' })}>
+          <HandCoins /> {embedded ? 'Pay' : 'Pay payee'}
+        </Button>
+      )}
     </div>
   );
 
@@ -711,7 +719,7 @@ export function MoneyPage({ embedded = false }: { embedded?: boolean } = {}) {
           actions={actions}
         />
       )}
-      <FilterBar>
+      <FilterBar className="flex-wrap">
         <PeriodFilter value={preset} onChange={setPreset} options={FINANCE_PERIODS} />
         {q.isFetching && !q.isPending && <Badge variant="muted">Updating…</Badge>}
         {/* Embedded (Finance → Money): the actions sit beside the period. */}

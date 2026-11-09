@@ -1253,6 +1253,20 @@ export function useFundAction(action: FundAction) {
   });
 }
 
+export type Payable = {
+  /** Cash the caller holds (coaches); null for admins. */
+  cash: number | null;
+  payees: { id: string; name: string; owed: number }[];
+};
+
+/** Payees the caller may pay: coaches get only those linked to their batches. */
+export const usePayable = (enabled = true) =>
+  useQuery({
+    queryKey: ['funds', 'payable'],
+    queryFn: ({ signal }) => api.get<Payable>('/funds/payable', undefined, signal),
+    enabled,
+  });
+
 export function useReverseFundTxn() {
   const invalidate = useInvalidate();
   return useMutation({

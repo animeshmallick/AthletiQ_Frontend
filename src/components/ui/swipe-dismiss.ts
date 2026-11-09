@@ -27,6 +27,8 @@ export function useSwipeDismiss() {
     onPointerDown(e: PointerEvent<HTMLElement>) {
       if (e.pointerType !== 'touch' || !phone()) return;
       const el = e.currentTarget;
+      // Not from a button (e.g. the floating close button above the sheet).
+      if ((e.target as HTMLElement).closest('button')) return;
       if (e.clientY - el.getBoundingClientRect().top > HANDLE_ZONE) return;
       start.current = { y: e.clientY, id: e.pointerId };
       el.style.transition = 'none';

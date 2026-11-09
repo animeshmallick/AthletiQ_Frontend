@@ -67,6 +67,28 @@ function Overlay({ className, ...props }: ComponentProps<typeof D.Overlay>) {
   );
 }
 
+/**
+ * The round close button that floats centred above a popup (outside the card, so it never
+ * covers content). Popups leave room for it at the top of the screen.
+ */
+function FloatingClose({ className }: { className?: string }) {
+  return (
+    <D.Close
+      className={cn(
+        'absolute -top-13 left-1/2 z-30 flex size-10 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full border bg-card text-foreground shadow-e3 transition-transform outline-none hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring active:scale-95',
+        className,
+      )}
+    >
+      <X className="size-5" />
+      <span className="sr-only">Close</span>
+    </D.Close>
+  );
+}
+
+/** The popup's scrolling body: the frame stays put so the floating close button isn't clipped. */
+const SCROLL_BODY =
+  '-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-1 [gap:inherit]';
+
 export function DialogContent({
   className,
   children,
@@ -80,30 +102,29 @@ export function DialogContent({
       <D.Content
         {...swipe}
         className={cn(
-          // Never taller than the screen below the status bar (Android edge-to-edge, iOS notch).
-          'fixed z-50 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-1rem))] w-full flex-col gap-2.5 overflow-y-auto border bg-card p-3 pt-5 shadow-e3 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in sm:gap-4 sm:p-5',
+          'fixed z-50 flex w-full flex-col gap-2.5 border bg-card p-3 pt-5 shadow-e3 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in sm:gap-4 sm:p-5',
+          // Never taller than the screen below the status bar (Android edge-to-edge, iOS notch),
+          // leaving room above for the floating close button.
+          hideClose
+            ? 'max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-1rem))] overflow-y-auto'
+            : 'max-h-[min(86dvh,calc(100dvh-env(safe-area-inset-top)-4.5rem))]',
           // Bottom sheet on phones, centred dialog on larger screens.
           'inset-x-0 bottom-0 rounded-t-3xl pb-[max(0.75rem,env(safe-area-inset-bottom))] before:absolute before:top-2 before:left-1/2 before:h-1.5 before:w-10 before:-translate-x-1/2 before:rounded-full before:bg-muted-foreground/25 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:before:hidden',
           className,
         )}
         {...props}
       >
-        {children}
+        {hideClose ? children : <div className={SCROLL_BODY}>{children}</div>}
         {/* Phones: drag from here to dismiss (touch only, leaves the corners for buttons). */}
         <div aria-hidden className="absolute inset-x-14 top-0 z-20 h-10 touch-none sm:hidden" />
-        {!hideClose && (
-          <D.Close className="absolute top-4 right-4 cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            <X className="size-4" />
-            <span className="sr-only">Close</span>
-          </D.Close>
-        )}
+        {!hideClose && <FloatingClose />}
       </D.Content>
     </D.Portal>
   );
 }
 
 export function DialogHeader({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('flex flex-col gap-1.5 pr-8', className)} {...props} />;
+  return <div className={cn('flex flex-col gap-1.5', className)} {...props} />;
 }
 
 export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
@@ -130,7 +151,7 @@ export function DialogDescription({ className, ...props }: ComponentProps<typeof
 // ─── Phone bottom sheet (shared by popovers and menus) ───────────────────────
 
 const SHEET_CLASS =
-  'fixed inset-x-0 bottom-0 z-50 flex max-h-[min(85dvh,calc(100dvh-env(safe-area-inset-top)-1rem))] w-full max-w-none flex-col overflow-y-auto rounded-t-3xl border-t bg-card px-3 pt-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-card-foreground shadow-e3 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in before:absolute before:top-2 before:left-1/2 before:h-1.5 before:w-10 before:-translate-x-1/2 before:rounded-full before:bg-muted-foreground/25';
+  'fixed inset-x-0 bottom-0 z-50 flex max-h-[min(80dvh,calc(100dvh-env(safe-area-inset-top)-4.5rem))] w-full max-w-none flex-col rounded-t-3xl border-t bg-card px-3 pt-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-card-foreground shadow-e3 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in before:absolute before:top-2 before:left-1/2 before:h-1.5 before:w-10 before:-translate-x-1/2 before:rounded-full before:bg-muted-foreground/25';
 
 function BottomSheet({
   title,
@@ -147,9 +168,10 @@ function BottomSheet({
       <Overlay />
       <D.Content aria-describedby={undefined} className={cn(SHEET_CLASS, className)} {...swipe}>
         <D.Title className="sr-only">{title}</D.Title>
-        {children}
+        <div className={SCROLL_BODY}>{children}</div>
         {/* Phones: drag from here to dismiss (touch only, leaves the corners for buttons). */}
         <div aria-hidden className="absolute inset-x-14 top-0 z-20 h-10 touch-none sm:hidden" />
+        <FloatingClose />
       </D.Content>
     </D.Portal>
   );
@@ -183,7 +205,7 @@ export function SheetContent({
         {...swipe}
         className={cn(
           // Phones: a bottom sheet like every other popup. Larger screens: a side drawer.
-          'fixed inset-x-0 bottom-0 z-50 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-1rem))] w-full flex-col overflow-hidden rounded-t-3xl border-t bg-card pt-3 pb-[env(safe-area-inset-bottom)] shadow-xl outline-none before:absolute before:top-2 before:left-1/2 before:z-10 before:h-1.5 before:w-10 before:-translate-x-1/2 before:rounded-full before:bg-muted-foreground/25 data-[state=closed]:animate-out data-[state=open]:animate-in',
+          'fixed inset-x-0 bottom-0 z-50 flex max-h-[min(86dvh,calc(100dvh-env(safe-area-inset-top)-4.5rem))] w-full flex-col rounded-t-3xl border-t bg-card pt-3 pb-[env(safe-area-inset-bottom)] shadow-xl outline-none before:absolute before:top-2 before:left-1/2 before:z-10 before:h-1.5 before:w-10 before:-translate-x-1/2 before:rounded-full before:bg-muted-foreground/25 data-[state=closed]:animate-out data-[state=open]:animate-in',
           'sm:inset-x-auto sm:inset-y-0 sm:max-h-none sm:max-w-xl sm:rounded-none sm:border-t-0 sm:pt-[env(safe-area-inset-top)] sm:before:hidden',
           side === 'right' ? 'sm:right-0 sm:border-l' : 'sm:left-0 sm:border-r',
           className,
@@ -191,13 +213,13 @@ export function SheetContent({
         {...props}
       >
         <D.Title className="sr-only">{title}</D.Title>
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-3xl sm:rounded-none">
+          {children}
+        </div>
         {/* Phones: drag from here to dismiss (touch only, leaves the corners for buttons). */}
         <div aria-hidden className="absolute inset-x-14 top-0 z-20 h-10 touch-none sm:hidden" />
-        <D.Close className="absolute top-4 right-4 cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground sm:top-[calc(1rem+env(safe-area-inset-top))]">
-          <X className="size-5" />
-          <span className="sr-only">Close</span>
-        </D.Close>
+        {/* Floats above the sheet on phones; a plain X in the drawer's corner on larger screens. */}
+        <FloatingClose className="sm:top-[calc(1rem+env(safe-area-inset-top))] sm:right-4 sm:left-auto sm:size-8 sm:translate-x-0 sm:rounded-md sm:border-0 sm:bg-transparent sm:text-muted-foreground sm:shadow-none sm:hover:scale-100 sm:hover:bg-muted sm:hover:text-foreground" />
       </D.Content>
     </D.Portal>
   );

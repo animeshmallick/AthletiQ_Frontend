@@ -188,6 +188,13 @@ export async function requestBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
+/** POSTs JSON and returns the binary response (e.g. a shared report after a PIN check). */
+export async function requestBlobPost(path: string, body: unknown): Promise<Blob> {
+  const res = await rawRequest(path, { method: 'POST', body });
+  if (!res.ok) throw await toApiError(res);
+  return res.blob();
+}
+
 export const api = {
   get: <T>(path: string, query?: Record<string, unknown>, signal?: AbortSignal) =>
     request<T>(path, { query, signal }),

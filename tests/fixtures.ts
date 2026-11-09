@@ -23,6 +23,7 @@ export const batch: Batch = {
     longitude: 77.59,
     radiusMeters: 200,
   },
+  sport: { id: 'sp1', name: 'Badminton' },
   memberCount: 2,
 };
 
@@ -121,6 +122,7 @@ export const studentListItem: StudentListItem = {
 export const studentDetail: StudentDetail = {
   id: 's1',
   code: 'ATQ-0001',
+  registrationNo: 1001,
   fullName: 'Anya Rao',
   dateOfBirth: '2014-05-01',
   gender: 'female',

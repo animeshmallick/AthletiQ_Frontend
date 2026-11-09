@@ -2,16 +2,7 @@ import { RegisterPage } from '@/pages/public/register';
 import { StudentDetailPage } from '@/pages/students/detail';
 import { StudentsPage } from '@/pages/students/list';
 import { batch, studentDetail, studentListItem } from '../fixtures';
-import {
-  adminUser,
-  coachUser,
-  mockApi,
-  renderPage,
-  screen,
-  waitFor,
-  chooseOption,
-  selectValue,
-} from '../utils';
+import { adminUser, coachUser, mockApi, renderPage, screen, waitFor, chooseOption } from '../utils';
 
 const page = (items = [studentListItem]) => ({
   data: items,
@@ -68,18 +59,14 @@ describe('StudentsPage', () => {
     await user.type(await screen.findByLabelText(/full name/i), 'Kabir Singh');
     await user.type(screen.getByLabelText(/mobile \(whatsapp\)/i), '9876501234');
     await chooseOption(user, screen.getByLabelText(/^batch/i), 'b1');
-    // Choosing the batch pre-selects the days it runs (Mon–Sat)…
-    for (const d of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])
-      expect(screen.getByRole('button', { name: d })).toHaveAttribute('aria-pressed', 'true');
-    // …and the admin trims them to the student's three days.
-    for (const d of ['Tuesday', 'Thursday', 'Saturday'])
-      await user.click(screen.getByRole('button', { name: d }));
-    // 3 training days → the 3-day plan is suggested.
-    await waitFor(() => expect(selectValue(screen.getByLabelText(/fee plan/i))).toBe('p3'));
-    expect(screen.getByText('₹2,500')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Thursday' }));
-    await user.click(screen.getByRole('button', { name: 'Saturday' }));
-    await waitFor(() => expect(selectValue(screen.getByLabelText(/fee plan/i))).toBe('p5'));
+    // Students train on every day the batch runs (Mon–Sat): selected and locked.
+    for (const d of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']) {
+      const day = screen.getByRole('button', { name: d });
+      expect(day).toHaveAttribute('aria-pressed', 'true');
+      expect(day).toBeDisabled();
+    }
+    expect(screen.getByRole('button', { name: 'Sunday' })).toBeDisabled();
+    await chooseOption(user, screen.getByLabelText(/fee plan/i), 'p5');
 
     await user.click(screen.getByRole('button', { name: 'Register student' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/students/s9'));
@@ -87,7 +74,7 @@ describe('StudentsPage', () => {
       fullName: 'Kabir Singh',
       phone: '9876501234',
       batchId: 'b1',
-      trainingDays: [1, 3, 4, 5, 6],
+      trainingDays: [1, 2, 3, 4, 5, 6],
       feePlanId: 'p5',
       monthlyDiscount: 0,
     });

@@ -127,7 +127,7 @@ describe('student lifecycle', () => {
     expect(api.find('POST /students/s1/rejoin')[0]!.body).toEqual({
       rejoinDate: '2026-05-05',
       batchId: 'b1',
-      trainingDays: [1, 3, 5],
+      trainingDays: [1, 2, 3, 4, 5, 6],
     });
   });
 

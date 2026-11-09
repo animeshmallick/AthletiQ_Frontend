@@ -15,9 +15,10 @@ import {
 import { Input, Select, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { money, today } from '@/lib/format';
-import { useFundAction, useUsers } from '@/lib/queries';
+import { useFundAction, usePayable, useUsers } from '@/lib/queries';
 import type { AcademyFunds } from '@/lib/types';
 import { EXPENSE_CATEGORIES } from './meta';
+import { WalletPicker, type Wallet } from './wallets';
 
 export type MoneyAction = 'handover' | 'expense' | 'payout' | 'income';
 
@@ -39,7 +40,7 @@ const COPY: Record<MoneyAction, { title: string; admin: string; coach: string; c
   payout: {
     title: 'Pay what is owed',
     admin: 'Settle a staff member’s share or reimbursement, or pay a payee such as the society.',
-    coach: '',
+    coach: 'Pay a payee linked to your batches, from the cash you hold. Admins are notified.',
     cta: 'Record payment',
   },
   income: {
@@ -100,17 +101,38 @@ export function MoneyActionDialog({
   const [payTo, setPayTo] = useState(
     prefill.payeeId ? `payee:${prefill.payeeId}` : prefill.userId ? `staff:${prefill.userId}` : '',
   );
-  const [fromUserId, setFromUserId] = useState('');
-
   const b = funds?.balances;
+  // Coaches pay only their batches' payees, from their own cash.
+  const payable = usePayable(action === 'payout' && !admin);
+  const coachPayees = (payable.data?.payees ?? []).filter((p) => p.owed > 0);
   const holding = (id: string) =>
     id ? (b?.holders.find((h) => h.userId === id)?.amount ?? 0) : (b?.academyCash ?? 0);
   const owedTo = (key: string) => {
     const [kind, id] = key.split(':');
+    if (!admin) return coachPayees.find((p) => p.id === id)?.owed ?? 0;
     return kind === 'payee'
       ? (b?.payeeDue.find((p) => p.payeeId === id)?.amount ?? 0)
       : (b?.staffDue.find((s) => s.userId === id)?.amount ?? 0);
   };
+
+  // Admin payouts: every wallet with its cash; '' is the academy's own.
+  const wallets: Wallet[] = [
+    { id: '', name: 'Academy cash', amount: b?.academyCash ?? 0 },
+    ...(b?.holders ?? []).map((h) => ({
+      id: h.userId,
+      name: `${h.name}’s cash`,
+      amount: h.amount,
+    })),
+  ];
+  /** A wallet that can pay `need` in full: the academy first, else whoever holds the most. */
+  const bestWallet = (need: number) =>
+    (b?.academyCash ?? 0) >= need
+      ? ''
+      : ([...(b?.holders ?? [])].sort((x, y) => y.amount - x.amount).find((h) => h.amount >= need)
+          ?.userId ?? '');
+  const [fromUserId, setFromUserId] = useState(() =>
+    action === 'payout' && admin && prefill.amount ? bestWallet(prefill.amount) : '',
+  );
 
   // The most that can move, for a hint and an early check.
   const limit =
@@ -129,7 +151,7 @@ export function MoneyActionDialog({
               : undefined
           : myCash
         : action === 'payout' && payTo
-          ? Math.min(owedTo(payTo), holding(fromUserId))
+          ? Math.min(owedTo(payTo), admin ? holding(fromUserId) : (payable.data?.cash ?? 0))
           : undefined;
 
   const copy = COPY[action];
@@ -159,9 +181,10 @@ export function MoneyActionDialog({
       const [kind, id] = payTo.split(':');
       Object.assign(body, {
         [kind === 'payee' ? 'payeeId' : 'userId']: id,
-        fromUserId: fromUserId || null,
         reference: reference || null,
       });
+      // Coaches always pay from their own cash (the server enforces it).
+      if (admin) body.fromUserId = fromUserId || null;
     } else {
       if (title.trim().length < 2) return toast.error('Describe the income');
       Object.assign(body, { title: title.trim(), reference: reference || null });
@@ -195,11 +218,19 @@ export function MoneyActionDialog({
               <Select
                 value={payTo}
                 onChange={(e) => {
+                  const owed = owedTo(e.target.value);
                   setPayTo(e.target.value);
-                  setAmount(owedTo(e.target.value) || null);
+                  setAmount(owed || null);
+                  if (admin && owed) setFromUserId(bestWallet(owed));
                 }}
               >
                 <option value="">Choose…</option>
+                {!admin &&
+                  coachPayees.map((p) => (
+                    <option key={p.id} value={`payee:${p.id}`}>
+                      {p.name} · {money(p.owed)} owed
+                    </option>
+                  ))}
                 {(b?.staffDue.length ?? 0) > 0 && (
                   <optgroup label="Staff (owed)">
                     {b!.staffDue
@@ -291,12 +322,29 @@ export function MoneyActionDialog({
             </Field>
           )}
 
-          {action === 'payout' && (
+          {action === 'payout' && !admin && payable.isSuccess && !coachPayees.length && (
+            <p className="rounded-xl bg-muted/60 p-3 text-[13px] text-muted-foreground sm:col-span-2">
+              Nothing is owed to the payees of your batches right now.
+            </p>
+          )}
+
+          {action === 'payout' && admin && (
+            <Field label="Paid from" required className="sm:col-span-2">
+              <WalletPicker
+                wallets={wallets}
+                value={fromUserId}
+                onChange={setFromUserId}
+                need={amount ?? 0}
+              />
+            </Field>
+          )}
+
+          {action === 'payout' && !admin && (
             <Field label="Paid from" className="sm:col-span-2">
-              <Select value={fromUserId} onChange={(e) => setFromUserId(e.target.value)}>
-                <option value="">Academy cash · {money(b?.academyCash ?? 0)}</option>
-                {(b?.holders ?? []).map((h) => staffOption(h.userId, `${h.name}’s cash`, h.amount))}
-              </Select>
+              <p className="flex h-10 items-center justify-between rounded-xl border bg-muted/40 px-3 text-[13px]">
+                <span>Cash you hold</span>
+                <span className="tabular font-semibold">{money(payable.data?.cash ?? 0)}</span>
+              </p>
             </Field>
           )}
 

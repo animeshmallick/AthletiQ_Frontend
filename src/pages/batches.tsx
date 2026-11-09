@@ -68,12 +68,14 @@ import {
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { BATCH_REPORT_INCLUDES, ReportDialog, slug } from '@/components/report-dialog';
+import { useSports } from '@/lib/skills';
 
 const schema = z
   .object({
     name: z.string().trim().min(2, 'Enter a name').max(120),
     coachId: z.string().min(1, 'Pick a coach'),
     locationId: z.string().min(1, 'Pick a location'),
+    sportId: z.string().min(1, 'Pick a sport'),
     weekdays: z.array(z.number()).min(1, 'Pick at least one day'),
     startTime: z.string().min(1, 'Required'),
     endTime: z.string().min(1, 'Required'),
@@ -104,6 +106,7 @@ export function BatchDialog({
   const save = useSaveBatch();
   const coaches = useUsers({ role: 'coach', status: 'active', pageSize: 100 });
   const locations = useLocations({ active: 'true' });
+  const sports = useSports();
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: batch
@@ -111,6 +114,7 @@ export function BatchDialog({
           name: batch.name,
           coachId: batch.coach.id,
           locationId: batch.location.id,
+          sportId: batch.sport.id,
           weekdays: batch.weekdays,
           startTime: batch.startTime.slice(0, 5),
           endTime: batch.endTime.slice(0, 5),
@@ -121,6 +125,7 @@ export function BatchDialog({
           name: '',
           coachId: '',
           locationId: '',
+          sportId: '',
           weekdays: [1, 2, 3, 4, 5, 6],
           startTime: '06:00',
           endTime: '08:00',
@@ -201,6 +206,24 @@ export function BatchDialog({
                   {l.name}
                 </option>
               ))}
+            </Select>
+          </Field>
+          <Field
+            label="Sport"
+            required
+            error={e.sportId?.message}
+            hint="Decides the skills its students are assessed on."
+            className="sm:col-span-2"
+          >
+            <Select required {...register('sportId')}>
+              <option value="">Select…</option>
+              {sports.data
+                ?.filter((sp) => sp.sport.isActive || sp.sport.id === batch?.sport.id)
+                .map((sp) => (
+                  <option key={sp.sport.id} value={sp.sport.id}>
+                    {sp.sport.name}
+                  </option>
+                ))}
             </Select>
           </Field>
           <Field label="Runs on" required error={e.weekdays?.message} className="sm:col-span-2">

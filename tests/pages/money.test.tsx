@@ -384,6 +384,99 @@ describe('Money dashboard', () => {
     expect(within(alert).getByRole('button', { name: 'Add income' })).toBeInTheDocument();
   });
 
+  it('pays from a coach’s cash when the academy has too little, never from a short wallet', async () => {
+    const api = mockApi({
+      'GET /funds/overview': () => ({
+        ...academy,
+        balances: { ...academy.balances, academyCash: 20_000 },
+      }),
+      'GET /funds/txns': () => page([]),
+      'GET /users': () => page([]),
+      'POST /funds/payouts': ({ body }) => ({
+        status: 201,
+        body: { data: txn({ type: 'payout', ...(body as object) }) },
+      }),
+    });
+    const { user } = await renderPage(<MoneyPage />, {
+      path: '/money',
+      route: '/money',
+      user: adminUser,
+    });
+    await screen.findByText('Who holds the cash');
+    const owed =
+      screen.getByText('Who is owed').closest('div.rounded-2xl, [class*="card"]') ?? document.body;
+    await user.click(within(owed as HTMLElement).getAllByRole('button', { name: 'Pay' })[1]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Pay what is owed' });
+    // ₹437.50 owed; the academy has ₹200, Ravi holds ₹1,250 → Ravi's cash is picked.
+    expect(within(dialog).getByRole('radio', { name: /Academy cash/ })).toBeDisabled();
+    expect(within(dialog).getByRole('radio', { name: /Academy cash/ })).toHaveTextContent(
+      'not enough',
+    );
+    expect(within(dialog).getByRole('radio', { name: /Ravi Kumar’s cash/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Record payment' }));
+    await waitFor(() => expect(api.find('POST /funds/payouts')).toHaveLength(1));
+    expect(api.find('POST /funds/payouts')[0]!.body).toMatchObject({
+      payeeId: 'py1',
+      amount: 43_750,
+      fromUserId: 'coach-1',
+    });
+  });
+
+  it('coach pays a payee of their batches from the cash they hold', async () => {
+    const mine: MyFunds = {
+      scope: 'self',
+      from: '2026-01-01',
+      to: '2026-01-15',
+      cash: 125_000,
+      due: 0,
+      period: {
+        collected: 0,
+        earned: 0,
+        earnedBy: [],
+        kept: 0,
+        handedOver: 0,
+        spent: 0,
+        paidToMe: 0,
+      },
+    };
+    const api = mockApi({
+      'GET /funds/overview': () => mine,
+      'GET /funds/txns': () => page([]),
+      'GET /funds/payable': () => ({
+        cash: 125_000,
+        payees: [
+          { id: 'py1', name: 'Society', owed: 43_750 },
+          { id: 'py2', name: 'Ground', owed: 0 },
+        ],
+      }),
+      'POST /funds/payouts': ({ body }) => ({
+        status: 201,
+        body: { data: txn({ type: 'payout', ...(body as object) }) },
+      }),
+    });
+    const { user } = await renderPage(<MoneyPage />, {
+      path: '/money',
+      route: '/money',
+      user: coachUser,
+    });
+    await user.click(await screen.findByRole('button', { name: /Pay payee/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Pay what is owed' });
+    expect(dialog).toHaveTextContent('Cash you hold₹1,250');
+    const payTo = within(dialog).getByRole('combobox', { name: /Pay to/ });
+    // Only payees that are owed something; the only one is picked with its full amount.
+    expect(dialog).not.toHaveTextContent('Ground');
+    await waitFor(() => expect(payTo).toHaveTextContent(/Society · ₹437.5/));
+    expect(within(dialog).getByText(/^Up to ₹437\.5/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Record payment' }));
+    await waitFor(() => expect(api.find('POST /funds/payouts')).toHaveLength(1));
+    const body = api.find('POST /funds/payouts')[0]!.body as Record<string, unknown>;
+    expect(body).toMatchObject({ payeeId: 'py1', amount: 43_750 });
+    expect(body).not.toHaveProperty('fromUserId');
+  });
+
   it('coach sees their cash, what they are owed, and can hand over or record a purchase', async () => {
     const mine: MyFunds = {
       scope: 'self',

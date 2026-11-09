@@ -12,6 +12,8 @@ import {
   Repeat,
   ScrollText,
   ShieldCheck,
+  Sparkles,
+  Trophy,
   Tags,
   UserPlus,
   Users,
@@ -74,6 +76,7 @@ export const NAV: NavItem[] = [
     roles: ['coach', 'admin'],
     group: 'main',
   },
+  { to: '/skills', label: 'Skills', icon: Sparkles, roles: ['coach', 'admin'], group: 'main' },
   {
     to: '/students',
     label: 'Students',
@@ -142,6 +145,7 @@ export const NAV: NavItem[] = [
   },
   { to: '/locations', label: 'Locations', icon: MapPin, roles: ['admin'], group: 'manage' },
   { to: '/fee-plans', label: 'Fee plans', icon: Tags, roles: ['admin'], group: 'manage' },
+  { to: '/sports', label: 'Sports & skills', icon: Trophy, roles: ['admin'], group: 'manage' },
 
   { to: '/settings', label: 'Settings', icon: Cog, roles: ['admin'], group: 'system' },
   { to: '/audit-log', label: 'Audit log', icon: ScrollText, roles: ['admin'], group: 'system' },
