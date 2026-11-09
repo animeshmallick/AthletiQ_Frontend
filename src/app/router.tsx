@@ -80,7 +80,7 @@ function GuestOnly() {
 function RouteError() {
   const error = useRouteError() as { status?: number } | undefined;
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
       <p className="text-5xl font-semibold text-primary">
         {error?.status === 404 ? '404' : 'Oops'}
       </p>

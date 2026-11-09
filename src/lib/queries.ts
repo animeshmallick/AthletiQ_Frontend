@@ -466,10 +466,15 @@ export function useAdminCheckOut() {
 
 // ─── Lessons ─────────────────────────────────────────────────────────────────
 
-export const useLibrary = (kind: 'stages' | 'events', q: Query = {}) =>
+/** A batch's plan template: its stages (columns) or events (rows). */
+export const useLibrary = (
+  kind: 'stages' | 'events',
+  q: { batchId?: string; includeArchived?: 'true' },
+) =>
   useQuery({
     queryKey: keys.library(kind, q),
     queryFn: () => api.get<LibraryItem[]>(`/lessons/${kind}`, q),
+    enabled: Boolean(q.batchId),
   });
 
 export function useSaveLibraryItem(kind: 'stages' | 'events') {
@@ -480,6 +485,7 @@ export function useSaveLibraryItem(kind: 'stages' | 'events') {
       ...body
     }: {
       id?: string;
+      batchId?: string;
       name?: string;
       description?: string | null;
       color?: string | null;
@@ -495,29 +501,43 @@ export function useSaveLibraryItem(kind: 'stages' | 'events') {
 export function useReorderLibrary(kind: 'stages' | 'events') {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (ids: string[]) => api.put(`/lessons/${kind}/order`, { ids }),
+    mutationFn: (body: { batchId: string; ids: string[] }) =>
+      api.put(`/lessons/${kind}/order`, body),
     onSuccess: () => invalidate(['lessons', kind]),
   });
 }
 
-export const usePlanCalendar = (q: { batchId?: string; from: string; to: string }) =>
-  useQuery({
-    queryKey: keys.planCalendar(q),
-    queryFn: () =>
-      api.get<{
-        batch: { id: string; name: string; weekdays: number[] };
-        days: {
-          date: string;
-          isSessionDay: boolean;
-          cancelled: string | null;
-          planId: string | null;
-          filledCells: number;
-          totalCells: number;
-        }[];
-      }>('/lessons/plans', q),
-    enabled: Boolean(q.batchId),
-    placeholderData: keepPreviousData,
+export function useCopyTemplate() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (body: { fromBatchId: string; toBatchId: string }) =>
+      api.post<{ stages: number; events: number }>('/lessons/template/copy', body),
+    onSuccess: () => invalidate(['lessons', 'stages'], ['lessons', 'events']),
   });
+}
+
+export interface PlanCalendar {
+  batch: { id: string; name: string; weekdays: number[] };
+  days: {
+    date: string;
+    isSessionDay: boolean;
+    cancelled: string | null;
+    planId: string | null;
+    filledCells: number;
+    totalCells: number;
+  }[];
+}
+
+/** Query options for one batch's plan calendar (shared by the hook and multi-batch views). */
+export const planCalendarQuery = (q: { batchId?: string; from: string; to: string }) => ({
+  queryKey: keys.planCalendar(q),
+  queryFn: () => api.get<PlanCalendar>('/lessons/plans', q),
+  enabled: Boolean(q.batchId),
+  placeholderData: keepPreviousData,
+});
+
+export const usePlanCalendar = (q: { batchId?: string; from: string; to: string }) =>
+  useQuery(planCalendarQuery(q));
 
 export const useLessonInsights = (q: {
   from: string;

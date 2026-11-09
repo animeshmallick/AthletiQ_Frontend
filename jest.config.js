@@ -21,6 +21,7 @@ export default {
     '^@/lib/env$': '<rootDir>/tests/setup/env-stub.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css)$': 'identity-obj-proxy',
+    '\\?url$': '<rootDir>/tests/setup/url-stub.ts',
   },
   setupFiles: ['<rootDir>/tests/setup/env.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup/jest.setup.ts'],

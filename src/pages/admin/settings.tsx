@@ -81,7 +81,7 @@ function AcademyForm({ settings }: { settings: AcademySettings }) {
           <CardTitle>Academy details</CardTitle>
           <CardDescription>Shown on invoices and in WhatsApp messages to parents.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="grid gap-3 sm:grid-cols-2">
           <Field label="Academy name" required error={e.name?.message}>
             <Input {...register('name', { required: 'Required' })} />
           </Field>
@@ -133,7 +133,7 @@ function BillingJobs() {
   const run = useRunInvoiceJob();
   return (
     <Card>
-      <CardHeader className="flex-row items-start justify-between gap-4">
+      <CardHeader className="flex-row items-start justify-between gap-3">
         <div>
           <CardTitle>Automatic billing</CardTitle>
           <CardDescription>
@@ -199,7 +199,7 @@ export function SettingsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader title="Settings" description="Academy profile and billing automation." />
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-3 sm:space-y-4">
         {q.isPending ? (
           <ListSkeleton rows={4} />
         ) : q.isError ? (

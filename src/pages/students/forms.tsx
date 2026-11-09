@@ -105,7 +105,7 @@ export function EnrollmentFields({
   const total = Math.max(0, base - (discount ?? 0));
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2">
       {showJoining && (
         <Field
           label="Joining date"
@@ -277,7 +277,7 @@ function ProfileFields({
   errors: FieldErrors<CreateValues>;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2">
       <Field
         label="Full name"
         required
@@ -439,7 +439,7 @@ export function StudentFormDialog({
               : 'Add the student, place them in a batch and set their fee.'}
           </DialogDescription>
         </DialogHeader>
-        <form id="student-form" onSubmit={onSubmit} noValidate className="space-y-4 sm:space-y-6">
+        <form id="student-form" onSubmit={onSubmit} noValidate className="space-y-3 sm:space-y-4">
           <ProfileFields register={register} errors={formState.errors} />
           <Separator />
           {editing ? (
@@ -489,7 +489,7 @@ function FeeOnlyFields({
   const plan = plans.data?.find((p) => p.id === planId);
   const total = Math.max(0, (custom ?? plan?.monthlyFee ?? 0) - (discount ?? 0));
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2">
       <Field
         label="Joining date"
         htmlFor="joiningDate"
@@ -621,7 +621,7 @@ export function TransferDialog({
             Permanent change from the chosen date. History and attendance in the old batch are kept.
           </DialogDescription>
         </DialogHeader>
-        <form id="transfer-form" onSubmit={onSubmit} noValidate className="space-y-4">
+        <form id="transfer-form" onSubmit={onSubmit} noValidate className="space-y-3">
           <Field label="Batch" required error={formState.errors.batchId?.message}>
             <Controller
               control={control}
@@ -741,7 +741,7 @@ export function MakeupDialog({
             {!isAdmin && ' Requests are approved by an admin.'}
           </DialogDescription>
         </DialogHeader>
-        <form id="makeup-form" onSubmit={onSubmit} noValidate className="space-y-4">
+        <form id="makeup-form" onSubmit={onSubmit} noValidate className="space-y-3">
           <Field label="Batch" required error={formState.errors.batchId?.message}>
             <Controller
               control={control}
@@ -773,7 +773,7 @@ export function MakeupDialog({
               </span>
             </div>
           )}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field
               label="Makeup date"
               required
@@ -840,7 +840,7 @@ export function LeaveDialog({
             refund that invoice if needed.
           </DialogDescription>
         </DialogHeader>
-        <form id="leave-form" onSubmit={onSubmit} className="space-y-4">
+        <form id="leave-form" onSubmit={onSubmit} className="space-y-3">
           <Field label="Last training day" required>
             <Input
               type="date"
@@ -946,7 +946,7 @@ export function RejoinDialog({
             Earlier invoices stay as they are.
           </DialogDescription>
         </DialogHeader>
-        <form id="rejoin-form" onSubmit={onSubmit} noValidate className="space-y-4">
+        <form id="rejoin-form" onSubmit={onSubmit} noValidate className="space-y-3">
           <Field
             label="Rejoin date"
             required

@@ -136,7 +136,7 @@ function RegistrationCard({
   const d = r.details;
   return (
     <Card className="p-4 sm:p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           {r.type === 'student' ? (
             <GraduationCap className="size-5" />

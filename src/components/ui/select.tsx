@@ -266,7 +266,7 @@ export function Select({
                   e.preventDefault();
                   triggerRef.current?.focus();
                 }}
-                className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-3xl bg-card pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl outline-none data-[state=closed]:animate-out data-[state=open]:animate-in"
+                className="fixed inset-x-0 bottom-0 z-50 flex max-h-[min(85dvh,calc(100dvh-env(safe-area-inset-top)-1rem))] flex-col rounded-t-3xl bg-card pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl outline-none data-[state=closed]:animate-out data-[state=open]:animate-in"
               >
                 <div
                   aria-hidden

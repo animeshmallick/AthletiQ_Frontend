@@ -122,15 +122,15 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
   const cancelMakeup = useCancelMakeup(s.id);
   const e = s.currentEnrollment;
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="space-y-4 lg:col-span-2">
+    <div className="grid gap-3 lg:grid-cols-3">
+      <div className="space-y-3 lg:col-span-2">
         <Card>
           <CardHeader>
             <CardTitle>Training</CardTitle>
           </CardHeader>
           <CardContent>
             {e ? (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-xs text-muted-foreground">Batch</p>
                   <Link to={`/batches/${e.batchId}`} className="font-medium hover:underline">
@@ -209,7 +209,7 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
             <CardTitle>Batch history</CardTitle>
           </CardHeader>
           <CardContent>
-            <ol className="relative space-y-4 border-l pl-5">
+            <ol className="relative space-y-3 border-l pl-5">
               {s.enrollmentHistory.map((h) => (
                 <li key={h.id} className="relative">
                   <span
@@ -237,7 +237,7 @@ function Overview({ s, canManage }: { s: StudentDetail; canManage: boolean }) {
         </Card>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Card>
           <CardHeader>
             <CardTitle>Contact</CardTitle>
@@ -335,7 +335,7 @@ function AttendanceTab({ id }: { id: string }) {
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
   const s = q.data.summary;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex gap-2">
         {[30, 90, 180].map((d) => (
           <Button
@@ -457,7 +457,7 @@ function FeedbackTab({ id }: { id: string }) {
   }));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {chartData.length > 1 && (
         <Card>
           <CardHeader>
@@ -544,7 +544,7 @@ export function StudentDetailPage() {
 
   if (q.isPending)
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Skeleton className="h-16 w-80" />
         <Skeleton className="h-64 w-full rounded-xl" />
       </div>
@@ -599,7 +599,7 @@ export function StudentDetailPage() {
       >
         <ArrowLeft className="size-4" /> Students
       </Link>
-      <div className="mb-4 flex flex-wrap items-center gap-3 sm:mb-6 sm:gap-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3 sm:mb-4 sm:gap-3">
         <Avatar name={s.fullName} className="size-12 text-base sm:size-14 sm:text-lg" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -659,7 +659,7 @@ export function StudentDetailPage() {
         )}
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Monthly fee" value={money(s.effectiveFee.total)} />
         <StatCard
           label="Outstanding"

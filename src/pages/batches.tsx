@@ -169,7 +169,7 @@ export function BatchDialog({
             A batch is a recurring session with one coach at one location.
           </DialogDescription>
         </DialogHeader>
-        <form id="batch-form" onSubmit={onSubmit} noValidate className="grid gap-4 sm:grid-cols-2">
+        <form id="batch-form" onSubmit={onSubmit} noValidate className="grid gap-3 sm:grid-cols-2">
           <Field label="Name" required error={e.name?.message} className="sm:col-span-2">
             <Input placeholder="e.g. Morning U-12" autoFocus {...register('name')} />
           </Field>

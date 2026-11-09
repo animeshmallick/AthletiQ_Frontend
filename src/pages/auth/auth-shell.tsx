@@ -39,13 +39,13 @@ export function AuthShell({
           <BrandMark className="size-9 rounded-xl" />
           <span className="text-lg font-semibold">AthletiQ</span>
         </div>
-        <div className="relative max-w-md space-y-8">
+        <div className="relative max-w-md space-y-5">
           <h2 className="text-3xl leading-tight font-semibold tracking-tight">
             Run your academy, not spreadsheets.
           </h2>
-          <ul className="space-y-4 sm:space-y-5">
+          <ul className="space-y-3 sm:space-y-3.5">
             {FEATURES.map((f) => (
-              <li key={f.title} className="flex gap-4">
+              <li key={f.title} className="flex gap-3">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent">
                   <f.icon className="size-5 text-primary" />
                 </div>
@@ -68,7 +68,7 @@ export function AuthShell({
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
-          <div className="mt-8">{children}</div>
+          <div className="mt-5">{children}</div>
         </div>
       </div>
     </div>

@@ -35,11 +35,14 @@ import { useLessonInsights, usePlanDay } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import { PlanEditor } from './editor';
 import { LessonInsightsView } from './insights';
-import { LibraryDialog } from './library';
+import { TemplateDialog } from './library';
 import { snapToSession } from './meta';
+import { AllBatchesDay } from './all-batches';
 import { UpNext, WeekStrip } from './week';
 
 type View = 'plan' | 'insights';
+/** URL value for the combined, all-batches view. */
+const ALL = 'all';
 const NEAR_DAYS = ['Today', 'Tomorrow', 'Yesterday'];
 
 export function LessonPlansPage() {
@@ -48,7 +51,8 @@ export function LessonPlansPage() {
   const { batches, batchId, date, batch } = useBatchDateParams();
   const [params, setParams] = useSearchParams();
   const view: View = params.get('view') === 'insights' ? 'insights' : 'plan';
-  const day = usePlanDay(batchId || undefined, date);
+  const isAll = batchId === ALL;
+  const day = usePlanDay(isAll ? undefined : batchId || undefined, date);
   const now = today();
   const upNext = useLessonInsights({ from: now, to: addDays(now, 13) });
 
@@ -83,7 +87,11 @@ export function LessonPlansPage() {
 
   // Coaches only move between their batch's session days; any other date snaps to the next one.
   const daysOf = (id: string) =>
-    isCoach ? (batches.data?.find((b) => b.id === id)?.weekdays ?? []) : [];
+    !isCoach
+      ? []
+      : id === ALL
+        ? [...new Set((batches.data ?? []).flatMap((b) => b.weekdays))]
+        : (batches.data?.find((b) => b.id === id)?.weekdays ?? []);
   const snap = (d: string, dir: 1 | -1 = 1, id = batchId) => snapToSession(d, daysOf(id), dir);
   const pickDate = (d: string, dir: 1 | -1 = 1) => {
     const s = snap(d, dir);
@@ -111,10 +119,12 @@ export function LessonPlansPage() {
         }
         actions={
           isCoach && (
-            <LibraryDialog
+            <TemplateDialog
+              batchId={isAll ? '' : batchId}
+              batches={batches.data ?? []}
               trigger={
-                <Button variant="outline" size="sm">
-                  <Library /> Library
+                <Button variant="outline" size="sm" disabled={!batches.data?.length}>
+                  <Library /> Template
                 </Button>
               }
             />
@@ -149,16 +159,20 @@ export function LessonPlansPage() {
         {view === 'plan' && (
           <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-end">
             <BatchSelect
-              value={batchId}
-              onChange={(id) => go({ batch: id, date: snap(date, 1, id) })}
+              value={isAll ? '' : batchId}
+              onChange={(id) => {
+                const next = id || ALL;
+                go({ batch: next, date: snap(date, 1, next) });
+              }}
               batches={batches.data}
               loading={batches.isPending}
               className="sm:w-64"
+              allowAll={(batches.data?.length ?? 0) > 1}
             />
             {isCoach ? (
               <SessionStepper
                 date={date}
-                disabled={!batch}
+                disabled={!batch && !isAll}
                 onPrev={() => go({ date: snap(addDays(date, -1), -1) })}
                 onNext={() => go({ date: snap(addDays(date, 1), 1) })}
                 onPick={(d) => pickDate(d)}
@@ -206,7 +220,7 @@ export function LessonPlansPage() {
           ) : (
             <>
               <WeekStrip
-                batchId={batchId}
+                batchIds={isAll ? (batches.data ?? []).map((b) => b.id) : [batchId]}
                 date={date}
                 onPick={(d) => pickDate(d)}
                 sessionsOnly={isCoach}
@@ -217,7 +231,7 @@ export function LessonPlansPage() {
                     ? `${relativeDay(date)} · ${formatLongDate(date)}`
                     : formatLongDate(date)}
                 </h2>
-                {day.data?.cancelled ? (
+                {isAll ? null : day.data?.cancelled ? (
                   <Badge variant="warning">Cancelled</Badge>
                 ) : (
                   day.data && !day.data.isSessionDay && <Badge variant="muted">No session</Badge>
@@ -231,36 +245,46 @@ export function LessonPlansPage() {
                   </span>
                 )}
               </div>
-              {isCoach && day.data?.lockedReason && (
-                <div
-                  role="status"
-                  className="mb-2 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/12 px-2.5 py-1.5 text-[12px] leading-snug"
-                >
-                  <Lock
-                    aria-hidden
-                    className="mt-0.5 size-4 shrink-0 text-warning-foreground dark:text-warning"
-                  />
-                  <span>
-                    <b className="font-semibold">Planning is closed for this day.</b>{' '}
-                    {day.data.lockedReason} Pick a highlighted day above.
-                  </span>
-                </div>
-              )}
-              {day.isPending ? (
-                <ListSkeleton rows={4} />
-              ) : day.isError ? (
-                <ErrorState error={day.error} onRetry={() => void day.refetch()} />
-              ) : isCoach && day.data.lockedReason && !day.data.plan ? null : (
-                <PlanEditor
-                  key={`${batchId}:${date}`}
-                  batchId={batchId}
+              {isAll ? (
+                <AllBatchesDay
+                  batches={batches.data ?? []}
                   date={date}
-                  plan={day.data.plan}
-                  readOnly={!isCoach || !!day.data.lockedReason}
-                  libraryCoachId={batch?.coach.id ?? ''}
-                  previousPlanDate={day.data.previousPlanDate}
-                  onDirtyChange={onDirtyChange}
+                  onOpen={(id) => go({ batch: id })}
                 />
+              ) : (
+                <>
+                  {isCoach && day.data?.lockedReason && (
+                    <div
+                      role="status"
+                      className="mb-2 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/12 px-2.5 py-1.5 text-[12px] leading-snug"
+                    >
+                      <Lock
+                        aria-hidden
+                        className="mt-0.5 size-4 shrink-0 text-warning-foreground dark:text-warning"
+                      />
+                      <span>
+                        <b className="font-semibold">Planning is closed for this day.</b>{' '}
+                        {day.data.lockedReason} Pick a highlighted day above.
+                      </span>
+                    </div>
+                  )}
+                  {day.isPending ? (
+                    <ListSkeleton rows={4} />
+                  ) : day.isError ? (
+                    <ErrorState error={day.error} onRetry={() => void day.refetch()} />
+                  ) : isCoach && day.data.lockedReason && !day.data.plan ? null : (
+                    <PlanEditor
+                      key={`${batchId}:${date}`}
+                      batchId={batchId}
+                      date={date}
+                      plan={day.data.plan}
+                      readOnly={!isCoach || !!day.data.lockedReason}
+                      batches={batches.data ?? []}
+                      previousPlanDate={day.data.previousPlanDate}
+                      onDirtyChange={onDirtyChange}
+                    />
+                  )}
+                </>
               )}
             </>
           )}

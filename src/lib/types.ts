@@ -365,6 +365,7 @@ export interface TodaySession {
 
 export interface LibraryItem {
   id: string;
+  batchId: string;
   coachId: string;
   name: string;
   description?: string | null;

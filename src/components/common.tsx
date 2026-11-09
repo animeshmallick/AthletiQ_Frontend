@@ -51,7 +51,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'mb-3.5 flex flex-wrap items-end justify-between gap-x-3 gap-y-2.5 sm:mb-6 sm:gap-4',
+        'mb-2.5 flex flex-wrap items-end justify-between gap-x-2 gap-y-1.5 sm:mb-4 sm:gap-3',
         className,
       )}
     >
@@ -61,12 +61,12 @@ export function PageHeader({
           {title}
         </h1>
         {description && (
-          <p className="mt-0.5 line-clamp-1 text-[13px] leading-snug text-muted-foreground sm:mt-1 sm:line-clamp-none sm:text-sm">
+          <p className="mt-0.5 line-clamp-1 text-[13px] leading-snug text-muted-foreground sm:line-clamp-none sm:text-sm">
             {description}
           </p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-1.5">{actions}</div>}
     </div>
   );
 }
@@ -87,12 +87,12 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-2xl bg-muted/45 px-6 py-9 text-center sm:py-12',
+        'flex flex-col items-center justify-center rounded-xl bg-muted/45 px-4 py-6 text-center sm:rounded-2xl sm:py-9',
         className,
       )}
     >
       {icon && (
-        <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-card text-primary shadow-e1 [&_svg]:size-6">
+        <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-card text-primary shadow-e1 [&_svg]:size-5">
           {icon}
         </div>
       )}
@@ -102,7 +102,7 @@ export function EmptyState({
           {description}
         </p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }
@@ -185,7 +185,7 @@ export function StatCard({
   const body = (
     <Card
       className={cn(
-        'relative h-full overflow-hidden p-2.5 sm:p-3.5',
+        'relative h-full overflow-hidden p-2 sm:p-3',
         to && 'transition-[transform,box-shadow] duration-150 hover:shadow-e2 active:scale-[0.98]',
       )}
     >

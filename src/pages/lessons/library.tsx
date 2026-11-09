@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Copy, Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ListSkeleton } from '@/components/common';
@@ -15,14 +15,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/overlays';
-import { Input } from '@/components/ui/primitives';
+import { Input, Select } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { useLibrary, useReorderLibrary, useSaveLibraryItem } from '@/lib/queries';
+import { formatTimeRange } from '@/lib/format';
+import { useCopyTemplate, useLibrary, useReorderLibrary, useSaveLibraryItem } from '@/lib/queries';
+import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { STAGE_COLORS } from './meta';
 
-function LibraryList({ kind }: { kind: 'stages' | 'events' }) {
-  const list = useLibrary(kind, { includeArchived: 'true' });
+function LibraryList({ kind, batchId }: { kind: 'stages' | 'events'; batchId: string }) {
+  const list = useLibrary(kind, { batchId, includeArchived: 'true' });
   const saveItem = useSaveLibraryItem(kind);
   const reorder = useReorderLibrary(kind);
   const [name, setName] = useState('');
@@ -37,7 +39,7 @@ function LibraryList({ kind }: { kind: 'stages' | 'events' }) {
     if (!name.trim()) return;
     try {
       await saveItem.mutateAsync(
-        kind === 'stages' ? { name: name.trim(), color } : { name: name.trim() },
+        kind === 'stages' ? { batchId, name: name.trim(), color } : { batchId, name: name.trim() },
       );
       setName('');
       setColor(STAGE_COLORS[(active.length + 1) % STAGE_COLORS.length]!);
@@ -50,11 +52,11 @@ function LibraryList({ kind }: { kind: 'stages' | 'events' }) {
     const ids = active.map((i) => i.id);
     const [moved] = ids.splice(index, 1);
     ids.splice(index + delta, 0, moved!);
-    reorder.mutate(ids, { onError: (e) => toast.error(errorMessage(e)) });
+    reorder.mutate({ batchId, ids }, { onError: (e) => toast.error(errorMessage(e)) });
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <form
         className="flex gap-2"
         onSubmit={(e) => {
@@ -201,30 +203,139 @@ function LibraryList({ kind }: { kind: 'stages' | 'events' }) {
   );
 }
 
-export function LibraryDialog({ trigger }: { trigger: ReactNode }) {
+/** Offers to fill an empty template from another batch the coach runs. */
+function CopyFrom({ batchId, others }: { batchId: string; others: Batch[] }) {
+  const copy = useCopyTemplate();
+  const [from, setFrom] = useState(others[0]?.id ?? '');
+  if (!others.length) return null;
   return (
-    <Dialog>
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed bg-muted/40 p-2">
+      <Copy aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+      <span className="text-[13px]">Start from</span>
+      <Select
+        aria-label="Copy template from"
+        className="h-8 min-w-0 flex-1 text-[13px]"
+        value={from}
+        onChange={(e) => setFrom(e.target.value)}
+      >
+        {others.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}
+          </option>
+        ))}
+      </Select>
+      <Button
+        size="sm"
+        loading={copy.isPending}
+        disabled={!from}
+        onClick={() =>
+          copy.mutate(
+            { fromBatchId: from, toBatchId: batchId },
+            {
+              onSuccess: (r) =>
+                toast.success(
+                  r.stages + r.events
+                    ? `Copied ${r.stages} stage${r.stages === 1 ? '' : 's'} and ${r.events} event${r.events === 1 ? '' : 's'}`
+                    : 'Nothing new to copy',
+                ),
+              onError: (e) => toast.error(errorMessage(e)),
+            },
+          )
+        }
+      >
+        Copy template
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Each batch's plan template: the stages (grid columns) and events (grid rows) its daily plans
+ * are built from. The batch's coach edits it; switch batch to edit another one's template.
+ */
+export function TemplateDialog({
+  trigger,
+  batchId,
+  batches,
+}: {
+  trigger: ReactNode;
+  batchId: string;
+  batches: Batch[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(batchId);
+  const current = selected || batches[0]?.id || '';
+  const batch = batches.find((b) => b.id === current);
+  const stages = useLibrary('stages', { batchId: current || undefined });
+  const events = useLibrary('events', { batchId: current || undefined });
+  const empty = stages.data?.length === 0 && events.data?.length === 0;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setSelected(batchId); // Open on the batch being planned.
+      }}
+    >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="gap-3 sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Your lesson library</DialogTitle>
+          <DialogTitle>Batch plan template</DialogTitle>
           <DialogDescription>
-            Stages are the columns of your daily grid; events are the rows. Only you can see and
-            edit your library.
+            Stages are the columns of each day’s grid; events are the rows. Every batch has its own
+            template, kept by its coach.
           </DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="stages">
-          <TabsList>
-            <TabsTrigger value="stages">Stages</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-          </TabsList>
-          <TabsContent value="stages" className="mt-4">
-            <LibraryList kind="stages" />
-          </TabsContent>
-          <TabsContent value="events" className="mt-4">
-            <LibraryList kind="events" />
-          </TabsContent>
-        </Tabs>
+        {batches.length > 1 && (
+          <Select
+            aria-label="Template for batch"
+            className="h-9"
+            value={current}
+            onChange={(e) => setSelected(e.target.value)}
+          >
+            {batches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name} · {formatTimeRange(b.startTime, b.endTime)}
+              </option>
+            ))}
+          </Select>
+        )}
+        {!current ? (
+          <p className="text-sm text-muted-foreground">You have no batches to plan for.</p>
+        ) : (
+          <>
+            {empty && (
+              <CopyFrom
+                key={current}
+                batchId={current}
+                others={batches.filter((b) => b.id !== current)}
+              />
+            )}
+            <Tabs defaultValue="stages" key={current}>
+              <TabsList>
+                <TabsTrigger value="stages">
+                  Stages{' '}
+                  <span className="tabular text-muted-foreground">{stages.data?.length ?? ''}</span>
+                </TabsTrigger>
+                <TabsTrigger value="events">
+                  Events{' '}
+                  <span className="tabular text-muted-foreground">{events.data?.length ?? ''}</span>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="stages" className="mt-3">
+                <LibraryList kind="stages" batchId={current} />
+              </TabsContent>
+              <TabsContent value="events" className="mt-3">
+                <LibraryList kind="events" batchId={current} />
+              </TabsContent>
+            </Tabs>
+            {batch && (
+              <p className="text-[11px] text-muted-foreground">
+                Changes apply to {batch.name}’s new and edited plans. Saved plans keep their grid.
+              </p>
+            )}
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

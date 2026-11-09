@@ -1,7 +1,7 @@
 import { LessonPlansPage } from '@/pages/lessons';
 import { batch } from '../fixtures';
 import { within } from '@testing-library/react';
-import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
+import { adminUser, chooseOption, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
 const stages = [
   {
@@ -271,6 +271,84 @@ describe('Lesson plans (coach dates)', () => {
     expect(dayDates(api)).not.toContain('2026-03-15');
     await user.click(screen.getByRole('button', { name: 'Previous session' }));
     expect(await screen.findByRole('heading', { name: /14 March/ })).toBeInTheDocument();
+  });
+});
+
+describe('Lesson plans (all batches)', () => {
+  it('combines batches on one week strip and opens a batch from the day list', async () => {
+    const day = (date: string, planId: string | null, filled = 0) => ({
+      date,
+      isSessionDay: true,
+      cancelled: null,
+      planId,
+      filledCells: filled,
+      totalCells: planId ? 2 : 0,
+    });
+    const api = mockApi({
+      ...routes({}),
+      'GET /batches': () => [batch, { ...batch, id: 'b2', name: 'Evening' }],
+      'GET /lessons/plans': (c) => {
+        const id = c.query.get('batchId')!;
+        return {
+          batch: {
+            id,
+            name: id === 'b1' ? 'Morning U-12' : 'Evening',
+            weekdays: [1, 2, 3, 4, 5, 6],
+          },
+          days: [id === 'b1' ? day('2026-03-10', 'p1', 2) : day('2026-03-10', null)],
+        };
+      },
+    });
+    const { user } = await renderPage(<LessonPlansPage />, {
+      path: '/lesson-plans',
+      route: '/lesson-plans?batch=all&date=2026-03-10',
+      user: coachUser,
+    });
+    const list = await screen.findByRole('list', { name: 'Sessions this day' });
+    expect(within(list).getAllByRole('button')).toHaveLength(2);
+    expect(within(list).getByText('2/2')).toBeInTheDocument();
+    expect(within(list).getByText('Not planned')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /10 March \(partly planned, 1\/2 sessions\)/ }),
+    ).toBeInTheDocument();
+    // The combined view never asks for a single day's plan.
+    expect(api.find('GET /lessons/plans/day')).toHaveLength(0);
+    await user.click(within(list).getByRole('button', { name: /Evening/ }));
+    await waitFor(() =>
+      expect(api.find('GET /lessons/plans/day').map((c) => c.query.get('batchId'))).toContain('b2'),
+    );
+  });
+});
+
+describe('Batch plan template', () => {
+  it('switches batch and starts an empty template from another batch', async () => {
+    const api = mockApi({
+      ...routes({}),
+      'GET /batches': () => [batch, { ...batch, id: 'b2', name: 'Evening' }],
+      'GET /lessons/stages': (c) => (c.query.get('batchId') === 'b2' ? [] : stages),
+      'GET /lessons/events': (c) => (c.query.get('batchId') === 'b2' ? [] : events),
+      'POST /lessons/template/copy': () => ({ stages: 2, events: 1 }),
+    });
+    const { user } = await renderPage(<LessonPlansPage />, {
+      path: '/lesson-plans',
+      route: '/lesson-plans?batch=b1&date=2026-03-10',
+      user: coachUser,
+    });
+    await user.click(await screen.findByRole('button', { name: /template/i }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('Warm-up')).toBeInTheDocument();
+    expect(api.find('GET /lessons/stages').every((c) => c.query.get('batchId'))).toBe(true);
+    await chooseOption(
+      user,
+      within(dialog).getByRole('combobox', { name: 'Template for batch' }),
+      'b2',
+    );
+    await user.click(await within(dialog).findByRole('button', { name: 'Copy template' }));
+    await waitFor(() => expect(api.find('POST /lessons/template/copy')).toHaveLength(1));
+    expect(api.find('POST /lessons/template/copy')[0]!.body).toEqual({
+      fromBatchId: 'b1',
+      toBatchId: 'b2',
+    });
   });
 });
 

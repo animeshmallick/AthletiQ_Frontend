@@ -1,5 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { allocate, formatPercent, nodeAmounts, previewShares, validateTree } from '@/lib/split';
+import {
+  allocate,
+  autoName,
+  formatPercent,
+  nodeAmounts,
+  previewShares,
+  validateTree,
+} from '@/lib/split';
 import type { AcademyFunds, FeePlan, FundTxn, MyFunds, SplitNode } from '@/lib/types';
 import { FeePlansPage } from '@/pages/admin/fee-plans';
 import { MoneyPage } from '@/pages/money';
@@ -57,6 +64,30 @@ describe('split maths (client copy)', () => {
   });
 });
 
+describe('section names', () => {
+  it('follow the recipient, name divided sections after their parts, and stay unique', () => {
+    const named = autoName(
+      [
+        node({ name: '', children: [node({}), node({ recipient: 'payee', payeeId: 'py1' })] }),
+        node({ name: 'old', recipient: 'staff', userId: 'u1' }),
+        node({ name: '', recipient: 'academy' }),
+        node({ name: '', recipient: 'academy' }),
+        node({ name: '', recipient: 'batch_coach' }),
+      ],
+      [{ id: 'u1', name: 'Ravi' }],
+      [{ id: 'py1', name: 'Society' }],
+    );
+    expect(named.map((n) => n.name)).toEqual([
+      'Academy & Society',
+      'Ravi',
+      'Academy',
+      'Academy 2',
+      'Batch coach',
+    ]);
+    expect(named[0]!.children.map((c) => c.name)).toEqual(['Academy', 'Society']);
+  });
+});
+
 describe('fee split editor', () => {
   const plan: FeePlan = {
     id: 'p1',
@@ -106,8 +137,9 @@ describe('fee split editor', () => {
     const sent = api.find('PUT /fee-plans/p1/split')[0]!.body as { sections: SplitNode[] };
     expect(sent.sections.map((s) => [s.name, s.kind, s.value, s.recipient])).toEqual([
       ['Academy', 'percent', 5000, 'academy'],
-      ['Coach', 'percent', 5000, 'batch_coach'],
+      ['Batch coach', 'percent', 5000, 'batch_coach'],
     ]);
+    expect(within(dialog).queryByRole('textbox', { name: 'Section name' })).toBeNull();
     expect(JSON.stringify(sent)).not.toContain('"key"');
   });
 

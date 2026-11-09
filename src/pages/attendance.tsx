@@ -272,7 +272,7 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {data.needsCheckIn ? (
         <div
           role="status"
@@ -439,7 +439,7 @@ function MonthlyRegister({ batchId }: { batchId: string }) {
   const reg = useRegister({ batchId, from, to });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={() => setMonth(addMonths(month, -1))}>
           ‹ Prev
@@ -544,7 +544,7 @@ export function AttendancePage() {
         title="Attendance"
         description="Mark who showed up. Changes save in one tap — even on a slow connection."
       />
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
         <BatchSelect
           value={batchId}
           onChange={setBatch}

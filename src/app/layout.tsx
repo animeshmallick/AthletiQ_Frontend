@@ -95,7 +95,7 @@ export function AppLayout() {
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-6 overflow-y-auto bg-sidebar px-3 py-5 text-sidebar-foreground lg:flex">
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-4 overflow-y-auto bg-sidebar px-3 py-5 text-sidebar-foreground lg:flex">
         <Link
           to="/"
           className="group flex items-center gap-2.5 rounded-xl px-3"
@@ -129,7 +129,7 @@ export function AppLayout() {
         <IosInstallBanner />
         <main
           id="main"
-          className="mx-auto w-full max-w-7xl flex-1 px-3 pt-3.5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pb-10"
+          className="mx-auto w-full max-w-7xl flex-1 px-2.5 pt-2.5 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:px-4 sm:pt-4 lg:px-6 lg:pb-8"
         >
           <Suspense fallback={<PageFallback />} key={location.pathname}>
             <div className="animate-page">
@@ -300,7 +300,7 @@ function OfflineBanner() {
 
 export function PageFallback() {
   return (
-    <div className="space-y-4" aria-busy aria-label="Loading page">
+    <div className="space-y-3" aria-busy aria-label="Loading page">
       <Skeleton className="h-8 w-56" />
       <Skeleton className="h-4 w-80" />
       <div className="grid gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-4">

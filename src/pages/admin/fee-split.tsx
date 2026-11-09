@@ -34,6 +34,7 @@ import {
   recipientLabel,
   SPLIT_COLORS,
   validateTree,
+  autoName,
 } from '@/lib/split';
 import type { FeePlan, Payee, SplitNode, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -76,7 +77,7 @@ export function SplitBar({ plan, onEdit }: { plan: FeePlan; onEdit: () => void }
       type="button"
       onClick={onEdit}
       aria-label={`Fee split for ${plan.name}`}
-      className="mt-2 block w-full cursor-pointer rounded-lg text-left focus-visible:outline-2"
+      className="mt-1.5 block w-full cursor-pointer rounded-lg text-left focus-visible:outline-2"
     >
       <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
         {tree.length ? (
@@ -91,7 +92,7 @@ export function SplitBar({ plan, onEdit }: { plan: FeePlan; onEdit: () => void }
           <div className="w-full bg-muted-foreground/25" />
         )}
       </div>
-      <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+      <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
         <Split className="size-3 shrink-0" />
         {tree.length
           ? lines.map((l) => `${l.label.split(' › ').at(-1)} ${money(l.amount)}`).join(' · ')
@@ -184,14 +185,8 @@ function SectionRow({
         ) : (
           <span className={cn('size-2.5 shrink-0 rounded-full', color)} />
         )}
-        <Input
-          aria-label="Section name"
-          className="h-9 min-w-0 flex-1"
-          placeholder={depth === 1 ? 'e.g. Academy' : 'e.g. Society'}
-          value={node.name}
-          maxLength={60}
-          onChange={(e) => onChange({ ...node, name: e.target.value })}
-        />
+        {/* Named after its recipient automatically; no name to type. */}
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{node.name}</span>
         <span className="tabular w-20 shrink-0 text-right text-[13px] font-semibold">
           {money(amount)}
         </span>
@@ -356,15 +351,17 @@ export function SplitDialog({ plan, onClose }: { plan: FeePlan; onClose: () => v
   const [recalcFrom, setRecalcFrom] = useState(startOfMonth(today()));
   const [payeesOpen, setPayeesOpen] = useState(false);
 
-  const staff = users.data?.data ?? [];
-  const allPayees = payeesQ.data ?? [];
+  const staff = useMemo(() => users.data?.data ?? [], [users.data]);
+  const allPayees = useMemo(() => payeesQ.data ?? [], [payeesQ.data]);
   const payees = allPayees.filter(
     (p) => p.isActive || tree.some((n) => [n, ...n.children].some((c) => c.payeeId === p.id)),
   );
   const amount = example ?? 0;
-  const amounts = useMemo(() => nodeAmounts(tree, amount), [tree, amount]);
-  const lines = useMemo(() => previewShares(tree, amount), [tree, amount]);
-  const errors = useMemo(() => validateTree(tree), [tree]);
+  // Names follow the recipients, so they're derived rather than typed.
+  const named = useMemo(() => autoName(tree, staff, allPayees), [tree, staff, allPayees]);
+  const amounts = useMemo(() => nodeAmounts(named, amount), [named, amount]);
+  const lines = useMemo(() => previewShares(named, amount), [named, amount]);
+  const errors = useMemo(() => validateTree(named), [named]);
   const errorAt = (path: string) => errors.find((e) => e.path === path)?.message;
   const levelError = errorAt;
 
@@ -388,7 +385,7 @@ export function SplitDialog({ plan, onClose }: { plan: FeePlan; onClose: () => v
   async function submit() {
     if (errors.length) return toast.error(errors[0]!.message);
     try {
-      await save.mutateAsync({ planId: plan.id, sections: stripKeys(tree) });
+      await save.mutateAsync({ planId: plan.id, sections: stripKeys(named) });
       let note = 'Applies to fees received from now on.';
       if (recalc) {
         const r = await resplit.mutateAsync({ feePlanId: plan.id, from: recalcFrom, to: today() });
@@ -476,7 +473,7 @@ export function SplitDialog({ plan, onClose }: { plan: FeePlan; onClose: () => v
           {tree.map((n, i) => (
             <div key={n.key} className="space-y-1.5">
               <SectionRow
-                node={n}
+                node={{ ...n, name: named[i]?.name ?? '' }}
                 depth={1}
                 amount={amounts[`${i}`] ?? 0}
                 color={SPLIT_COLORS[i % SPLIT_COLORS.length]!}
@@ -490,7 +487,8 @@ export function SplitDialog({ plan, onClose }: { plan: FeePlan; onClose: () => v
                 <div className="ml-4 space-y-1.5 border-l-2 border-dashed pl-3">
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-medium text-muted-foreground">
-                      {n.name || 'This section'}’s {money(amounts[`${i}`] ?? 0)} is divided into
+                      {named[i]?.name || 'This section'}’s {money(amounts[`${i}`] ?? 0)} is divided
+                      into
                     </p>
                     <LevelTotal nodes={n.children} />
                   </div>
@@ -502,7 +500,7 @@ export function SplitDialog({ plan, onClose }: { plan: FeePlan; onClose: () => v
                   {n.children.map((c, j) => (
                     <SectionRow
                       key={c.key}
-                      node={c}
+                      node={{ ...c, name: named[i]?.children[j]?.name ?? '' }}
                       depth={2}
                       amount={amounts[`${i}.${j}`] ?? 0}
                       color=""

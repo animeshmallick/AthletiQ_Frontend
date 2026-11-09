@@ -230,7 +230,7 @@ function AdminMoney({
   const categoriesMax = Math.max(...p.expensesByCategory.map((c) => c.amount), 1);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <section aria-label="Right now">
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           <StatCard
@@ -276,7 +276,7 @@ function AdminMoney({
         </Card>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Who holds the cash</CardTitle>
@@ -400,7 +400,7 @@ function AdminMoney({
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Money flow</CardTitle>
@@ -538,7 +538,7 @@ function AdminMoney({
 function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to: string } }) {
   const p = data.period;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         <StatCard
           label="Cash with me"
@@ -568,7 +568,7 @@ function CoachMoney({ data, range }: { data: MyFunds; range: { from: string; to:
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>My money flow</CardTitle>

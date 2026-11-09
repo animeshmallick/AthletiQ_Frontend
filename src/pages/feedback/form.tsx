@@ -295,7 +295,7 @@ export function FeedbackFormPage() {
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Card>
           <CardHeader>
             <CardTitle>Attendance this week</CardTitle>
@@ -313,13 +313,13 @@ export function FeedbackFormPage() {
                 <p className="text-sm text-muted-foreground">{section.description}</p>
               )}
             </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-5">
+            <CardContent className="space-y-3 sm:space-y-3.5">
               {section.fields.map((f) => (
                 <div
                   key={f.id}
                   className={cn(
                     'grid gap-2',
-                    f.type === 'boolean' && 'flex items-center justify-between gap-4',
+                    f.type === 'boolean' && 'flex items-center justify-between gap-3',
                   )}
                 >
                   <p className="text-sm font-medium">

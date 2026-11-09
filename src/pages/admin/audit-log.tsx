@@ -194,7 +194,7 @@ export function AuditLogPage() {
       ) : logs.length === 0 ? (
         <EmptyState icon={<ScrollText />} title="No activity yet" />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {groups.map((g) => (
             <section key={g.day} aria-label={g.day}>
               <h2 className="mb-1.5 px-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">

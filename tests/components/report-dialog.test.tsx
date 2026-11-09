@@ -45,6 +45,21 @@ describe('ReportDialog', () => {
     click.mockRestore();
   });
 
+  it('opens the report in the in-app viewer', async () => {
+    const user = userEvent.setup();
+    const api = mockApi({
+      'GET /reports/students/s1/pdf': () => ({ status: 200, body: { pdf: true } }),
+    });
+    const onClose = jest.fn();
+    render(<Harness onClose={onClose} />);
+    await user.click(screen.getByRole('button', { name: /View/ }));
+    const viewer = await screen.findByRole('dialog', { name: 'Riya Sharma - report' });
+    expect(onClose).toHaveBeenCalled();
+    expect(api.calls[0]!.query.get('batchId')).toBe('all');
+    expect(viewer).toHaveTextContent('riya-all.pdf');
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+
   it('shows the error when the report cannot be built', async () => {
     const user = userEvent.setup();
     mockApi({

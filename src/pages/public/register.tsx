@@ -118,9 +118,9 @@ function StudentForm({
   });
 
   return (
-    <form onSubmit={onSubmit} noValidate className="relative space-y-5">
+    <form onSubmit={onSubmit} noValidate className="relative space-y-3.5">
       <Honeypot {...register('website')} />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field
           label="Student’s full name"
           required
@@ -184,7 +184,7 @@ function StudentForm({
         </Field>
       </div>
 
-      <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
+      <div className="space-y-3 rounded-xl border bg-muted/30 p-4">
         <p className="text-sm font-medium">Training preference</p>
         <Field label="Preferred batch" htmlFor="s-batch">
           <Select id="s-batch" {...register('preferredBatchId')}>
@@ -285,7 +285,7 @@ function CoachForm({ onDone }: { onDone: (msg: string) => void }) {
   });
 
   return (
-    <form onSubmit={onSubmit} noValidate className="relative space-y-4">
+    <form onSubmit={onSubmit} noValidate className="relative space-y-3">
       <Honeypot {...register('website')} />
       <Field label="Full name" required htmlFor="c-name" error={e.fullName?.message}>
         <Input
@@ -295,7 +295,7 @@ function CoachForm({ onDone }: { onDone: (msg: string) => void }) {
           {...register('fullName')}
         />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field
           label="Email"
           required
@@ -400,19 +400,19 @@ export function RegisterPage() {
                 </a>
               </p>
             )}
-            <Button variant="outline" className="mt-4 sm:mt-6" onClick={() => setDone(null)}>
+            <Button variant="outline" className="mt-4 sm:mt-4" onClick={() => setDone(null)}>
               Register someone else
             </Button>
           </Card>
         ) : (
           <>
-            <div className="mb-6 text-center">
+            <div className="mb-4 text-center">
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Join {academy}</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Fill in a few details — we’ll confirm your batch and get you started.
               </p>
             </div>
-            <div className="mb-6 flex justify-center">
+            <div className="mb-4 flex justify-center">
               <Segmented
                 ariaLabel="Registration type"
                 value={type}

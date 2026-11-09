@@ -63,7 +63,7 @@ function ProfileCard() {
             Signed in as {user.email} · <span className="capitalize">{user.role}</span>
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="grid gap-3 sm:grid-cols-2">
           <Field label="Name" required error={e.name?.message}>
             <Input autoComplete="name" {...form.register('name')} />
           </Field>
@@ -117,7 +117,7 @@ function PasswordCard() {
           <CardTitle>Password</CardTitle>
           <CardDescription>Changing your password signs you out everywhere else.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
+        <CardContent className="grid gap-3 sm:grid-cols-3">
           <Field label="Current password" error={e.currentPassword?.message}>
             <Input
               type="password"
@@ -146,7 +146,7 @@ export function AccountPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Account" />
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-3 sm:space-y-4">
         <ProfileCard />
         <NotificationsCard />
         <PasswordCard />

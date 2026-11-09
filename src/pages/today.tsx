@@ -255,9 +255,9 @@ function PlanningNudge() {
   return (
     <Link
       to={first ? `/lesson-plans?batch=${first.batchId}&date=${first.date}` : '/lesson-plans'}
-      className="flex items-center gap-3 rounded-xl border bg-card px-3.5 py-3 text-[13px] shadow-e1 transition-colors hover:bg-muted/50"
+      className="flex items-center gap-2 rounded-lg border bg-card p-1 pl-2 text-[13px] leading-tight shadow-e1 transition-colors hover:bg-muted/50"
     >
-      <ClipboardList className="size-5 shrink-0 text-primary" />
+      <ClipboardList className="size-4 shrink-0 text-primary" />
       <span className="flex-1">
         <span className="font-medium">{plural(missing, 'session')} without a lesson plan</span>
         <span className="text-muted-foreground"> in the next two weeks.</span>
@@ -276,7 +276,7 @@ function CoachToday() {
   const feedback = useFeedbackWeek({ weekStart: lastWeek });
 
   return (
-    <div className="space-y-3 sm:space-y-5">
+    <div className="space-y-3 sm:space-y-3.5">
       <div>
         <p className="text-[13px] text-muted-foreground">{formatLongDate(day)}</p>
         <h1 className="text-[22px] font-semibold tracking-tight sm:text-2xl">
@@ -287,9 +287,9 @@ function CoachToday() {
       {feedback.data && feedback.data.summary.pending + feedback.data.summary.draft > 0 && (
         <Link
           to="/feedback"
-          className="flex items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 px-3.5 py-3 text-[13px] transition-colors hover:bg-warning/15"
+          className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 p-1 pl-2 text-[13px] leading-tight transition-colors hover:bg-warning/15"
         >
-          <MessageSquareText className="size-5 shrink-0 text-warning-foreground dark:text-warning" />
+          <MessageSquareText className="size-4 shrink-0 text-warning-foreground dark:text-warning" />
           <span className="flex-1">
             <span className="font-medium">Weekly feedback due</span> —{' '}
             {plural(feedback.data.summary.pending + feedback.data.summary.draft, 'student')} still
@@ -349,7 +349,7 @@ function AdminToday() {
   const unreviewed = flagged.data?.summary.unreviewedFlagged ?? 0;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-4">
       <div>
         <p className="text-sm text-muted-foreground">{formatLongDate(day)}</p>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -438,7 +438,7 @@ function AdminToday() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Sessions today</CardTitle>

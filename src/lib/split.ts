@@ -137,3 +137,27 @@ export function recipientLabel(
       return 'Academy';
   }
 }
+
+/**
+ * Names every section after where its money goes ("Academy", "Batch coach", a staff member or
+ * payee); a divided section is named after its parts ("Academy & Society"). Repeats on a level
+ * get a number ("Academy 2"), so names stay unique as the server requires.
+ */
+export function autoName<T extends SplitNode & { children: T[] }>(
+  nodes: T[],
+  staff: Pick<User, 'id' | 'name'>[] = [],
+  payees: Pick<Payee, 'id' | 'name'>[] = [],
+): T[] {
+  const seen = new Map<string, number>();
+  return nodes.map((n) => {
+    const children = autoName(n.children, staff, payees);
+    const base = children.length
+      ? [...new Set(children.map((c) => recipientLabel(c, staff, payees)))].join(' & ')
+      : recipientLabel(n, staff, payees);
+    const key = base.toLowerCase();
+    const count = (seen.get(key) ?? 0) + 1;
+    seen.set(key, count);
+    const name = (count > 1 ? `${base} ${count}` : base).slice(0, 60);
+    return { ...n, name, children };
+  });
+}

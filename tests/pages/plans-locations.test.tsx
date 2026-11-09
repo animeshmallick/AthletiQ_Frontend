@@ -38,7 +38,7 @@ describe('FeePlansPage summary and cards', () => {
     // 3 × ₹2,600 + 1 × ₹4,000 = ₹11,800 a month; average ₹2,950.
     expect(stat('Per month')).toHaveTextContent('₹11.8K');
     // ₹2,600 / (3 × 52/12) ≈ ₹200 a session, in whole rupees.
-    expect(screen.getByText(/≈ ₹200\/session/)).toBeInTheDocument();
+    expect(screen.getByText(/≈₹200\/session/)).toBeInTheDocument();
     expect(screen.getByText('Weekday evenings')).toBeInTheDocument();
     expect(screen.queryByText('Old plan')).not.toBeInTheDocument();
     await user.click(screen.getByRole('switch'));

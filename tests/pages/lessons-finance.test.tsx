@@ -86,7 +86,7 @@ describe('LessonPlansPage', () => {
     });
   });
 
-  it('prompts coaches to set up the library first', async () => {
+  it('prompts coaches to set up the batch template first', async () => {
     mockApi({
       'GET /batches': () => [batch],
       'GET /lessons/stages': () => [],
@@ -104,7 +104,7 @@ describe('LessonPlansPage', () => {
       route: '/lesson-plans?batch=b1&date=2026-03-09',
       user: coachUser,
     });
-    expect(await screen.findByText('Set up your library first')).toBeInTheDocument();
+    expect(await screen.findByText('Set up this batch’s plan template')).toBeInTheDocument();
   });
 
   it('shows plans read-only to admins', async () => {

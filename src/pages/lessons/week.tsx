@@ -12,29 +12,53 @@ import {
   today,
   WEEKDAYS,
 } from '@/lib/format';
-import { usePlanCalendar } from '@/lib/queries';
-import type { LessonInsights } from '@/lib/types';
+import type { LessonInsights, PlanStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { planStatus, STATUS_META } from './meta';
+import { useWeekPlans, type BatchDay } from './week-data';
 
-/** Seven tappable days with each day's plan state, plus week-by-week navigation. */
+/** A day across batches: is anything on, was it all cancelled, and how planned is it. */
+function summarise(list: BatchDay[] | undefined) {
+  if (!list?.length) return null;
+  const on = list.filter((d) => d.isSessionDay);
+  const live = on.filter((d) => !d.cancelled);
+  const cancelled = on.length > 0 && live.length === 0 ? on[0]!.cancelled : null;
+  let status: PlanStatus;
+  if (list.length === 1) status = planStatus(list[0]);
+  else {
+    const states = live.map((d) => planStatus(d));
+    status = states.every((x) => x === 'complete')
+      ? 'complete'
+      : states.every((x) => x === 'unplanned')
+        ? 'unplanned'
+        : 'partial';
+  }
+  return {
+    isSessionDay: on.length > 0,
+    cancelled,
+    sessions: live.length,
+    planned: live.filter((d) => d.planId).length,
+    status,
+  };
+}
+
+/** Seven tappable days with each day's plan state (one batch or several), plus week navigation. */
 export function WeekStrip({
-  batchId,
+  batchIds,
   date,
   onPick,
   sessionsOnly = false,
 }: {
-  batchId: string;
+  batchIds: string[];
   date: string;
   onPick: (d: string) => void;
-  /** Coaches can only open days their batch actually trains (not cancelled). */
+  /** Coaches can only open days a batch actually trains (not cancelled). */
   sessionsOnly?: boolean;
 }) {
-  const from = startOfWeek(date);
-  const cal = usePlanCalendar({ batchId, from, to: addDays(from, 6) });
-  const days = cal.data?.days ?? [];
-  const sessions = days.filter((d) => d.isSessionDay && !d.cancelled);
-  const planned = sessions.filter((d) => d.planId).length;
+  const { from, pending, byDate } = useWeekPlans(batchIds, date);
+  const week = Array.from({ length: 7 }, (_, i) => summarise(byDate.get(addDays(from, i))));
+  const sessions = week.reduce((n, d) => n + (d?.sessions ?? 0), 0);
+  const planned = week.reduce((n, d) => n + (d?.planned ?? 0), 0);
 
   return (
     <section aria-label="Week" className="mb-2">
@@ -50,10 +74,10 @@ export function WeekStrip({
         {/* The label doubles as a date picker on phones, where the date stepper is hidden. */}
         <label className="relative min-w-0 flex-1 cursor-pointer truncate rounded-md px-1 py-0.5 text-center text-[12px] font-medium text-muted-foreground hover:bg-muted sm:flex-none sm:cursor-default sm:hover:bg-transparent">
           {formatShortDate(from)} – {formatShortDate(addDays(from, 6))}
-          {sessions.length > 0 && (
+          {sessions > 0 && (
             <span className="tabular">
               {' '}
-              · {planned}/{sessions.length} planned
+              · {planned}/{sessions} planned
             </span>
           )}
           <input
@@ -86,10 +110,10 @@ export function WeekStrip({
       <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
         {Array.from({ length: 7 }, (_, i) => {
           const d = addDays(from, i);
-          const info = days.find((x) => x.date === d);
+          const info = week[i];
           const selected = d === date;
           const off = info && (!info.isSessionDay || info.cancelled);
-          const status = planStatus(info);
+          const status = info?.status ?? 'unplanned';
           const blocked = sessionsOnly && Boolean(off);
           return (
             <button
@@ -111,7 +135,9 @@ export function WeekStrip({
                   : info && !info.isSessionDay
                     ? ' (no session)'
                     : info
-                      ? ` (${STATUS_META[status].label.toLowerCase()})`
+                      ? ` (${STATUS_META[status].label.toLowerCase()}${
+                          batchIds.length > 1 ? `, ${info.planned}/${info.sessions} sessions` : ''
+                        })`
                       : ''
               }`}
               title={info?.cancelled ? `Cancelled: ${info.cancelled}` : undefined}
@@ -127,7 +153,7 @@ export function WeekStrip({
               >
                 {Number(d.slice(8))}
               </span>
-              {cal.isPending ? (
+              {pending ? (
                 <span className="size-1.5" />
               ) : (
                 <span

@@ -150,7 +150,7 @@ export function MoreSheet({
         </DialogClose>
       </div>
 
-      <div className="space-y-4 px-3 pt-3 pb-2">
+      <div className="space-y-3 px-3 pt-3 pb-2">
         {/* Profile */}
         <NavLink
           to="/account"

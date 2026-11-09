@@ -125,7 +125,7 @@ function UserDialog({
             {user ? 'Update contact details.' : 'They’ll get a link to set their own password.'}
           </DialogDescription>
         </DialogHeader>
-        <form id="user-form" onSubmit={onSubmit} noValidate className="space-y-4">
+        <form id="user-form" onSubmit={onSubmit} noValidate className="space-y-3">
           <Field label="Full name" required error={e.name?.message}>
             <Input autoFocus {...form.register('name')} />
           </Field>

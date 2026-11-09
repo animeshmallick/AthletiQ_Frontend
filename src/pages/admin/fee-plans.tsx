@@ -66,7 +66,7 @@ function PlanDialog({ plan, onClose }: { plan?: FeePlan; onClose: () => void }) 
             suggested.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Name" required className="sm:col-span-2">
             <Input
               value={name}
@@ -133,24 +133,24 @@ function PlanCard({
   return (
     <Card
       className={cn(
-        'relative flex items-stretch gap-3 p-3 transition-[box-shadow,border-color] hover:shadow-e2',
+        'relative flex items-stretch gap-2.5 p-2.5 transition-[box-shadow,border-color] hover:shadow-e2',
         !p.isActive && 'bg-muted/30',
         selected && 'border-primary ring-2 ring-primary/25',
       )}
     >
       <div
         className={cn(
-          'flex w-14 shrink-0 flex-col items-center justify-center rounded-xl',
+          'flex w-11 shrink-0 flex-col items-center justify-center rounded-lg',
           p.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
         )}
       >
-        <span className="tabular text-xl leading-none font-bold">{p.daysPerWeek}</span>
-        <span className="mt-0.5 text-[10px] font-medium">
+        <span className="tabular text-lg leading-none font-bold">{p.daysPerWeek}</span>
+        <span className="mt-0.5 text-[9px] font-semibold tracking-wide uppercase">
           {p.daysPerWeek === 1 ? 'day/wk' : 'days/wk'}
         </span>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2 pr-8">
+        <div className="flex items-start gap-1.5 pr-7">
           <button
             type="button"
             onClick={onSelect}
@@ -166,34 +166,26 @@ function PlanCard({
             </Badge>
           )}
         </div>
-        <p className="mt-1 flex items-baseline gap-1.5">
-          <span className="tabular text-lg leading-none font-bold tracking-tight">
+        <p className="mt-0.5 flex items-baseline gap-1 text-[11px] text-muted-foreground">
+          <span className="tabular text-base leading-none font-bold tracking-tight text-foreground">
             {money(p.monthlyFee)}
           </span>
-          <span className="text-[11px] text-muted-foreground">/month</span>
-          <span className="tabular truncate text-[11px] text-muted-foreground">
-            · ≈ {money(perSession)}/session
+          <span>/mo</span>
+          <span className="tabular truncate">
+            · ≈{money(perSession)}/session ·{' '}
+            <span
+              className="font-medium text-foreground"
+              title={`${Math.round(share)}% of students on active plans`}
+            >
+              {plural(students, 'student')}
+            </span>
           </span>
         </p>
         {p.description && (
-          <p className="mt-1 truncate text-[12px] text-muted-foreground" title={p.description}>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={p.description}>
             {p.description}
           </p>
         )}
-        <div className="mt-2 flex items-center gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn(
-                'h-full rounded-full',
-                p.isActive ? 'bg-primary' : 'bg-muted-foreground/40',
-              )}
-              style={{ width: `${share}%` }}
-            />
-          </div>
-          <span className="tabular shrink-0 text-[11px] font-medium text-muted-foreground">
-            {plural(students, 'student')}
-          </span>
-        </div>
         <div className="relative z-10">
           <SplitBar plan={p} onEdit={onSelect} />
         </div>
@@ -201,7 +193,7 @@ function PlanCard({
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-1.5 right-1.5 z-10 size-8"
+        className="absolute top-1 right-1 z-10 size-7 [&_svg:not([class*=size-])]:size-3.5"
         aria-label={`Edit ${p.name}`}
         onClick={onEdit}
       >

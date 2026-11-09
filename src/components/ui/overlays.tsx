@@ -33,7 +33,8 @@ export function DialogContent({
       <Overlay />
       <D.Content
         className={cn(
-          'fixed z-50 flex max-h-[92dvh] w-full flex-col gap-3 overflow-y-auto border bg-card p-4 pt-5 shadow-e3 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in sm:gap-4 sm:p-5',
+          // Never taller than the screen below the status bar (Android edge-to-edge, iOS notch).
+          'fixed z-50 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-1rem))] w-full flex-col gap-3 overflow-y-auto border bg-card p-4 pt-5 shadow-e3 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in sm:gap-4 sm:p-5',
           // Bottom sheet on phones, centred dialog on larger screens.
           'inset-x-0 bottom-0 rounded-t-3xl pb-[max(1rem,env(safe-area-inset-bottom))] before:absolute before:top-2 before:left-1/2 before:h-1.5 before:w-10 before:-translate-x-1/2 before:rounded-full before:bg-muted-foreground/25 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:before:hidden',
           className,
@@ -80,6 +81,7 @@ export function SheetContent({
   children,
   side = 'right',
   title,
+  style,
   ...props
 }: ComponentProps<typeof D.Content> & { side?: 'left' | 'right'; title: string }) {
   return (
@@ -91,11 +93,17 @@ export function SheetContent({
           side === 'right' ? 'right-0 border-l' : 'left-0 border-r',
           className,
         )}
+        // Full-height on phones: keep content (and the close button) clear of the system bars.
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          ...style,
+        }}
         {...props}
       >
         <D.Title className="sr-only">{title}</D.Title>
         {children}
-        <D.Close className="absolute top-4 right-4 cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+        <D.Close className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-4 cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
           <X className="size-5" />
           <span className="sr-only">Close</span>
         </D.Close>

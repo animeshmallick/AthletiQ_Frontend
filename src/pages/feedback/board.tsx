@@ -63,8 +63,8 @@ export function FeedbackPage() {
         }
       />
 
-      <Card className="mb-5 p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="mb-3 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -145,7 +145,7 @@ export function FeedbackPage() {
           }
         />
       ) : (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-3 sm:space-y-4">
           {Object.entries(byBatch).map(([batchName, rows]) => (
             <section key={batchName}>
               <h2 className="mb-2 text-sm font-semibold text-muted-foreground">{batchName}</h2>

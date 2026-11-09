@@ -69,7 +69,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
         />
       )}
 
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
+      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center">
         <Segmented
           ariaLabel="Period"
           value={preset}
@@ -117,7 +117,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
       {q.isError ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-3 sm:space-y-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <StatCard
               label="Billed"
@@ -159,7 +159,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
             />
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>Billed vs collected</CardTitle>
@@ -282,7 +282,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>By batch</CardTitle>

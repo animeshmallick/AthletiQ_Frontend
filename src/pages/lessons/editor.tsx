@@ -38,9 +38,9 @@ import { Badge, Card, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { addDays, formatLongDate, formatShortDate, isoWeekday, WEEKDAYS } from '@/lib/format';
 import { useCopyPlan, useDeletePlan, useLibrary, useSavePlan } from '@/lib/queries';
-import type { LessonPlan, LibraryItem } from '@/lib/types';
+import type { Batch, LessonPlan, LibraryItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { LibraryDialog } from './library';
+import { TemplateDialog } from './library';
 import { whenLabel } from './meta';
 
 // ─── Picker for grid rows/columns ────────────────────────────────────────────
@@ -80,7 +80,7 @@ function PickList({
         )}
       </div>
       {items.length === 0 ? (
-        <p className="px-1 text-[12px] text-muted-foreground">Empty. Add some in “Library”.</p>
+        <p className="px-1 text-[12px] text-muted-foreground">Empty. Add some in “Template”.</p>
       ) : (
         <div className="max-h-56 space-y-0.5 overflow-y-auto">
           {items.map((i) => (
@@ -229,7 +229,7 @@ export function PlanEditor({
   date,
   plan,
   readOnly,
-  libraryCoachId,
+  batches,
   previousPlanDate,
   onDirtyChange,
 }: {
@@ -237,13 +237,13 @@ export function PlanEditor({
   date: string;
   plan: LessonPlan | null;
   readOnly: boolean;
-  libraryCoachId: string;
+  /** The coach's batches, for switching templates in the template dialog. */
+  batches: Batch[];
   previousPlanDate?: string | null;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const libQuery = readOnly ? { coachId: libraryCoachId } : {};
-  const stagesQ = useLibrary('stages', libQuery);
-  const eventsQ = useLibrary('events', libQuery);
+  const stagesQ = useLibrary('stages', { batchId });
+  const eventsQ = useLibrary('events', { batchId });
   const save = useSavePlan();
   const del = useDeletePlan();
   const copy = useCopyPlan();
@@ -395,13 +395,15 @@ export function PlanEditor({
     return (
       <EmptyState
         icon={<Library />}
-        title="Set up your library first"
-        description="Add the stages of a session (e.g. Warm-up, Main, Test, Post-play) and the games or drills you run. Then build each day’s grid from them."
+        title="Set up this batch’s plan template"
+        description="Add the stages of a session (e.g. Warm-up, Main, Test, Post-play) and the games or drills this batch runs. Each day’s grid is built from them."
         action={
-          <LibraryDialog
+          <TemplateDialog
+            batchId={batchId}
+            batches={batches}
             trigger={
               <Button>
-                <Library /> Open library
+                <Library /> Set up template
               </Button>
             }
           />

@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
+import { saveFile } from '@/app/share-file';
 import {
   ConfirmDialog,
   ErrorState,
@@ -23,6 +24,7 @@ import {
   ListSkeleton,
   MoneyInput,
 } from '@/components/common';
+import { PdfViewer, type PdfFile } from '@/components/pdf-viewer';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
 import {
@@ -100,7 +102,7 @@ function MarkPaidDialog({
           <p className="text-xs font-medium text-success">Amount received</p>
           <p className="tabular text-2xl font-semibold">{money(invoice.totalAmount)}</p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Payment mode" required>
             <Select value={mode} onChange={(e) => setMode(e.target.value)}>
               {Object.entries(PAYMENT_MODE_LABELS).map(([v, l]) => (
@@ -331,21 +333,16 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
   const [cancelling, setCancelling] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [viewing, setViewing] = useState<PdfFile | null>(null);
 
   async function openPdf(download: boolean) {
     setDownloading(true);
     try {
       const blob = await requestBlob(`/invoices/${inv.id}/pdf`);
-      const url = URL.createObjectURL(blob);
-      if (download) {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${inv.number.replaceAll('/', '-')}.pdf`;
-        a.click();
-      } else {
-        window.open(url, '_blank', 'noopener');
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      const name = `${inv.number.replaceAll('/', '-')}.pdf`;
+      // Viewed in the app (works in the Android app and iPhone home-screen app too).
+      if (download) await saveFile(blob, name, `Invoice ${inv.number}`);
+      else setViewing({ blob, name, title: `Invoice ${inv.number}` });
     } catch (err) {
       toast.error('Could not open invoice PDF', { description: errorMessage(err) });
     } finally {
@@ -385,7 +382,7 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
         </Link>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-y-auto p-5">
+      <div className="flex-1 space-y-4 overflow-y-auto p-5">
         <div className="grid grid-cols-2 gap-y-4 text-sm">
           <div>
             <p className="text-xs text-muted-foreground">Billing period</p>
@@ -492,6 +489,7 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
             </Button>
           )}
         </div>
+        <PdfViewer file={viewing} onClose={() => setViewing(null)} />
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button
             variant="outline"

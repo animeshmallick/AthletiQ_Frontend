@@ -166,10 +166,19 @@ export function PlanSplitPanel({
           {plan.daysPerWeek === 1 ? 'day' : 'days'} a week · {plural(students, 'student')}
         </CardDescription>
       </div>
-      <Button size="sm" variant="outline" onClick={onEditPlan}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 gap-1 rounded-md px-2 text-[12px] pointer-coarse:h-8 pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
+        onClick={onEditPlan}
+      >
         <Pencil /> Plan
       </Button>
-      <Button size="sm" onClick={onEditSplit}>
+      <Button
+        size="sm"
+        className="h-7 gap-1 rounded-md px-2 text-[12px] pointer-coarse:h-8 pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
+        onClick={onEditSplit}
+      >
         <Split /> {tree.length ? 'Edit split' : 'Set up split'}
       </Button>
     </CardHeader>
@@ -199,7 +208,7 @@ export function PlanSplitPanel({
   return (
     <Card>
       {header}
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         <div className="flex flex-wrap items-end gap-3 rounded-2xl bg-muted/40 p-3">
           <div className="w-40">
             <p className="mb-1 text-[11px] font-medium text-muted-foreground">Preview a fee of</p>
