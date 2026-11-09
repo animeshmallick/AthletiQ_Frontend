@@ -192,6 +192,8 @@ describe('plan distribution panel', () => {
       route: '/fee-plans',
       user: adminUser,
     });
+    // On phones and tablets a plan opens in a sheet when tapped.
+    await user.click(await screen.findByRole('button', { name: 'Show 3 days' }));
     const tree = await screen.findByRole('tree', { name: 'Distribution of 3 days' });
     // ₹2,600: ₹600 rent first, then ₹1,000 each to Academy and Coach; Society 35% of Academy.
     expect(within(tree).getByText('₹600 flat from the 3 days fee')).toBeInTheDocument();

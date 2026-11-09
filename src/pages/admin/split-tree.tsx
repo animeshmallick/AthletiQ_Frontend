@@ -124,7 +124,20 @@ function Bar({
  * to their parent. Tapping a section highlights its path; the preview amount can be changed to see
  * a discounted or custom fee.
  */
-export function PlanSplitPanel({ plan, onEditSplit }: { plan: FeePlan; onEditSplit: () => void }) {
+export function PlanSplitPanel({
+  plan,
+  onEditSplit,
+  bare = false,
+  closeSpace = false,
+}: {
+  plan: FeePlan;
+  onEditSplit: () => void;
+  /** Render without the card frame (inside a pane or sheet). */
+  bare?: boolean;
+  /** Leave room on the right for a sheet's close button. */
+  closeSpace?: boolean;
+}) {
+  const frame = bare ? 'rounded-none border-0 bg-transparent shadow-none' : undefined;
   const people = usePeople();
   const tree = useMemo(() => plan.split ?? [], [plan.split]);
   const [amount, setAmount] = useState<number | null>(plan.monthlyFee);
@@ -146,7 +159,9 @@ export function PlanSplitPanel({ plan, onEditSplit }: { plan: FeePlan; onEditSpl
     });
 
   const header: ReactNode = (
-    <CardHeader className="flex flex-row items-center gap-2 space-y-0">
+    <CardHeader
+      className={cn('flex flex-row items-center gap-2 space-y-0', closeSpace && 'pt-4 pr-12')}
+    >
       <div className="mr-auto min-w-0">
         <CardTitle className="flex items-center gap-2">
           {plan.name}
@@ -169,7 +184,7 @@ export function PlanSplitPanel({ plan, onEditSplit }: { plan: FeePlan; onEditSpl
 
   if (!tree.length) {
     return (
-      <Card>
+      <Card className={frame}>
         {header}
         <CardContent>
           <div className="rounded-2xl border border-dashed p-5 text-center">
@@ -189,7 +204,7 @@ export function PlanSplitPanel({ plan, onEditSplit }: { plan: FeePlan; onEditSpl
   }
 
   return (
-    <Card>
+    <Card className={frame}>
       {header}
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-end gap-3 rounded-2xl bg-muted/40 p-3">

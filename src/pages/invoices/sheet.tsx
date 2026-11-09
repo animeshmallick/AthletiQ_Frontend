@@ -10,7 +10,6 @@ import {
   Undo2,
   Wallet,
 } from 'lucide-react';
-import { Dialog as D } from 'radix-ui';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -555,7 +554,7 @@ export function InvoiceSheet({
 }) {
   const q = useInvoice(id);
   return (
-    <D.Root open={id !== null} onOpenChange={onOpenChange}>
+    <Dialog open={id !== null} onOpenChange={onOpenChange}>
       <SheetContent title="Invoice" className="p-0">
         {q.isPending ? (
           <div className="p-5">
@@ -569,6 +568,6 @@ export function InvoiceSheet({
           <InvoiceBody inv={q.data} />
         )}
       </SheetContent>
-    </D.Root>
+    </Dialog>
   );
 }

@@ -18,11 +18,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  SheetContent,
 } from '@/components/ui/overlays';
 import { Badge, Card, Input, Select } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { money, moneyCompact, plural } from '@/lib/format';
 import { useFeePlans, useSaveFeePlan } from '@/lib/queries';
+import { useMedia } from '@/lib/use-phone';
 import type { FeePlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { SplitBar, SplitDialog } from './fee-split';
@@ -224,7 +226,25 @@ export function FeePlansPage() {
   const monthly = active.reduce((n, p) => n + p.monthlyFee * (p.activeStudents ?? 0), 0);
   const avgFee = students ? Math.round(monthly / students) : null;
   const withSplit = active.filter((p) => p.split?.length).length;
-  const selected = shown.find((p) => p.id === selectedId) ?? shown[0];
+  const wide = useMedia('(min-width: 1280px)');
+  // Wide screens always show a plan; elsewhere a plan opens only when tapped.
+  const selected = shown.find((p) => p.id === selectedId) ?? (wide ? shown[0] : undefined);
+  const retiredToggle =
+    retired > 0 ? (
+      <label className="flex h-8 items-center gap-2 rounded-lg border bg-card px-2.5 text-[12px] text-muted-foreground">
+        <Switch checked={showRetired} onCheckedChange={setShowRetired} /> Retired ({retired})
+      </label>
+    ) : null;
+  const cards = shown.map((p) => (
+    <PlanCard
+      key={p.id}
+      p={p}
+      share={students && p.isActive ? Math.round(((p.activeStudents ?? 0) / students) * 100) : 0}
+      selected={wide && p.id === selected?.id}
+      onEdit={() => setEditing(p)}
+      onSelect={() => setSelectedId(p.id)}
+    />
+  ));
   const newButton = (
     <Button onClick={() => setEditing('new')}>
       <Plus /> New plan
@@ -261,48 +281,48 @@ export function FeePlansPage() {
             ))}
           </div>
           <AllPlansDistribution plans={active} />
-          {retired > 0 && (
-            <div className="flex justify-end">
-              <label className="flex h-9 items-center gap-2 rounded-xl border bg-card px-3 text-[13px] text-muted-foreground">
-                <Switch checked={showRetired} onCheckedChange={setShowRetired} /> Retired ({retired}
-                )
-              </label>
-            </div>
-          )}
           {shown.length === 0 ? (
             <EmptyState
               icon={<Tags />}
               title="No active plans"
               description="Turn on Retired to see older plans."
+              action={retiredToggle}
             />
-          ) : (
-            <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-                {shown.map((p) => (
-                  <PlanCard
-                    key={p.id}
-                    p={p}
-                    share={
-                      students && p.isActive
-                        ? Math.round(((p.activeStudents ?? 0) / students) * 100)
-                        : 0
-                    }
-                    selected={p.id === selected?.id}
-                    onEdit={() => setEditing(p)}
-                    onSelect={() => setSelectedId(p.id)}
-                  />
-                ))}
+          ) : wide ? (
+            // Large screens: one workspace — the plan list on the left, the open plan beside it.
+            <Card className="grid grid-cols-[minmax(0,21rem)_minmax(0,1fr)] overflow-hidden p-0">
+              <div className="flex min-h-0 flex-col border-r bg-muted/25">
+                <div className="flex items-center gap-2 border-b px-3 py-2">
+                  <p className="mr-auto text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    Plans <span className="tabular">{shown.length}</span>
+                  </p>
+                  {retiredToggle}
+                </div>
+                <div
+                  role="listbox"
+                  aria-label="Fee plans"
+                  className="max-h-[calc(100dvh-15rem)] min-h-[26rem] space-y-1.5 overflow-y-auto p-2"
+                >
+                  {cards}
+                </div>
               </div>
-              {selected && (
-                <div className="xl:sticky xl:top-4">
+              <div className="max-h-[calc(100dvh-12.5rem)] min-h-[26rem] overflow-y-auto">
+                {selected && (
                   <PlanSplitPanel
                     key={selected.id}
+                    bare
                     plan={selected}
                     onEditSplit={() => setSplitting(selected)}
                   />
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </Card>
+          ) : (
+            // Phones / tablets: the list; a plan opens in a sheet.
+            <>
+              {retired > 0 && <div className="flex justify-end">{retiredToggle}</div>}
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{cards}</div>
+            </>
           )}
           <p className="px-0.5 text-[11px] text-muted-foreground">
             “Per month” is the list price of every student on an active plan, before custom fees and
@@ -310,6 +330,23 @@ export function FeePlansPage() {
             how its fee is distributed; split changes apply to fees received from then on.
           </p>
         </div>
+      )}
+      {!wide && (
+        <Dialog open={Boolean(selected)} onOpenChange={(o) => !o && setSelectedId(null)}>
+          {selected && (
+            <SheetContent title={selected.name} className="p-0">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <PlanSplitPanel
+                  key={selected.id}
+                  bare
+                  closeSpace
+                  plan={selected}
+                  onEditSplit={() => setSplitting(selected)}
+                />
+              </div>
+            </SheetContent>
+          )}
+        </Dialog>
       )}
       {splitting && <SplitDialog plan={splitting} onClose={() => setSplitting(null)} />}
       {editing && (
