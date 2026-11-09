@@ -10,6 +10,7 @@ import {
   ListSkeleton,
   PageHeader,
   StatCard,
+  SectionDivider,
 } from '@/components/common';
 import { StaticMap } from '@/components/map';
 import { periodRange, type PeriodKey } from '@/lib/periods';
@@ -274,7 +275,7 @@ export function CoachSessionsPage() {
         </FilterMenu>
       </FilterBar>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-2.5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Sessions"
           icon={<CheckCircle2 />}
@@ -305,6 +306,7 @@ export function CoachSessionsPage() {
         />
       </div>
 
+      <SectionDivider className="mb-1.5">Check-ins</SectionDivider>
       {q.isPending ? (
         <ListSkeleton rows={6} />
       ) : q.isError ? (

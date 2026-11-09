@@ -8,6 +8,7 @@ import {
   ListSkeleton,
   MoneyInput,
   PageHeader,
+  SectionDivider,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/controls';
@@ -281,6 +282,7 @@ export function FeePlansPage() {
             ))}
           </div>
           <AllPlansDistribution plans={active} />
+          <SectionDivider>Plans</SectionDivider>
           {shown.length === 0 ? (
             <EmptyState
               icon={<Tags />}

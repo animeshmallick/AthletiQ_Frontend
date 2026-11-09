@@ -16,6 +16,7 @@ import {
   ListSkeleton,
   PageHeader,
   Progress,
+  SectionDivider,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
@@ -148,7 +149,7 @@ export function FeedbackPage() {
         <div className="space-y-3 sm:space-y-4">
           {Object.entries(byBatch).map(([batchName, rows]) => (
             <section key={batchName}>
-              <h2 className="mb-2 text-sm font-semibold text-muted-foreground">{batchName}</h2>
+              <SectionDivider className="mb-1.5">{batchName}</SectionDivider>
               <Card className="divide-y">
                 {rows.map((s) => {
                   const st = STATUS[s.status];
