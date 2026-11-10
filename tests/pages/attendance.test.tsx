@@ -1,10 +1,12 @@
+import type { AttendanceStatus } from '@/lib/types';
 import { AttendancePage } from '@/pages/attendance';
 import { batch, sheet } from '../fixtures';
-import { coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
+import { fireEvent, within } from '@testing-library/react';
+import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
 const route = '/attendance?batch=b1&date=2026-03-09';
 
-describe('AttendancePage', () => {
+describe('AttendancePage (admin)', () => {
   it('marks attendance with one tap and saves only changes', async () => {
     const api = mockApi({
       'GET /batches': () => [batch],
@@ -16,7 +18,7 @@ describe('AttendancePage', () => {
     const { user } = await renderPage(<AttendancePage />, {
       path: '/attendance',
       route,
-      user: coachUser,
+      user: adminUser,
     });
 
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
@@ -50,7 +52,7 @@ describe('AttendancePage', () => {
     const { user } = await renderPage(<AttendancePage />, {
       path: '/attendance',
       route,
-      user: coachUser,
+      user: adminUser,
     });
     await user.click(await screen.findByRole('button', { name: /^all present/i }));
     expect(screen.getByText(/unsaved change/)).toBeInTheDocument();
@@ -63,7 +65,7 @@ describe('AttendancePage', () => {
       'GET /batches': () => [batch],
       'GET /attendance/session': () => sheet({ editable: false }),
     });
-    await renderPage(<AttendancePage />, { path: '/attendance', route, user: coachUser });
+    await renderPage(<AttendancePage />, { path: '/attendance', route, user: adminUser });
     expect(await screen.findByText(/locked for editing/)).toBeInTheDocument();
     expect(screen.getAllByRole('radio', { name: 'Present' })[0]).toBeDisabled();
     expect(screen.queryByRole('button', { name: /all present/i })).not.toBeInTheDocument();
@@ -77,12 +79,12 @@ describe('AttendancePage', () => {
     await renderPage(<AttendancePage />, {
       path: '/attendance',
       route: '/attendance?batch=b1&date=2026-03-15',
-      user: coachUser,
+      user: adminUser,
     });
     expect(await screen.findByText('No session on Sunday')).toBeInTheDocument();
   });
 
-  it('auto-selects the coach’s batch and shows server errors', async () => {
+  it('auto-selects the only batch and shows server errors', async () => {
     mockApi({
       'GET /batches': () => [batch],
       'GET /attendance/session': () => ({
@@ -93,7 +95,7 @@ describe('AttendancePage', () => {
     const { router } = await renderPage(<AttendancePage />, {
       path: '/attendance',
       route: '/attendance',
-      user: coachUser,
+      user: adminUser,
     });
     await waitFor(() => expect(router.state.location.search).toContain('batch=b1'));
     expect(await screen.findByText('Database unavailable')).toBeInTheDocument();
@@ -119,9 +121,178 @@ describe('AttendancePage', () => {
     const { user } = await renderPage(<AttendancePage />, {
       path: '/attendance',
       route,
-      user: coachUser,
+      user: adminUser,
     });
     await user.click(await screen.findByRole('tab', { name: 'Monthly register' }));
     expect(await screen.findByText('50%')).toBeInTheDocument();
+  });
+});
+
+const at = (id: string, name: string, loc: [string, string], start: string, extra = {}) => ({
+  batch: {
+    id,
+    name,
+    startTime: start,
+    endTime: `${String(Number(start.slice(0, 2)) + 1).padStart(2, '0')}:00:00`,
+    coach: { id: 'c1', name: 'Coach One' },
+    location: { id: loc[0], name: loc[1] },
+  },
+  expectedStudents: 2,
+  marked: 1,
+  present: 0,
+  attendanceComplete: false,
+  hasLessonPlan: false,
+  coachSession: null,
+  cancelled: null,
+  ...extra,
+});
+const MAIN: [string, string] = ['l1', 'Main ground'];
+const LAKE: [string, string] = ['l2', 'Lake Club'];
+const day = [
+  at('b1', 'Morning U-12', MAIN, '06:00:00'),
+  at('b2', 'Lake Squad', LAKE, '09:00:00'),
+  at('b3', 'Rained Out', MAIN, '17:00:00', { cancelled: 'Rain' }),
+];
+const withHistory = () =>
+  sheet({
+    students: sheet().students.map((s, i) => ({
+      ...s,
+      recent:
+        i === 0
+          ? []
+          : [
+              { date: '2026-03-07', status: 'absent' as const },
+              { date: '2026-03-06', status: 'present' as const },
+            ],
+      rate30: i === 0 ? null : 40,
+    })),
+  });
+
+type Handler = Parameters<typeof mockApi>[0][string];
+function coachApi(over: Record<string, Handler> = {}) {
+  const saved = new Map<string, AttendanceStatus | null>();
+  const current = () => {
+    const sh = withHistory();
+    return {
+      ...sh,
+      students: sh.students.map((st) =>
+        saved.has(st.studentId) ? { ...st, status: saved.get(st.studentId)! } : st,
+      ),
+    };
+  };
+  return mockApi({
+    'GET /attendance/calendar': () => ({
+      from: '2026-03-09',
+      to: '2026-03-09',
+      today: '2026-03-20',
+      days: [{ date: '2026-03-09', sessions: day }],
+    }),
+    'GET /attendance/session': () => current(),
+    'PUT /attendance/session': (c) => {
+      const { records } = c.body as {
+        records: { studentId: string; status: AttendanceStatus | null }[];
+      };
+      for (const r of records) saved.set(r.studentId, r.status);
+      return { saved: records.length };
+    },
+    'GET /coach-sessions/today': () => ({ date: '2026-03-20', sessions: [] }),
+    ...over,
+  });
+}
+const coachPage = (route = '/attendance?date=2026-03-09') =>
+  renderPage(<AttendancePage />, { path: '/attendance', route, user: coachUser });
+
+describe('AttendancePage (coach)', () => {
+  it('picks the day’s first session and filters sessions by place', async () => {
+    coachApi();
+    const { user, router } = await coachPage();
+    const sessions = await screen.findByRole('radiogroup', { name: 'Session' });
+    expect(within(sessions).getAllByRole('radio')).toHaveLength(3);
+    await waitFor(() => expect(router.state.location.search).toContain('batch=b1'));
+    expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
+
+    await user.click(
+      within(screen.getByRole('radiogroup', { name: 'Location' })).getByRole('radio', {
+        name: /Lake Club/,
+      }),
+    );
+    expect(within(sessions).getAllByRole('radio')).toHaveLength(1);
+    await waitFor(() => expect(router.state.location.search).toContain('batch=b2'));
+  });
+
+  it('marks everyone left present in one tap, with undo', async () => {
+    const api = coachApi();
+    const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
+    await user.click(await screen.findByRole('button', { name: /mark remaining 1 present/i }));
+    await waitFor(() => expect(api.find('PUT /attendance/session')).toHaveLength(1));
+    expect(api.find('PUT /attendance/session')[0]!.body).toEqual({
+      batchId: 'b1',
+      date: '2026-03-09',
+      records: [{ studentId: 's1', status: 'present', note: null }],
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(api.find('PUT /attendance/session')).toHaveLength(2));
+    expect(api.find('PUT /attendance/session')[1]!.body).toMatchObject({
+      records: [{ studentId: 's1', status: null }],
+    });
+  });
+
+  it('toggles a student with one tap and saves it straight away', async () => {
+    const api = coachApi();
+    const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
+    // Bhavin was absent: a tap makes him present.
+    await user.click(await screen.findByRole('button', { name: /^Bhavin Shah: Absent/ }));
+    // Shown at once, before the save lands.
+    expect(
+      await screen.findByRole('button', { name: /^Bhavin Shah: Present/ }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(api.find('PUT /attendance/session')).toHaveLength(1));
+    expect(api.find('PUT /attendance/session')[0]!.body).toMatchObject({
+      records: [{ studentId: 's2', status: 'present', note: null }],
+    });
+  });
+
+  it('shows each student’s recent sessions and 30-day rate', async () => {
+    coachApi();
+    await coachPage('/attendance?date=2026-03-09&batch=b1');
+    expect(await screen.findByLabelText('Last 2: Present, Absent')).toBeInTheDocument();
+    expect(screen.getByText('40% · 30d')).toBeInTheDocument();
+    expect(screen.getByText('New')).toBeInTheDocument();
+  });
+
+  it('rolls back a tap that fails to save', async () => {
+    coachApi({
+      'PUT /attendance/session': () => ({
+        status: 403,
+        body: { error: { code: 'FORBIDDEN', message: 'Check in first' } },
+      }),
+    });
+    const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
+    await user.click(await screen.findByRole('button', { name: /^Anya Rao: not marked/ }));
+    expect(await screen.findByText('Check in first')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Anya Rao: not marked/ })).toBeInTheDocument();
+  });
+
+  it('explains a locked session', async () => {
+    coachApi({
+      'GET /attendance/session': () => sheet({ editable: false, lockedReason: 'You checked out' }),
+    });
+    await coachPage('/attendance?date=2026-03-09&batch=b1');
+    expect(await screen.findByText('You checked out')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Anya Rao/ })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /present$/i })).not.toBeInTheDocument();
+  });
+
+  it('shows an empty day', async () => {
+    coachApi({
+      'GET /attendance/calendar': () => ({
+        from: '2026-03-15',
+        to: '2026-03-15',
+        today: '2026-03-20',
+        days: [{ date: '2026-03-15', sessions: [] }],
+      }),
+    });
+    await coachPage('/attendance?date=2026-03-15');
+    expect(await screen.findByText(/^No sessions on/)).toBeInTheDocument();
   });
 });

@@ -120,14 +120,20 @@ describe('CalendarPage', () => {
     expect(screen.getByRole('radio', { name: 'Week', hidden: true })).toBeChecked();
   });
 
-  it('keeps the admin day view linking cards to the batch', async () => {
+  it('shows admins the coach tiles in time order, with coach and place, linking to the batch', async () => {
     mockApi(routes());
-    await renderPage(<CalendarPage />, {
+    const { user } = await renderPage(<CalendarPage />, {
       path: '/calendar',
       route: '/calendar?view=day&date=2026-03-10',
       user: adminUser,
     });
-    expect(await screen.findByRole('link', { name: 'Morning U-12' })).toHaveAttribute(
+    const tile = await screen.findByRole('button', { name: 'Morning U-12 students' });
+    expect(tile).toHaveTextContent(/·/);
+    // No location grouping or travel for admins.
+    expect(screen.queryByRole('link', { name: /directions to/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument();
+    await user.click(tile);
+    expect(await screen.findByRole('link', { name: /open batch/i })).toHaveAttribute(
       'href',
       '/batches/b1',
     );

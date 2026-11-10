@@ -343,6 +343,10 @@ export interface AttendanceSheet {
     status: AttendanceStatus | null;
     note: string | null;
     markedAt: string | null;
+    /** Last sessions in this batch before this date, newest first. */
+    recent?: { date: string; status: AttendanceStatus }[];
+    /** Present + late share of marked sessions in the last 30 days. */
+    rate30?: number | null;
   })[];
   summary: {
     total: number;

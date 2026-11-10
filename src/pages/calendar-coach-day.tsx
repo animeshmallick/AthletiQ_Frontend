@@ -62,14 +62,17 @@ export function CoachDayView({
   isToday,
   isPast,
   now,
+  isAdmin = false,
 }: {
   date: string;
   sessions: DayOverviewSession[];
   isToday: boolean;
   isPast: boolean;
   now: number;
+  /** Admins: one time-ordered list across all coaches, no location grouping or travel. */
+  isAdmin?: boolean;
 }) {
-  const today = useCoachToday(isToday);
+  const today = useCoachToday(isToday && !isAdmin);
   const [open, setOpen] = useState<DayOverviewSession | null>(null);
   const sorted = [...sessions].sort(
     (a, b) => minutes(a.batch.startTime) - minutes(b.batch.startTime),
@@ -110,6 +113,29 @@ export function CoachDayView({
         title="Nothing scheduled"
         description="No sessions on this day."
       />
+    );
+
+  if (isAdmin)
+    return (
+      <div>
+        <ol className="space-y-2.5 pt-2" aria-label="Sessions">
+          {sorted.map((s) => (
+            <li key={s.batch.id}>
+              {nowBefore === s.batch.id && <NowLine />}
+              <SessionTile
+                s={s}
+                state={stateOf(s)}
+                date={date}
+                isToday={isToday}
+                isAdmin
+                onOpen={() => setOpen(s)}
+              />
+            </li>
+          ))}
+        </ol>
+        {nowBefore === 'end' && <NowLine label="All sessions done for today" />}
+        <StudentsDialog s={open} date={date} isAdmin onClose={() => setOpen(null)} />
+      </div>
     );
 
   return (
@@ -235,6 +261,7 @@ function SessionTile({
   date,
   isToday,
   todayItem,
+  isAdmin = false,
   onOpen,
 }: {
   s: DayOverviewSession;
@@ -242,6 +269,7 @@ function SessionTile({
   date: string;
   isToday: boolean;
   todayItem?: Parameters<typeof CheckInButton>[0]['item'];
+  isAdmin?: boolean;
   onOpen: () => void;
 }) {
   const me = useUser();
@@ -279,6 +307,11 @@ function SessionTile({
           {s.batch.name}
         </p>
       </div>
+      {isAdmin && (
+        <p className="truncate pl-16 text-[11px] text-muted-foreground">
+          {s.batch.coach.name} · {s.batch.location.name}
+        </p>
+      )}
       {/* Status floats on the card's top corner. */}
       <span
         className={cn(
@@ -324,7 +357,13 @@ function SessionTile({
               {s.coachSession.checkOutAt ? `–${formatClock(s.coachSession.checkOutAt)}` : ''}
             </Badge>
           ) : (
-            !isToday && <Badge variant="muted">No check-in</Badge>
+            (!isToday || (isAdmin && state !== 'next' && state !== 'upcoming')) && (
+              <Badge
+                variant={isAdmin && (state === 'live' || state === 'done') ? 'warning' : 'muted'}
+              >
+                No check-in
+              </Badge>
+            )
           )}
           {isToday &&
             todayItem &&
@@ -343,10 +382,12 @@ function SessionTile({
 function StudentsDialog({
   s,
   date,
+  isAdmin = false,
   onClose,
 }: {
   s: DayOverviewSession | null;
   date: string;
+  isAdmin?: boolean;
   onClose: () => void;
 }) {
   const q = useRoster(s?.batch.id ?? '', date);
@@ -359,6 +400,7 @@ function StudentsDialog({
               <DialogTitle>{s.batch.name}</DialogTitle>
               <DialogDescription>
                 {formatTimeRange(s.batch.startTime, s.batch.endTime)} · {s.batch.location.name}
+                {isAdmin ? ` · ${s.batch.coach.name}` : ''}
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-1.5">
@@ -372,6 +414,13 @@ function StudentsDialog({
                   <ClipboardList /> Lesson plan
                 </Link>
               </Button>
+              {isAdmin && (
+                <Button asChild size="sm" variant="outline" className="flex-1">
+                  <Link to={`/batches/${s.batch.id}`}>
+                    <CalendarDays /> Open batch
+                  </Link>
+                </Button>
+              )}
             </div>
             <p className="text-[12px] font-semibold text-muted-foreground">
               Expected · {q.data ? q.data.students.length : '…'}

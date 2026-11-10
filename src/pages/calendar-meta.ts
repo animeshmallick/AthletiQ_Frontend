@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 export const minutes = (t: string) => {
   const [h = 0, m = 0] = t.split(':').map(Number);
   return h * 60 + m;
@@ -27,4 +29,20 @@ export function liveStatus(start: string, end: string, now: number, isToday: boo
   if (now >= s && now < e) return 'Live now';
   if (now < s && s - now <= 60) return `Starts in ${s - now} min`;
   return null;
+}
+
+const istClock = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'Asia/Kolkata',
+});
+/** Minutes since midnight (IST), refreshed every minute. */
+export function useIstMinutes() {
+  const [now, setNow] = useState(() => minutes(istClock.format(new Date())));
+  useEffect(() => {
+    const t = setInterval(() => setNow(minutes(istClock.format(new Date()))), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
 }

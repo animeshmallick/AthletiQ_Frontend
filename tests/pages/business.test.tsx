@@ -21,7 +21,7 @@ describe('cancelling a session (rain / holiday)', () => {
     const { user } = await renderPage(<AttendancePage />, {
       path: '/attendance',
       route,
-      user: coachUser,
+      user: adminUser,
     });
     await user.click(await screen.findByRole('button', { name: /cancel session/i }));
     await user.type(screen.getByLabelText(/reason/i), 'Heavy rain');
@@ -35,7 +35,7 @@ describe('cancelling a session (rain / holiday)', () => {
 
   it('hides "cancel" once attendance exists', async () => {
     mockApi({ 'GET /batches': () => [batch], 'GET /attendance/session': () => sheet() });
-    await renderPage(<AttendancePage />, { path: '/attendance', route, user: coachUser });
+    await renderPage(<AttendancePage />, { path: '/attendance', route, user: adminUser });
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /cancel session/i })).not.toBeInTheDocument();
   });
@@ -50,7 +50,7 @@ describe('cancelling a session (rain / holiday)', () => {
     const { user } = await renderPage(<AttendancePage />, {
       path: '/attendance',
       route,
-      user: coachUser,
+      user: adminUser,
     });
     expect(await screen.findByText('Diwali holiday')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Session cancelled' })).toBeInTheDocument();

@@ -211,27 +211,24 @@ export function DayPlan({
           {isToday ? 'No sessions today. Enjoy the rest day.' : 'No sessions on this day.'}
         </Card>
       ) : (
-        <ol className="relative space-y-1.5 border-l-2 border-muted pl-3" aria-label="Timeline">
+        <ol className="space-y-1.5" aria-label="Timeline">
           {sessions.map((s) => {
             const st = stateOf(s, isToday, isPast, now, nextId);
             const style = STATE_STYLE[st];
             const todos = todosFor(s.batch.id);
             return (
-              <li key={s.batch.id} className="relative">
-                <span
-                  aria-hidden
-                  className={cn(
-                    'absolute top-3 -left-[19px] size-2.5 rounded-full ring-2 ring-background',
-                    style.dot,
-                  )}
-                />
+              <li key={s.batch.id}>
                 <Card className={cn('p-2', (st === 'done' || st === 'cancelled') && 'opacity-70')}>
                   <div className="flex items-start gap-2.5">
                     <div className="w-[4.5rem] shrink-0">
-                      <p className="tabular text-[13px] font-semibold">
+                      <p className="tabular flex items-center gap-1.5 text-[13px] font-semibold">
+                        <span
+                          aria-hidden
+                          className={cn('size-2 shrink-0 rounded-full', style.dot)}
+                        />
                         {formatTime(s.batch.startTime)}
                       </p>
-                      <p className="tabular text-[11px] text-muted-foreground">
+                      <p className="tabular pl-3.5 text-[11px] text-muted-foreground">
                         to {formatTime(s.batch.endTime)}
                       </p>
                     </div>
@@ -427,7 +424,7 @@ export function AdminFollowUps() {
   const low = dash.data?.needsAttention ?? [];
   const birthdays = dash.data?.birthdays ?? [];
   return (
-    <div className="grid gap-2 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
       <Panel
         title="Largest overdue balances"
         icon={<IndianRupee />}
@@ -510,7 +507,7 @@ export function CoachFollowUps() {
   const birthdays = dash.data?.birthdays ?? [];
   const list = overdue.data?.data ?? [];
   return (
-    <div className="grid gap-2 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
       <Panel
         title="Fees overdue · my students"
         icon={<IndianRupee />}

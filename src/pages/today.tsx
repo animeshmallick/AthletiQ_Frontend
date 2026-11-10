@@ -127,7 +127,7 @@ export function CheckInButton({
     <>
       <Button
         size="sm"
-        variant={mode === 'check-in' ? 'success' : 'outline'}
+        variant={mode === 'check-in' ? 'success' : 'warning'}
         className={cn(
           'shrink-0',
           compact
@@ -365,7 +365,7 @@ function CoachToday() {
               description="Enjoy the rest day. Use the arrows to see what’s coming up."
             />
           ) : (
-            <div className="grid gap-2 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
               {sessions.map((s) => (
                 <CoachSessionCard
                   key={s.batch.id}
@@ -379,7 +379,7 @@ function CoachToday() {
       />
 
       <SectionDivider>To-dos</SectionDivider>
-      <div className="grid gap-2 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
         <TodoList />
         <div className="space-y-2">
           {reportsDue > 0 && (
@@ -484,11 +484,11 @@ function AdminToday() {
       </div>
 
       <SectionDivider>Today’s plan</SectionDivider>
-      <div className="grid gap-2 lg:grid-cols-5">
-        <div className="lg:col-span-3">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-5">
+        <div className="min-w-0 lg:col-span-3">
           <DayPlan isAdmin />
         </div>
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <TodoList />
         </div>
       </div>
@@ -497,7 +497,7 @@ function AdminToday() {
       <AdminFollowUps />
 
       <SectionDivider>Money</SectionDivider>
-      <div className="grid gap-2 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
         <MoneySnapshot />
         <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
           <CollectedByCard admin />

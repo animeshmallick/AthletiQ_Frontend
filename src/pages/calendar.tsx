@@ -3,29 +3,17 @@
  * with every session's details and quick actions. Coaches see their batches, admins see all.
  */
 import { PeriodStepper, WeekStrip } from '@/components/date-nav';
-import {
-  CalendarDays,
-  CheckCircle2,
-  ClipboardList,
-  CloudRain,
-  MapPin,
-  Repeat,
-  UserRound,
-  Users,
-} from 'lucide-react';
+import { Repeat } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
-import { EmptyState, ErrorState, PageHeader } from '@/components/common';
-import { Button } from '@/components/ui/button';
+import { ErrorState, PageHeader } from '@/components/common';
 import { Segmented } from '@/components/ui/controls';
-import { Badge, Card, Skeleton } from '@/components/ui/primitives';
+import { Card, Skeleton } from '@/components/ui/primitives';
 import {
   addDays,
-  formatClock,
   formatLongDate,
   formatShortDate,
-  formatTime,
   formatTimeRange,
   startOfWeek,
   today,
@@ -34,7 +22,7 @@ import {
 import { useCalendar } from '@/lib/queries';
 import type { DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { batchTone, liveStatus, minutes } from './calendar-meta';
+import { batchTone, minutes } from './calendar-meta';
 import { CoachDayView } from './calendar-coach-day';
 import { SessionDialog } from './calendar-session';
 
@@ -209,21 +197,15 @@ export function CalendarPage() {
           onOpenDay={(d) => set({ date: d, view: 'day' })}
           onOpenSession={(s, d) => setOpenSession({ s, date: d })}
         />
-      ) : user.role === 'admin' ? (
-        <DayView
-          date={date}
-          sessions={selected?.sessions ?? []}
-          isToday={date === q.data.today}
-          isAdmin
-        />
       ) : (
-        // Coaches: the day grouped by where they need to be.
+        // Coaches: the day grouped by where they need to be; admins: the same tiles in time order.
         <CoachDayView
           date={date}
           sessions={selected?.sessions ?? []}
           isToday={date === q.data.today}
           isPast={date < q.data.today}
           now={now}
+          isAdmin={user.role === 'admin'}
         />
       )}
       <SessionDialog
@@ -398,195 +380,5 @@ function WeekGrid({
         </div>
       </div>
     </Card>
-  );
-}
-
-function DayView({
-  date,
-  sessions,
-  isToday,
-  isAdmin,
-}: {
-  date: string;
-  sessions: DayOverviewSession[];
-  isToday: boolean;
-  isAdmin: boolean;
-}) {
-  const now = useNowMinutes();
-  const sorted = [...sessions].sort(
-    (a, b) => minutes(a.batch.startTime) - minutes(b.batch.startTime),
-  );
-  // Where the "now" marker goes: before the first session that hasn't ended yet.
-  const nowIndex = isToday ? sorted.findIndex((s) => minutes(s.batch.endTime) > now) : -1;
-  const status = (s: DayOverviewSession) =>
-    liveStatus(s.batch.startTime, s.batch.endTime, now, isToday);
-  return (
-    <div className="space-y-2">
-      <h2 className="text-[14px] font-semibold">
-        {formatLongDate(date)}
-        {isToday && <Badge className="ml-2 align-middle">Today</Badge>}
-      </h2>
-      {sorted.length === 0 ? (
-        <EmptyState
-          icon={<CalendarDays />}
-          title="Nothing scheduled"
-          description="No batch sessions on this day."
-        />
-      ) : (
-        <ol className="space-y-1.5">
-          {sorted.map((s, i) => {
-            const live = status(s);
-            return (
-              <li
-                key={s.batch.id}
-                className="animate-rise"
-                style={{ animationDelay: `${i * 40}ms` }}
-              >
-                {i === nowIndex && <NowMarker />}
-                <div className="flex gap-2">
-                  <div className="tabular w-[3.25rem] shrink-0 pt-2 text-right whitespace-nowrap">
-                    <p className="text-[12px] leading-tight font-bold">
-                      {formatTime(s.batch.startTime)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {formatTime(s.batch.endTime)}
-                    </p>
-                  </div>
-                  <Card
-                    className={cn(
-                      'relative min-w-0 flex-1 border-l-4 px-2.5 py-2 transition-shadow hover:shadow-e2',
-                      batchTone(s.batch.id),
-                      s.cancelled && 'opacity-70 grayscale',
-                    )}
-                  >
-                    {live && (
-                      <Badge className="mb-1" variant={live === 'Live now' ? 'success' : 'default'}>
-                        {live === 'Live now' && (
-                          <span className="relative mr-0.5 flex size-1.5">
-                            <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-75" />
-                            <span className="relative inline-flex size-1.5 rounded-full bg-success" />
-                          </span>
-                        )}
-                        {live}
-                      </Badge>
-                    )}
-                    <SessionDetails s={s} date={date} isAdmin={isAdmin} />
-                  </Card>
-                </div>
-              </li>
-            );
-          })}
-          {isToday && nowIndex === -1 && <NowMarker label="All sessions done for today" />}
-        </ol>
-      )}
-    </div>
-  );
-}
-
-function NowMarker({ label = 'Now' }: { label?: string }) {
-  return (
-    <div className="mb-1.5 flex items-center gap-2 pl-1" aria-label={label}>
-      <span className="size-2.5 rounded-full bg-destructive shadow-e1" />
-      <span className="h-0.5 flex-1 bg-destructive/70" />
-      <span className="text-[11px] font-semibold text-destructive">{label}</span>
-    </div>
-  );
-}
-
-const SMALL_BTN =
-  'h-6 gap-1 rounded-md bg-card/80 px-2 text-[11px] pointer-coarse:h-7 pointer-coarse:text-[11px] [&_svg:not([class*=size-])]:size-3';
-
-function SessionDetails({
-  s,
-  date,
-  isAdmin,
-}: {
-  s: DayOverviewSession;
-  date: string;
-  isAdmin: boolean;
-}) {
-  const me = useUser();
-  const pct = s.expectedStudents ? Math.round((s.marked / s.expectedStudents) * 100) : 0;
-  return (
-    <div className="space-y-1">
-      {/* The whole card opens the batch; the action buttons sit above this link. */}
-      <Link
-        to={`/batches/${s.batch.id}`}
-        className={cn(
-          'block truncate text-[13px] leading-tight font-bold after:absolute after:inset-0 after:rounded-[inherit] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring',
-          s.cancelled && 'line-through',
-        )}
-      >
-        {s.batch.name}
-      </Link>
-      <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] opacity-85">
-        <span className="inline-flex items-center gap-1">
-          <MapPin className="size-3" /> {s.batch.location.name}
-        </span>
-        {isAdmin && (
-          <span className="inline-flex items-center gap-1">
-            <UserRound className="size-3" /> {s.batch.coach.name}
-          </span>
-        )}
-        {s.substitute && (
-          <span className="inline-flex items-center gap-1 font-semibold">
-            <Repeat className="size-3" />
-            {s.substitute.id === me.id
-              ? 'You’re the substitute'
-              : `Substitute: ${s.substitute.name}`}
-          </span>
-        )}
-      </p>
-      {s.cancelled ? (
-        <Badge variant="muted">
-          <CloudRain /> Cancelled · {s.cancelled}
-        </Badge>
-      ) : (
-        <>
-          {/* One row: attendance · plan · check-in → check-out. */}
-          <div className="flex min-w-0 items-center gap-1 overflow-hidden [&_[data-slot=badge]]:px-1.5 [&_[data-slot=badge]]:text-[11px]">
-            <Badge
-              variant={s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'}
-              title={`Attendance marked: ${s.marked} of ${s.expectedStudents}`}
-            >
-              <Users /> {s.marked}/{s.expectedStudents}
-              {s.expectedStudents > 0 && ` · ${pct}%`}
-            </Badge>
-            <Badge variant={s.hasLessonPlan ? 'success' : 'muted'}>
-              <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'No plan'}
-            </Badge>
-            {s.coachSession ? (
-              <Badge
-                variant={s.coachSession.flagged ? 'warning' : 'success'}
-                className="min-w-0"
-                title={s.coachSession.flagged ? 'Check-in flagged for review' : 'Checked in'}
-              >
-                <CheckCircle2 />
-                <span className="tabular truncate">
-                  {formatClock(s.coachSession.checkInAt)} →{' '}
-                  {s.coachSession.checkOutAt ? formatClock(s.coachSession.checkOutAt) : '--'}
-                </span>
-              </Badge>
-            ) : (
-              <Badge variant="muted">
-                <MapPin /> Not checked in
-              </Badge>
-            )}
-          </div>
-          <div className="relative z-10 flex flex-wrap gap-1 pt-0.5">
-            <Button size="sm" variant="outline" asChild className={SMALL_BTN}>
-              <Link to={`/attendance?batch=${s.batch.id}&date=${date}`}>
-                <Users /> Attendance
-              </Link>
-            </Button>
-            <Button size="sm" variant="outline" asChild className={SMALL_BTN}>
-              <Link to={`/lesson-plans?batch=${s.batch.id}&date=${date}`}>
-                <ClipboardList /> Lesson plan
-              </Link>
-            </Button>
-          </div>
-        </>
-      )}
-    </div>
   );
 }

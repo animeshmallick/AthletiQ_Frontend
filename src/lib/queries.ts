@@ -403,6 +403,69 @@ export function useSaveAttendance() {
   });
 }
 
+export type MarkRecord = {
+  studentId: string;
+  /** `null` clears the mark. */
+  status: AttendanceStatus | null;
+  note?: string | null;
+};
+
+/** Apply marks to a cached sheet (optimistic update). */
+function applyMarks(sheet: AttendanceSheet, records: MarkRecord[]): AttendanceSheet {
+  const by = new Map(records.map((r) => [r.studentId, r]));
+  const students = sheet.students.map((s) => {
+    const r = by.get(s.studentId);
+    if (!r) return s;
+    return { ...s, status: r.status, note: r.status ? (r.note ?? null) : null };
+  });
+  const summary = {
+    total: students.length,
+    present: 0,
+    late: 0,
+    absent: 0,
+    excused: 0,
+    unmarked: 0,
+  };
+  for (const s of students) summary[s.status ?? 'unmarked']++;
+  return { ...sheet, students, summary };
+}
+
+/**
+ * Coach marking: every tap saves at once. The sheet updates immediately and rolls back if the
+ * save fails; the day's counts refresh once the last pending save lands.
+ */
+export function useMarkAttendance(batchId: string, date: string) {
+  const qc = useQueryClient();
+  const key = keys.attendanceSession(batchId, date);
+  const mutationKey = ['attendance', 'mark', batchId, date];
+  return useMutation({
+    mutationKey,
+    mutationFn: (records: MarkRecord[]) =>
+      api.put<{ saved: number }>('/attendance/session', { batchId, date, records }),
+    onMutate: async (records) => {
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<AttendanceSheet>(key);
+      if (prev) qc.setQueryData(key, applyMarks(prev, records));
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
+    },
+    onSettled: () => {
+      if (qc.isMutating({ mutationKey }) > 1) return;
+      void Promise.all(
+        [
+          key,
+          ['attendance', 'calendar'],
+          ['attendance', 'overview'],
+          ['attendance', 'student'],
+          ['me', 'tasks'],
+        ].map((queryKey) => qc.invalidateQueries({ queryKey })),
+      );
+    },
+  });
+}
+
 export const useStudentAttendance = (id: string, q: { from?: string; to?: string }) =>
   useQuery({
     queryKey: keys.studentAttendance(id, q),
