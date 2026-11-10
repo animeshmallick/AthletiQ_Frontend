@@ -80,7 +80,7 @@ export function Floating({
 }) {
   const has = Array.isArray(badges) ? badges.some(Boolean) : Boolean(badges);
   return (
-    <div className={cn('relative', has && 'pt-2.5', className)}>
+    <div className={cn('relative min-w-0', has && 'pt-2.5', className)}>
       {has && (
         <div className="pointer-events-none absolute top-0 right-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center justify-end gap-1 [&>*]:pointer-events-auto">
           {badges}

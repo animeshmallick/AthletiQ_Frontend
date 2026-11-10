@@ -141,7 +141,7 @@ function AppShell() {
         <IosInstallBanner />
         <main
           id="main"
-          className="mx-auto w-full max-w-7xl flex-1 px-1.25 pt-1.25 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:px-2 sm:pt-2 lg:px-3 lg:pb-8"
+          className="mx-auto w-full max-w-7xl flex-1 px-1.25 pt-0 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:px-2 lg:px-3 lg:pb-8"
         >
           <Suspense fallback={<PageFallback />} key={location.pathname}>
             <div className="animate-page">
