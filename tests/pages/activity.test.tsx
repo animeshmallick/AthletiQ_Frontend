@@ -198,6 +198,37 @@ describe('Activity log (admin)', () => {
     expect(await screen.findByRole('button', { name: /Invoice payment reverted/ })).toBeVisible();
   });
 
+  it('charts a single day hour by hour', async () => {
+    const day = today();
+    mockApi({
+      'GET /activity/insights': () => ({ ...insights, from: day, to: day }),
+      'GET /activity/requests/insights': () => requestInsights,
+      'GET /activity/errors/insights': () => ({
+        totals: { total: 1, server: 0, client: 1, routes: 1, users: 1 },
+        byDay: [{ date: day, n: 1, server: 0 }],
+        byHour: Array.from({ length: 24 }, (_, hour) => ({
+          hour,
+          n: hour === 9 ? 1 : 0,
+          server: 0,
+        })),
+        byStatus: [{ status: 404, n: 1 }],
+        byCode: [],
+        byRoute: [],
+      }),
+      'GET /activity/errors': () => page([]),
+    });
+    const { user } = await renderPage(<AuditLogPage />, {
+      path: '/audit-log',
+      route: '/audit-log?period=today',
+      user: adminUser,
+    });
+    expect(await screen.findByText('Actions by hour')).toBeInTheDocument();
+    expect(screen.queryByText('Actions by day')).not.toBeInTheDocument();
+    expect(screen.queryByText('Time of day')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /errors/i }));
+    expect(await screen.findByText('Failures by hour')).toBeInTheDocument();
+  });
+
   it('shows failed requests on the Errors tab and filters by endpoint', async () => {
     const api = mockApi({
       'GET /activity/errors/insights': () => ({

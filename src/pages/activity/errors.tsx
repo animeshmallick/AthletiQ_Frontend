@@ -20,12 +20,13 @@ import { useApiErrors, useErrorInsights, type ApiRequest } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import { Bars, RankList } from './charts';
 import { FilterChip, RequestDetails, RequestRow, StatusChip } from './feed';
-import { num, requestLabel } from './meta';
+import { hourLabel, num, requestLabel } from './meta';
 
 type Kind = 'all' | 'client' | 'server';
 
 export function ErrorsView({ range }: { range: { from: string; to: string } }) {
   const ins = useErrorInsights(range);
+  const oneDay = range.from === range.to;
   const [kind, setKind] = useState<Kind>('all');
   const [route, setRoute] = useState<string | null>(null);
   const [open, setOpen] = useState<ApiRequest | null>(null);
@@ -86,7 +87,9 @@ export function ErrorsView({ range }: { range: { from: string; to: string } }) {
       <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card className="min-w-0">
           <CardHeader className="pb-1">
-            <CardTitle className="text-[14px]">Failures by day</CardTitle>
+            <CardTitle className="text-[14px]">
+              {oneDay ? 'Failures by hour' : 'Failures by day'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-1">
             <Bars
@@ -94,13 +97,23 @@ export function ErrorsView({ range }: { range: { from: string; to: string } }) {
               tone="warning"
               partLabel="server errors"
               restLabel="Rejected"
-              data={d.byDay.map((x) => ({
-                key: x.date,
-                tick: formatShortDate(x.date).replace(/ \d{4}$/, ''),
-                label: formatLongDate(x.date),
-                value: x.n,
-                part: x.server,
-              }))}
+              data={
+                oneDay && d.byHour
+                  ? d.byHour.map((x) => ({
+                      key: String(x.hour),
+                      tick: hourLabel(x.hour),
+                      label: `${hourLabel(x.hour)} – ${hourLabel((x.hour + 1) % 24)}`,
+                      value: x.n,
+                      part: x.server,
+                    }))
+                  : d.byDay.map((x) => ({
+                      key: x.date,
+                      tick: formatShortDate(x.date).replace(/ \d{4}$/, ''),
+                      label: formatLongDate(x.date),
+                      value: x.n,
+                      part: x.server,
+                    }))
+              }
             />
           </CardContent>
         </Card>

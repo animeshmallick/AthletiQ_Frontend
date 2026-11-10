@@ -1051,6 +1051,8 @@ export type RequestInsights = {
 export type ErrorInsights = {
   totals: { total: number; server: number; client: number; routes: number; users: number };
   byDay: ({ date: string; server: number } & Count)[];
+  /** Hour of day (IST), 24 slots: the chart for a single day. */
+  byHour?: ({ hour: number; server: number } & Count)[];
   byStatus: ({ status: number } & Count)[];
   byCode: ({ code: string | null } & Count)[];
   byRoute: ({

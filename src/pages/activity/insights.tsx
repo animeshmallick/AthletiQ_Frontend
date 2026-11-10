@@ -150,28 +150,46 @@ export function ActivityInsightsView({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+      {d.from === d.to ? (
+        // A single day: the actions hour by hour.
         <Panel
-          title="Actions by day"
-          hint={`${formatShortDate(d.from)} – ${formatShortDate(d.to)}`}
+          title="Actions by hour"
+          hint={`${formatLongDate(d.from)}${d.busiestHour !== null ? ` · peak ${hourLabel(d.busiestHour)}` : ''}`}
         >
           <Bars
             unit="actions"
-            data={d.byDay.map((x) => ({
-              key: x.date,
-              tick: formatShortDate(x.date).replace(/ \d{4}$/, ''),
-              label: formatLongDate(x.date),
-              value: x.n,
+            data={d.byHour.map((n, h) => ({
+              key: String(h),
+              tick: hourLabel(h),
+              label: `${hourLabel(h)} – ${hourLabel((h + 1) % 24)}`,
+              value: n,
             }))}
           />
         </Panel>
-        <Panel
-          title="Time of day"
-          hint={d.busiestHour !== null ? `Peak ${hourLabel(d.busiestHour)}` : undefined}
-        >
-          <HourStrip hours={d.byHour} unit="actions" />
-        </Panel>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+          <Panel
+            title="Actions by day"
+            hint={`${formatShortDate(d.from)} – ${formatShortDate(d.to)}`}
+          >
+            <Bars
+              unit="actions"
+              data={d.byDay.map((x) => ({
+                key: x.date,
+                tick: formatShortDate(x.date).replace(/ \d{4}$/, ''),
+                label: formatLongDate(x.date),
+                value: x.n,
+              }))}
+            />
+          </Panel>
+          <Panel
+            title="Time of day"
+            hint={d.busiestHour !== null ? `Peak ${hourLabel(d.busiestHour)}` : undefined}
+          >
+            <HourStrip hours={d.byHour} unit="actions" />
+          </Panel>
+        </div>
+      )}
 
       <SectionDivider>Where and who</SectionDivider>
       <div className={cn('grid grid-cols-1 gap-2.5', admin ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
