@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   UserPlus,
   type LucideIcon,
+  RefreshCw,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -32,6 +33,7 @@ import { useUser } from './auth';
 import { RoleBadge } from './role-switch';
 import { parentPath, useGoBack } from './go-back';
 import { activeItem, navFor, tabsFor } from './nav';
+import { applyUpdate, useUpdateAvailable } from './version-check';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/primitives';
 
@@ -94,6 +96,34 @@ function HeaderBack({ title, to }: { title: string; to: string }) {
   );
 }
 
+/** A newer version is live: one tap clears the cached app and reloads into it (still signed in). */
+function UpdateButton() {
+  const available = useUpdateAvailable();
+  const [busy, setBusy] = useState(false);
+  if (!available) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setBusy(true);
+        void applyUpdate('Updated to the new version (tapped Update)');
+      }}
+      disabled={busy}
+      aria-label="Update the app to the new version"
+      className="relative inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-e2 transition-transform active:scale-95 disabled:opacity-80"
+    >
+      {!busy && (
+        <span className="absolute -top-0.5 -right-0.5 flex size-2.5" aria-hidden>
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-70" />
+          <span className="relative inline-flex size-2.5 rounded-full bg-success ring-2 ring-background" />
+        </span>
+      )}
+      <RefreshCw className={cn('size-3.5', busy && 'animate-spin')} />
+      {busy ? 'Updating…' : 'Update'}
+    </button>
+  );
+}
+
 export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
   const scrolled = useScrolled();
   const title = useScreenTitle();
@@ -146,6 +176,7 @@ export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
           <p className="text-xs text-muted-foreground">{formatLongDate(today())}</p>
         </div>
         <div className="flex-1" />
+        <UpdateButton />
         <RoleBadge />
         <TasksBell />
         {userMenu}

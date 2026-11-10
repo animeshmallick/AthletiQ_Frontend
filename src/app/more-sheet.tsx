@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { useAuth, useUser } from './auth';
 import { SwitchRoleButton } from './role-switch';
 import { startAppUpdate } from './app-update';
+import { applyUpdate, checkForWebUpdate, useUpdateAvailable } from './version-check';
 import { DeploymentsInfo } from './deployments';
 import { useInstallPrompt } from './install';
 import { APK_URL, checkForAppUpdate, isAndroidBrowser, isNativeApp } from './native';
@@ -144,6 +145,7 @@ export function MoreSheet({
   const web = typeof __BUILD__ !== 'undefined' ? __BUILD__ : null;
   const install = useInstallPrompt();
   const [pushState, setPushState] = useState(webPushState);
+  const updateAvailable = useUpdateAvailable();
   const appActions: AppAction[] = [];
   if (pushState === 'off') {
     appActions.push({
@@ -161,16 +163,27 @@ export function MoreSheet({
   }
   if (isAndroidBrowser())
     appActions.push({ label: 'Get the Android app', icon: Smartphone, href: APK_URL });
-  if (isNativeApp()) {
+  // A newer version of the app is live: first in the list, one tap to move to it.
+  if (updateAvailable) {
+    appActions.unshift({
+      label: 'Update app · new version ready',
+      icon: RefreshCw,
+      onClick: () => void applyUpdate('Updated to the new version (menu)'),
+    });
+  } else if (isNativeApp()) {
     appActions.push({
       label: 'Check for app update',
       icon: RefreshCw,
       onClick: () =>
-        void checkForAppUpdate(true).then((u) =>
-          u
-            ? void startAppUpdate(u, { interactive: true })
-            : toast.success('You have the latest version of the app'),
-        ),
+        void checkForWebUpdate().then((web) => {
+          if (web) return void applyUpdate('Updated to the new version (menu)');
+          // No new web version: check for a new Android app build (native changes).
+          void checkForAppUpdate(true).then((u) =>
+            u
+              ? void startAppUpdate(u, { interactive: true })
+              : toast.success('You have the latest version of the app'),
+          );
+        }),
     });
   }
   if (install && !isAndroidBrowser()) {
