@@ -72,6 +72,8 @@ const schema = z
     locationId: z.string().min(1, 'Pick a location'),
     sportId: z.string().min(1, 'Pick a sport'),
     feePlanId: z.string().min(1, 'Pick a fee plan'),
+    /** Free batches only: does the coach give feedback, or is it attendance only? */
+    coachFeedback: z.boolean(),
     weekdays: z.array(z.number()).min(1, 'Pick at least one day'),
     startTime: z.string().min(1, 'Required'),
     endTime: z.string().min(1, 'Required'),
@@ -126,6 +128,7 @@ export function BatchDialog({
           locationId: batch.location.id,
           sportId: batch.sport.id,
           feePlanId: batch.feePlan.id,
+          coachFeedback: batch.coachFeedback ?? true,
           weekdays: batch.weekdays,
           startTime: batch.startTime.slice(0, 5),
           endTime: batch.endTime.slice(0, 5),
@@ -144,6 +147,7 @@ export function BatchDialog({
           locationId: '',
           sportId: '',
           feePlanId: '',
+          coachFeedback: true,
           weekdays: [1, 2, 3, 4, 5, 6],
           startTime: '06:00',
           endTime: '08:00',
@@ -168,6 +172,9 @@ export function BatchDialog({
     (p) => p.isSystem || p.daysPerWeek === watchedDays.length || p.id === batch?.feePlan.id,
   );
   const paidFitting = fitting.filter((p) => !p.isSystem);
+  // Only a free batch can skip coach feedback (paying students always get it).
+  const selectedPlan = (plans.data ?? []).find((p) => p.id === watchedPlan);
+  const isFree = !!selectedPlan && selectedPlan.monthlyFee === 0;
   const daysChanged =
     !!batch && [...watchedDays].sort().join() !== [...batch.weekdays].sort().join();
 
@@ -181,6 +188,7 @@ export function BatchDialog({
           Object.entries(v.dayTimes).filter(([d]) => v.weekdays.includes(Number(d))),
         ),
         capacity: Number(v.capacity),
+        coachFeedback: isFree ? v.coachFeedback : true,
       });
       toast.success(
         batch
@@ -282,6 +290,34 @@ export function BatchDialog({
               ))}
             </Select>
           </Field>
+          {isFree && (
+            <Controller
+              control={control}
+              name="coachFeedback"
+              render={({ field }) => (
+                <Field
+                  label="Feedback by coach?"
+                  hint={
+                    field.value
+                      ? 'Weekly reports, monthly skill assessments and lesson-plan reminders, like any batch.'
+                      : 'Attendance only: no weekly reports, skill assessments or plan reminders for these students.'
+                  }
+                  className="sm:col-span-2"
+                >
+                  <Segmented
+                    ariaLabel="Feedback by coach"
+                    className="w-full"
+                    value={field.value ? 'yes' : 'no'}
+                    onChange={(v) => field.onChange(v === 'yes')}
+                    options={[
+                      { value: 'yes', label: 'Yes, give feedback' },
+                      { value: 'no', label: 'No, attendance only' },
+                    ]}
+                  />
+                </Field>
+              )}
+            />
+          )}
           {paidFitting.length === 0 && plans.isSuccess && (
             <p className="rounded-xl bg-warning/12 px-3 py-2 text-[13px] sm:col-span-2">
               No paid plan is for {watchedDays.length} day{watchedDays.length === 1 ? '' : 's'} a
@@ -543,6 +579,15 @@ function BatchCard({
             {!b.isActive && (
               <Badge variant="muted" className="shrink-0">
                 Inactive
+              </Badge>
+            )}
+            {b.coachFeedback === false && (
+              <Badge
+                variant="muted"
+                className="shrink-0"
+                title="No coach feedback: attendance only"
+              >
+                Attendance only
               </Badge>
             )}
           </span>

@@ -201,6 +201,8 @@ export interface Batch {
   sport: { id: string; name: string };
   /** The batch's price: every student in it is billed this plan. */
   feePlan: { id: string; name: string; monthlyFee: number; daysPerWeek: number };
+  /** Coach gives feedback (reports, assessments, plan reminders). Off = attendance only. */
+  coachFeedback?: boolean;
   memberCount: number;
   /** Set when you only cover this batch as a substitute coach (current or upcoming days). */
   substitution?: { id: string; fromDate: string; toDate: string } | null;
