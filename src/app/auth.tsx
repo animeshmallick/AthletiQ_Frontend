@@ -22,7 +22,31 @@ interface AuthState {
   logout: () => Promise<void>;
   setUser: (user: User) => void;
   hasRole: (role: Role) => boolean;
+  /** Switches this sign-in to another role the user holds, then reloads the app. */
+  switchRole: (role: Role) => Promise<void>;
 }
+
+const chosenKey = (userId: string) => `atq-role-chosen:${userId}`;
+
+/** Has this person (with several roles) already picked a role on this device? */
+export function hasChosenRole(userId: string) {
+  try {
+    return localStorage.getItem(chosenKey(userId)) === '1';
+  } catch {
+    return true;
+  }
+}
+
+export function rememberRoleChosen(userId: string) {
+  try {
+    localStorage.setItem(chosenKey(userId), '1');
+  } catch {
+    // Private mode: the chooser may show again next time, which is harmless.
+  }
+}
+
+/** Reload the app (a separate function so tests can replace it). */
+export const appReload = { now: () => window.location.assign('/') };
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -77,6 +101,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient]);
 
+  const switchRole = useCallback(
+    async (role: Role) => {
+      const session = await request<Session>('/auth/switch-role', {
+        method: 'POST',
+        body: { role },
+        noRetry: true,
+      });
+      rememberRoleChosen(session.user.id);
+      queryClient.clear();
+      tokenStore.set(session);
+      appReload.now();
+    },
+    [queryClient],
+  );
+
   const value = useMemo<AuthState>(
     () => ({
       status,
@@ -86,8 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       setUser: setUserState,
       hasRole: (role) => user?.role === role,
+      switchRole,
     }),
-    [status, user, login, adopt, logout],
+    [status, user, login, adopt, logout, switchRole],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

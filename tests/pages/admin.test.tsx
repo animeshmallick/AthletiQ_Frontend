@@ -1,3 +1,4 @@
+import { within } from '@testing-library/react';
 import { AccountPage } from '@/pages/account';
 import { CoachesPage } from '@/pages/admin/coaches';
 import { FeePlansPage } from '@/pages/admin/fee-plans';
@@ -75,6 +76,38 @@ describe('CoachesPage', () => {
       email: 'neha@example.com',
       phone: '9811111111',
       role: 'coach',
+      roles: ['coach'],
+    });
+  });
+  it('gives a team member both roles, and never takes your own admin role', async () => {
+    const api = mockApi({
+      'GET /users': () => ({
+        data: [
+          { ...coachUser, roles: ['coach'], activeBatches: 1 },
+          { ...adminUser, roles: ['admin'] },
+        ],
+        meta: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+      }),
+      'GET /settings': () => settings,
+      [`PATCH /users/${coachUser.id}`]: (c) => ({ ...coachUser, ...(c.body as object) }),
+    });
+    const { user } = await renderPage(<CoachesPage />, {
+      path: '/coaches',
+      route: '/coaches',
+      user: adminUser,
+    });
+    await user.click(await screen.findByRole('button', { name: /manage ravi/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /edit details/i }));
+    const roles = await screen.findByRole('group', { name: 'Roles' });
+    const admin = within(roles).getByRole('checkbox', { name: /admin/i });
+    const coach = within(roles).getByRole('checkbox', { name: /coach/i });
+    expect(coach).toHaveAttribute('aria-checked', 'true');
+    expect(admin).toHaveAttribute('aria-checked', 'false');
+    await user.click(admin);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.find(`PATCH /users/${coachUser.id}`)).toHaveLength(1));
+    expect(api.find(`PATCH /users/${coachUser.id}`)[0]!.body).toMatchObject({
+      roles: ['admin', 'coach'],
     });
   });
 });

@@ -111,6 +111,7 @@ export function useCreateUser() {
       email: string;
       phone?: string | null;
       role: 'admin' | 'coach';
+      roles?: ('admin' | 'coach')[];
     }) => api.post<{ user: User; inviteUrl: string; inviteExpiresAt: string }>('/users', body),
     onSuccess: () => invalidate(['users']),
   });
@@ -127,6 +128,7 @@ export function useUpdateUser() {
       name?: string;
       email?: string;
       phone?: string | null;
+      roles?: ('admin' | 'coach')[];
     }) => api.patch<User>(`/users/${id}`, body),
     onSuccess: () => invalidate(['users']),
   });

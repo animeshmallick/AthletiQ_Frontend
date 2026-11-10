@@ -12,7 +12,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { useUser } from '@/app/auth';
@@ -41,7 +41,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/overlays';
-import { Badge, Card, Input, Select } from '@/components/ui/primitives';
+import { Badge, Card, Input } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { formatInstant, formatPhone, formatShortDate, money } from '@/lib/format';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema } from '@/lib/forms';
@@ -60,7 +60,7 @@ const schema = z.object({
   name: z.string().trim().min(2, 'Enter a name').max(120),
   email: z.email('Enter a valid email'),
   phone: optionalPhoneSchema,
-  role: z.enum(['coach', 'admin']),
+  roles: z.array(z.enum(['admin', 'coach'])).min(1, 'Pick at least one role'),
 });
 type Values = z.infer<typeof schema>;
 
@@ -72,6 +72,66 @@ type Link = {
   message: string;
 };
 
+const ROLE_OPTIONS = [
+  { value: 'coach', label: 'Coach', hint: 'Runs batches' },
+  { value: 'admin', label: 'Admin', hint: 'Manages the academy' },
+] as const;
+
+/** Coach, admin or both: two toggles, at least one on. */
+function RolePicker({
+  value,
+  onChange,
+  lockAdmin,
+}: {
+  value: ('admin' | 'coach')[];
+  onChange: (roles: ('admin' | 'coach')[]) => void;
+  /** You can't take away your own admin role. */
+  lockAdmin: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Roles">
+      {ROLE_OPTIONS.map((o) => {
+        const on = value.includes(o.value);
+        const locked = o.value === 'admin' && lockAdmin && on;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="checkbox"
+            aria-checked={on}
+            disabled={locked}
+            title={locked ? 'You can’t remove your own admin role' : undefined}
+            onClick={() =>
+              onChange(
+                on
+                  ? value.filter((r) => r !== o.value)
+                  : (['admin', 'coach'] as const).filter((r) => r === o.value || value.includes(r)),
+              )
+            }
+            className={cn(
+              'flex cursor-pointer flex-col items-start rounded-xl border p-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-70',
+              on ? 'border-primary bg-primary/8 ring-1 ring-primary' : 'hover:bg-muted/60',
+            )}
+          >
+            <span className="flex items-center gap-1.5 text-[13px] font-semibold">
+              <span
+                className={cn(
+                  'flex size-4 items-center justify-center rounded border text-[10px]',
+                  on ? 'border-primary bg-primary text-primary-foreground' : 'bg-card',
+                )}
+              >
+                {on ? '✓' : ''}
+              </span>
+              {o.label}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{o.hint}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function UserDialog({
   user,
   onClose,
@@ -81,6 +141,7 @@ function UserDialog({
   onClose: () => void;
   onInvited: (l: Link) => void;
 }) {
+  const me = useUser();
   const create = useCreateUser();
   const update = useUpdateUser();
   const settings = useSettings();
@@ -90,10 +151,11 @@ function UserDialog({
       name: user?.name ?? '',
       email: user?.email ?? '',
       phone: user?.phone ?? '',
-      role: user?.role ?? 'coach',
+      roles: user?.roles ?? (user ? [user.role] : ['coach']),
     },
   });
   const e = form.formState.errors;
+  const roles = useWatch({ control: form.control, name: 'roles' });
 
   const onSubmit = form.handleSubmit(async (v) => {
     try {
@@ -103,6 +165,7 @@ function UserDialog({
           name: v.name,
           email: v.email,
           phone: nullIfEmpty(v.phone),
+          roles: v.roles,
         });
         toast.success('Details updated');
         onClose();
@@ -111,7 +174,8 @@ function UserDialog({
           name: v.name,
           email: v.email,
           phone: nullIfEmpty(v.phone),
-          role: v.role,
+          role: v.roles.includes('coach') ? 'coach' : 'admin',
+          roles: v.roles,
         });
         onClose();
         onInvited({
@@ -120,7 +184,7 @@ function UserDialog({
             'Share this one-time link. It expires in 72 hours and lets them set their password.',
           url: res.inviteUrl,
           phone: res.user.phone,
-          message: `Hi ${res.user.name.split(' ')[0]}, you've been invited to ${settings.data?.name ?? 'AthletiQ'} as a ${res.user.role}. Set up your account here:`,
+          message: `Hi ${res.user.name.split(' ')[0]}, you've been invited to ${settings.data?.name ?? 'AthletiQ'} as ${(res.user.roles ?? [res.user.role]).length > 1 ? 'an admin and coach' : `a ${res.user.role}`}. Set up your account here:`,
         });
       }
     } catch (err) {
@@ -151,14 +215,19 @@ function UserDialog({
           >
             <Input type="tel" inputMode="tel" {...form.register('phone')} />
           </Field>
-          {!user && (
-            <Field label="Role">
-              <Select {...form.register('role')}>
-                <option value="coach">Coach — runs batches</option>
-                <option value="admin">Admin — manages the academy</option>
-              </Select>
-            </Field>
-          )}
+          <Field
+            label="Roles"
+            error={e.roles?.message}
+            hint="Someone with both signs in once and switches between admin and coach."
+          >
+            <RolePicker
+              value={roles}
+              onChange={(r) =>
+                form.setValue('roles', r, { shouldValidate: true, shouldDirty: true })
+              }
+              lockAdmin={!!user && user.id === me.id}
+            />
+          </Field>
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

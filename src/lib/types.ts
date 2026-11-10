@@ -13,7 +13,10 @@ export interface User {
   email: string;
   name: string;
   phone: string | null;
+  /** The role in use (for team lists: the one they last signed in as). */
   role: Role;
+  /** Every role they hold: coach, admin, or both. */
+  roles?: Role[];
   status: UserStatus;
   lastLoginAt: string | null;
   createdAt: string;

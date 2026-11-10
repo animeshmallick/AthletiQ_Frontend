@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/overlays';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from './auth';
+import { SwitchRoleButton } from './role-switch';
 import { startAppUpdate } from './app-update';
 import { DeploymentsInfo } from './deployments';
 import { useInstallPrompt } from './install';
@@ -218,6 +219,7 @@ export function MoreSheet({
           </span>
           <ChevronRight className="size-4 text-muted-foreground" />
         </NavLink>
+        <SwitchRoleButton />
 
         {/* Screens, grouped by what they're for — every one a tile */}
         {NAV_GROUPS.map(({ key, label }) => {

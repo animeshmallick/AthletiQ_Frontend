@@ -2,6 +2,7 @@ import { act, render, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { __setInstallEvent, isStandalone } from '@/app/install';
 import { RouterProvider } from 'react-router';
+import { appReload } from '@/app/auth';
 import { Providers } from '@/app/providers';
 import { router } from '@/app/router';
 import { matches, navFor, tabsFor } from '@/app/nav';
@@ -167,5 +168,63 @@ describe('route guards', () => {
   it('renders a 404 inside the app', async () => {
     await boot('/does-not-exist', adminUser);
     expect(await screen.findByText('Page not found')).toBeInTheDocument();
+  });
+});
+
+describe('admin and coach in one account', () => {
+  const both = {
+    ...adminUser,
+    id: 'both-1',
+    name: 'Shubham Raj',
+    roles: ['admin', 'coach'],
+  } as const;
+
+  it('asks which role to use the first time, then opens in it', async () => {
+    localStorage.removeItem(`atq-role-chosen:${both.id}`);
+    const reload = jest.spyOn(appReload, 'now').mockImplementation(() => {});
+    await boot(
+      '/',
+      { ...both, roles: [...both.roles] },
+      {
+        'POST /auth/switch-role': (c) => ({
+          ...sessionFor({ ...both, roles: [...both.roles], role: 'coach' }),
+          echo: c.body,
+        }),
+      },
+    );
+    const user = userEvent.setup();
+    expect(await screen.findByText(/both an admin and a coach/)).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /continue as coach/i }));
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(localStorage.getItem(`atq-role-chosen:${both.id}`)).toBe('1');
+    reload.mockRestore();
+  });
+
+  it('shows the role in use and switches from the menu', async () => {
+    localStorage.setItem(`atq-role-chosen:${both.id}`, '1');
+    const reload = jest.spyOn(appReload, 'now').mockImplementation(() => {});
+    await boot(
+      '/',
+      { ...both, roles: [...both.roles] },
+      {
+        'POST /auth/switch-role': () =>
+          sessionFor({ ...both, roles: [...both.roles], role: 'coach' }),
+      },
+    );
+    const user = userEvent.setup();
+    const menu = await screen.findByRole('button', { name: 'Open menu' }, { timeout: 5000 });
+    expect(menu).toHaveTextContent('Admin');
+    await user.click(menu);
+    await user.click(await screen.findByRole('button', { name: /switch to coach/i }));
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    reload.mockRestore();
+  });
+
+  it('shows no chooser or switch for people with one role', async () => {
+    await boot('/', adminUser);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }, { timeout: 5000 }));
+    await screen.findByRole('dialog', { name: 'Menu' });
+    expect(screen.queryByRole('button', { name: /switch to/i })).not.toBeInTheDocument();
   });
 });
