@@ -25,7 +25,7 @@ export function StudentCard({
   return (
     <Card
       className={cn(
-        'relative flex min-w-0 flex-col gap-1 px-2 py-1.5 transition-shadow hover:shadow-e2',
+        'relative flex min-w-0 flex-col gap-1 p-1 transition-shadow hover:shadow-e2',
         s.status === 'left' && 'opacity-60',
       )}
     >
