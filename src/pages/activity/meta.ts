@@ -118,6 +118,8 @@ const ACTION_LABELS: Record<string, string> = {
   'auth.locked': 'Account locked after failed sign-ins',
   'auth.password_changed': 'Password changed',
   'auth.token_reuse': 'Old session reused: signed out everywhere',
+  'auth.role_switched': 'Switched role',
+  'user.roles_changed': 'Roles changed',
 };
 
 export function humanize(action: string) {
@@ -128,7 +130,7 @@ export function humanize(action: string) {
 
 /** Matches the server's list of actions worth a second look. */
 const SENSITIVE =
-  /(refund|revert|revers|cancel|disabl|delete|remov|password|role|split|discount|waive|reject|token_reuse|locked)/i;
+  /(refund|revert|revers|cancel|disabl|delete|remov|password|roles_changed|split|discount|waive|reject|token_reuse|locked)/i;
 export const isSensitive = (action: string) => SENSITIVE.test(action);
 
 /** "monthlyDiscount" → "Monthly discount" */

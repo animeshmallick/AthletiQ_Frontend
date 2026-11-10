@@ -445,7 +445,7 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain">
       <div className="border-b p-5 pr-14">
         <div className="flex items-center gap-2">
           <p className="font-mono text-sm text-muted-foreground">{inv.number}</p>
@@ -463,7 +463,7 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
         </Link>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-5">
+      <div className="flex-1 space-y-4 p-5">
         <div className="grid grid-cols-2 gap-y-4 text-sm">
           <div>
             <p className="text-xs text-muted-foreground">Billing period</p>
@@ -552,7 +552,7 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
         )}
       </div>
 
-      <div className="space-y-2 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="sticky bottom-0 z-10 space-y-2 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex flex-wrap gap-2">
           {inv.status === 'due' && (
             <Button variant="success" className="flex-1" onClick={() => setPaying(true)}>
