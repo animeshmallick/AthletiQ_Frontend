@@ -179,7 +179,18 @@ export function DayPlan({
   return (
     <Card className="min-w-0 space-y-2 p-2">
       <PeriodStepper
-        label={relativeDay(day)}
+        label={
+          <span
+            key={day}
+            className={cn(
+              'inline-block',
+              dir === 1 && 'animate-day-next',
+              dir === -1 && 'animate-day-prev',
+            )}
+          >
+            {relativeDay(day)}
+          </span>
+        }
         sublabel={
           q.isPending
             ? 'Loading…'

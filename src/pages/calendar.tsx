@@ -14,6 +14,7 @@ import {
   addDays,
   formatLongDate,
   formatShortDate,
+  relativeDay,
   formatTimeRange,
   startOfWeek,
   today,
@@ -24,6 +25,7 @@ import type { DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { batchTone, minutes } from './calendar-meta';
 import { CoachDayView } from './calendar-coach-day';
+import { SwipeDays } from '@/components/swipe-days';
 import { SessionDialog } from './calendar-session';
 
 type View = 'week' | 'day';
@@ -117,6 +119,14 @@ export function CalendarPage() {
   const days = useMemo(() => q.data?.days ?? [], [q.data]);
   const selected = days.find((d) => d.date === date);
 
+  // Which way the day last moved, so the day view slides in from that side.
+  const [lastDate, setLastDate] = useState(date);
+  const [dir, setDir] = useState<1 | -1 | 0>(0);
+  if (date !== lastDate) {
+    setDir(date > lastDate ? 1 : -1);
+    setLastDate(date);
+  }
+
   // The grid always shows the whole day (12 am – 12 am); it opens scrolled to the first session.
   const startHour = 0;
   const endHour = 24;
@@ -199,14 +209,29 @@ export function CalendarPage() {
         />
       ) : (
         // Coaches: the day grouped by where they need to be; admins: the same tiles in time order.
-        <CoachDayView
-          date={date}
-          sessions={selected?.sessions ?? []}
-          isToday={date === q.data.today}
-          isPast={date < q.data.today}
-          now={now}
-          isAdmin={user.role === 'admin'}
-        />
+        // Swipe (or tap a day) to move between days, across weeks too.
+        <Card className="min-w-0 p-2">
+          <SwipeDays
+            dayKey={date}
+            direction={dir}
+            onStep={(n) => set({ date: addDays(date, n) })}
+            prevLabel={relativeDay(addDays(date, -1))}
+            nextLabel={relativeDay(addDays(date, 1))}
+          >
+            {!selected && q.isPlaceholderData ? (
+              <Skeleton className="h-40 rounded-xl" />
+            ) : (
+              <CoachDayView
+                date={date}
+                sessions={selected?.sessions ?? []}
+                isToday={date === q.data.today}
+                isPast={date < q.data.today}
+                now={now}
+                isAdmin={user.role === 'admin'}
+              />
+            )}
+          </SwipeDays>
+        </Card>
       )}
       <SessionDialog
         session={openSession?.s ?? null}

@@ -148,20 +148,32 @@
   --animate-page: page-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-shimmer: shimmer 1.6s ease-in-out infinite;
   --animate-rise: rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  /* A new day sliding in from the side the user moved towards. */
-  --animate-day-next: day-next 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  --animate-day-prev: day-prev 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* A new day entering on the shared X axis (Material 3: emphasized-decelerate). */
+  --animate-day-next: day-next 380ms cubic-bezier(0.05, 0.7, 0.1, 1) both;
+  --animate-day-prev: day-prev 380ms cubic-bezier(0.05, 0.7, 0.1, 1) both;
 
   @keyframes day-next {
     from {
       opacity: 0;
-      transform: translateX(28%);
+      transform: translate3d(22%, 0, 0);
+    }
+    40% {
+      opacity: 1;
     }
   }
   @keyframes day-prev {
     from {
       opacity: 0;
-      transform: translateX(-28%);
+      transform: translate3d(-22%, 0, 0);
+    }
+    40% {
+      opacity: 1;
+    }
+  }
+  @keyframes day-item {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 10px, 0) scale(0.98);
     }
   }
 
@@ -299,4 +311,24 @@
       transition-duration: 1ms !important;
     }
   }
+}
+
+/* A new day's rows settle in one after another (after the day itself slides in). */
+[data-day-enter] li {
+  animation: day-item 420ms cubic-bezier(0.05, 0.7, 0.1, 1) both;
+}
+[data-day-enter] li:nth-child(1) {
+  animation-delay: 60ms;
+}
+[data-day-enter] li:nth-child(2) {
+  animation-delay: 100ms;
+}
+[data-day-enter] li:nth-child(3) {
+  animation-delay: 140ms;
+}
+[data-day-enter] li:nth-child(4) {
+  animation-delay: 180ms;
+}
+[data-day-enter] li:nth-child(n + 5) {
+  animation-delay: 220ms;
 }
