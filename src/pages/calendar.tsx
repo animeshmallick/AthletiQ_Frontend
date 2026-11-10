@@ -164,7 +164,18 @@ export function CalendarPage() {
       {/* Week navigation + day strip (compact) */}
       <div className="mb-2 space-y-1">
         <PeriodStepper
-          label={`${formatShortDate(weekStart)} – ${formatShortDate(weekEnd)}`}
+          label={
+            <span
+              key={weekStart}
+              className={cn(
+                'inline-block',
+                dir === 1 && 'animate-day-next',
+                dir === -1 && 'animate-day-prev',
+              )}
+            >
+              {formatShortDate(weekStart)} – {formatShortDate(weekEnd)}
+            </span>
+          }
           sublabel={
             weekStart === startOfWeek(q.data?.today ?? today())
               ? 'This week'
@@ -198,15 +209,28 @@ export function CalendarPage() {
       ) : q.isPending ? (
         <Skeleton className="h-[28rem] rounded-2xl" />
       ) : view === 'week' ? (
-        <WeekGrid
-          days={days}
-          startHour={startHour}
-          endHour={endHour}
-          todayDate={q.data.today}
-          selected={date}
-          onOpenDay={(d) => set({ date: d, view: 'day' })}
-          onOpenSession={(s, d) => setOpenSession({ s, date: d })}
-        />
+        <SwipeDays
+          dayKey={weekStart}
+          direction={dir}
+          onStep={(n) => set({ date: addDays(date, 7 * n) })}
+          prevLabel="Last week"
+          nextLabel="Next week"
+        >
+          {q.isPlaceholderData ? (
+            <Skeleton className="h-[28rem] rounded-2xl" />
+          ) : (
+            <WeekGrid
+              days={days}
+              startHour={startHour}
+              endHour={endHour}
+              todayDate={q.data.today}
+              selected={date}
+              now={now}
+              onOpenDay={(d) => set({ date: d, view: 'day' })}
+              onOpenSession={(s, d) => setOpenSession({ s, date: d })}
+            />
+          )}
+        </SwipeDays>
       ) : (
         // Coaches: the day grouped by where they need to be; admins: the same tiles in time order.
         // Swipe (or tap a day) to move between days, across weeks too.
@@ -299,6 +323,7 @@ function WeekGrid({
   selected,
   onOpenDay,
   onOpenSession,
+  now,
 }: {
   days: { date: string; sessions: DayOverviewSession[] }[];
   startHour: number;
@@ -307,21 +332,21 @@ function WeekGrid({
   selected: string;
   onOpenDay: (d: string) => void;
   onOpenSession: (s: DayOverviewSession, date: string) => void;
+  /** Minutes since midnight now (IST). */
+  now: number;
 }) {
   const height = (endHour - startHour) * HOUR_PX;
   const scroller = useRef<HTMLDivElement>(null);
   useFitAboveTabBar(scroller);
-  const firstStart = Math.min(
-    ...days.flatMap((d) => d.sessions.map((s) => minutes(s.batch.startTime))),
-    24 * 60,
-  );
-  // Open the grid at the first session of the week (or at the current time on a light week).
+  // Open the grid with the current time 30% of the way down the visible area.
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    const target = firstStart < 24 * 60 ? firstStart - 30 : 8 * 60;
-    el.scrollTop = Math.max(0, ((target - startHour * 60) / 60) * HOUR_PX);
-  }, [firstStart, startHour]);
+    const nowPx = ((now - startHour * 60) / 60) * HOUR_PX;
+    el.scrollTop = Math.max(0, nowPx - el.clientHeight * 0.3);
+    // Only when the grid opens (a new week remounts it), not on every minute tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startHour]);
   return (
     <Card className="overflow-hidden p-0">
       {/* Column headers */}
