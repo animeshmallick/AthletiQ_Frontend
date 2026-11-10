@@ -1,4 +1,7 @@
 import { PushBanner } from './inbox';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { startAttendanceSync } from '@/lib/attendance-outbox';
 import { Ellipsis, WifiOff } from 'lucide-react';
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { logClientEvent } from './client-log';
@@ -100,6 +103,7 @@ function AppShell() {
     .reduce((n, i) => n + (counts[i.to] ?? 0), 0);
   usePreloadOnIntent(tabs.map((t) => t.to));
   useNativeApp();
+  useAttendanceSync();
   const location = useLocation();
   // "More" lights up when the current screen isn't one of the tabs.
   // One tab lights up: a tab with a query (Unpaid) wins over its plain screen (Finance).
@@ -201,6 +205,25 @@ function AppShell() {
 }
 
 /** Inside the Android app: register for push and offer new APK versions (once per sign-in). */
+/** Sends attendance marked without signal once the connection is back. */
+function useAttendanceSync() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    startAttendanceSync({
+      onSynced: ({ synced }) => {
+        const n = synced.reduce((x, s) => x + s.n, 0);
+        toast.success('Attendance synced · ' + n + (n === 1 ? ' mark' : ' marks'), {
+          description: 'Marks taken while offline are saved.',
+        });
+        for (const q of [['attendance'], ['me', 'tasks'], ['coach-sessions']])
+          void qc.invalidateQueries({ queryKey: q });
+      },
+      onRejected: (_b, _d, message) =>
+        toast.error('Some offline attendance wasn’t saved', { description: message }),
+    });
+  }, [qc]);
+}
+
 function useNativeApp() {
   const navigate = useNavigate();
   // Notification tapped while the web app is open (sent by the service worker).

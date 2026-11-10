@@ -1,3 +1,4 @@
+import { __resetOutbox, flushOutbox, pendingCount } from '@/lib/attendance-outbox';
 import type { AttendanceStatus } from '@/lib/types';
 import { AttendancePage } from '@/pages/attendance';
 import { batch, sheet } from '../fixtures';
@@ -258,6 +259,30 @@ describe('AttendancePage (coach)', () => {
     expect(await screen.findByLabelText('Last 2: Present, Absent')).toBeInTheDocument();
     expect(screen.getByText('40% · 30d')).toBeInTheDocument();
     expect(screen.getByText('New')).toBeInTheDocument();
+  });
+
+  it('keeps marking without signal: saved on the phone, synced when back online', async () => {
+    __resetOutbox();
+    const api = coachApi({
+      'PUT /attendance/session': () => {
+        throw new TypeError('Failed to fetch');
+      },
+    });
+    const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
+    await user.click(await screen.findByRole('button', { name: /^Bhavin Shah: Absent/ }));
+    // Kept (not rolled back), and the coach is told it's on the phone.
+    expect(
+      await screen.findByRole('button', { name: /^Bhavin Shah: Present/ }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/saved on this phone/)).toBeInTheDocument();
+    expect(pendingCount('b1', '2026-03-09')).toBe(1);
+    expect(screen.getByText(/taken while offline/)).toBeInTheDocument();
+
+    // Connection back: it syncs.
+    api.fetchMock.mockClear();
+    mockApi({ 'PUT /attendance/session': () => ({ saved: 1 }) });
+    await flushOutbox();
+    expect(pendingCount()).toBe(0);
   });
 
   it('rolls back a tap that fails to save', async () => {

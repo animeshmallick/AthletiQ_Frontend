@@ -3,6 +3,8 @@
  * is "everyone's here, tap the exceptions": every tap saves at once with an undo, and each
  * student shows their last few sessions so patterns are easy to spot.
  */
+import { usePendingMarks } from '@/lib/attendance-outbox';
+import { useOnline } from '@/lib/use-online';
 import { FloatBadge } from '@/components/floating-badge';
 import {
   CalendarDays,
@@ -11,9 +13,11 @@ import {
   Lock,
   MapPin,
   MoreHorizontal,
+  RefreshCw,
   Search,
   StickyNote,
   Users,
+  WifiOff,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -393,6 +397,8 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
   const batchId = session.batch.id;
   const sheet = useAttendanceSheet(batchId, date);
   const mark = useMarkAttendance(batchId, date);
+  const pendingHere = usePendingMarks(batchId, date);
+  const online = useOnline();
   const coachToday = useCoachToday(date === today());
   const [query, setQuery] = useState('');
   const [noteFor, setNoteFor] = useState<Student | null>(null);
@@ -417,13 +423,14 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
   const marked = summary.total - summary.unmarked;
   const unmarked = data.students.filter((s) => !s.status);
   const todayItem = coachToday.data?.sessions.find((t) => t.batch.id === batchId);
+  const waiting = pendingHere;
 
   /** Save, then offer to put things back exactly as they were. */
   function save(records: MarkRecord[], message: string, before: Student[]) {
     haptic();
     mark.mutate(records, {
-      onSuccess: () =>
-        toast(message, {
+      onSuccess: (res) =>
+        toast(res?.queued ? `${message} · saved on this phone` : message, {
           id: `att-${batchId}`,
           duration: 4000,
           action: {
@@ -462,6 +469,37 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
 
   return (
     <div className="space-y-2">
+      {/* No signal: marks are kept on the phone and sync when the connection is back. */}
+      {(!online || waiting > 0) && (
+        <div
+          role="status"
+          className={cn(
+            'flex items-center gap-2 rounded-xl border px-2.5 py-2 text-[12px] leading-snug',
+            online ? 'border-primary/25 bg-primary/5' : 'border-warning/40 bg-warning/12',
+          )}
+        >
+          {online ? (
+            <RefreshCw className="size-4 shrink-0 animate-spin text-primary" />
+          ) : (
+            <WifiOff className="size-4 shrink-0 text-warning-foreground dark:text-warning" />
+          )}
+          <p className="min-w-0 flex-1">
+            {online ? (
+              <>
+                <b className="font-semibold">
+                  Syncing {waiting} mark{waiting === 1 ? '' : 's'}
+                </b>{' '}
+                taken while offline…
+              </>
+            ) : (
+              <>
+                <b className="font-semibold">No connection.</b> Keep marking: marks are saved on
+                this phone{waiting ? ` (${waiting} waiting)` : ''} and sync when you’re back online.
+              </>
+            )}
+          </p>
+        </div>
+      )}
       {data.needsCheckIn ? (
         <div
           role="status"

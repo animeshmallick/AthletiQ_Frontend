@@ -2,6 +2,7 @@
  * React Query hooks for every API resource. Pages only use these hooks — never `fetch` directly —
  * so caching, invalidation and loading states are consistent across the app.
  */
+import { pendingMarks, queueMarks } from './attendance-outbox';
 import {
   keepPreviousData,
   useMutation,
@@ -10,7 +11,7 @@ import {
   type QueryKey,
   useInfiniteQuery,
 } from '@tanstack/react-query';
-import { api, type PageMeta, type Session } from './api';
+import { api, type PageMeta, type Session, ApiError } from './api';
 import type {
   AcademySettings,
   AttendanceSheet,
@@ -404,6 +405,11 @@ export const useAttendanceSheet = (batchId: string | undefined, date: string) =>
     queryKey: keys.attendanceSession(batchId ?? '', date),
     queryFn: () => api.get<AttendanceSheet>('/attendance/session', { batchId, date }),
     enabled: Boolean(batchId),
+    // Marks still waiting to sync (taken offline) stay visible over what the server has.
+    select: (sheet) => {
+      const waiting = batchId ? pendingMarks(batchId, date) : [];
+      return waiting.length ? applyMarks(sheet, waiting) : sheet;
+    },
   });
 
 export function useSaveAttendance() {
@@ -460,8 +466,22 @@ export function useMarkAttendance(batchId: string, date: string) {
   const mutationKey = ['attendance', 'mark', batchId, date];
   return useMutation({
     mutationKey,
-    mutationFn: (records: MarkRecord[]) =>
-      api.put<{ saved: number }>('/attendance/session', { batchId, date, records }),
+    // No signal: keep the marks on the phone and sync them when the connection is back.
+    mutationFn: async (records: MarkRecord[]): Promise<{ saved: number; queued?: boolean }> => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        queueMarks(batchId, date, records);
+        return { saved: 0, queued: true };
+      }
+      try {
+        return await api.put<{ saved: number }>('/attendance/session', { batchId, date, records });
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 0) {
+          queueMarks(batchId, date, records);
+          return { saved: 0, queued: true };
+        }
+        throw err;
+      }
+    },
     onMutate: async (records) => {
       await qc.cancelQueries({ queryKey: key });
       const prev = qc.getQueryData<AttendanceSheet>(key);
@@ -471,7 +491,9 @@ export function useMarkAttendance(batchId: string, date: string) {
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(key, ctx.prev);
     },
-    onSettled: () => {
+    onSettled: (data) => {
+      // Kept on the phone: don't refetch (it would fail, or hide the marks until they sync).
+      if (data?.queued) return;
       if (qc.isMutating({ mutationKey }) > 1) return;
       void Promise.all(
         [
