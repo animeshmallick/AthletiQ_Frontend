@@ -5,10 +5,15 @@ import { initNativeShell } from '@/app/native';
 import { registerServiceWorker } from '@/app/web-push';
 import { Providers } from '@/app/providers';
 import { router } from '@/app/router';
+import { startVersionCheck } from '@/app/version-check';
 import '@/styles/index.css';
 
 void initNativeShell();
-if (import.meta.env.PROD) void registerServiceWorker();
+if (import.meta.env.PROD) {
+  void registerServiceWorker();
+  // Phones keep the app open for hours: come back to the latest version after a deploy.
+  startVersionCheck();
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
