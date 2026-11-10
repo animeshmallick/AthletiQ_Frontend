@@ -148,6 +148,22 @@
   --animate-page: page-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-shimmer: shimmer 1.6s ease-in-out infinite;
   --animate-rise: rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* A new day sliding in from the side the user moved towards. */
+  --animate-day-next: day-next 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-day-prev: day-prev 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes day-next {
+    from {
+      opacity: 0;
+      transform: translateX(28%);
+    }
+  }
+  @keyframes day-prev {
+    from {
+      opacity: 0;
+      transform: translateX(-28%);
+    }
+  }
 
   @keyframes pop {
     0% {

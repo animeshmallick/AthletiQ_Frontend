@@ -98,9 +98,10 @@ describe('Activity log (admin)', () => {
     expect(await screen.findByRole('heading', { name: 'Audit log' })).toBeInTheDocument();
     const tile = await screen.findByRole('button', { name: /Invoice payment reverted/ });
     expect(tile).toHaveTextContent('Asha Admin · ₹2,500 · Mistake');
-    // The default period (last 4 weeks) is sent to the server.
+    // Today is the default period.
     const first = api.find('GET /activity/logs')[0]!;
-    expect(first.query.get('from')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(first.query.get('from')).toBe(today());
+    expect(first.query.get('to')).toBe(today());
     expect(first.query.get('pageSize')).toBe('50');
 
     await user.click(tile);

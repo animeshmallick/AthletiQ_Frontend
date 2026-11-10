@@ -34,7 +34,7 @@ export function AuditLogPage() {
   const rawTab = params.get('tab');
   const tab: Tab = rawTab === 'activity' || (rawTab === 'errors' && admin) ? rawTab : 'insights';
   const rawPeriod = params.get('period') as PeriodKey | null;
-  const period: PeriodKey = rawPeriod && ACTIVITY_PERIODS.includes(rawPeriod) ? rawPeriod : '4w';
+  const period: PeriodKey = rawPeriod && ACTIVITY_PERIODS.includes(rawPeriod) ? rawPeriod : 'today';
   const range = periodRange(period);
   const view: View = params.get('view') === 'changes' ? 'changes' : 'events';
   const area = params.get('area') ?? '';
@@ -111,7 +111,7 @@ export function AuditLogPage() {
       <FilterBar>
         <PeriodFilter
           value={period}
-          onChange={(k) => set({ period: k === '4w' ? null : k })}
+          onChange={(k) => set({ period: k === 'today' ? null : k })}
           options={ACTIVITY_PERIODS}
         />
         {tab === 'activity' && view === 'events' && (

@@ -4,6 +4,7 @@
  * Shared by the admin and coach homepages; each decides which sections to show.
  */
 import { PeriodStepper } from '@/components/date-nav';
+import { SwipeDays } from '@/components/swipe-days';
 import {
   AlertTriangle,
   CalendarCheck2,
@@ -21,7 +22,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Badge, Card, Skeleton } from '@/components/ui/primitives';
 import { Segmented } from '@/components/ui/controls';
@@ -166,22 +167,17 @@ export function DayPlan({
   const todosFor = (batchId: string) =>
     isToday ? (tasks.data?.items ?? []).filter((t) => t.id.includes(`:${batchId}:`)) : [];
 
-  // Swipe left / right to change day.
-  const touch = useRef<number | null>(null);
-  const move = (n: number) => setDay((d) => addDays(d, n));
+  // Which way the day last changed, so the new day slides in from that side.
+  const [dir, setDir] = useState<1 | -1 | 0>(0);
+  const goTo = (d: string) => {
+    if (d === day) return;
+    setDir(d > day ? 1 : -1);
+    setDay(d);
+  };
+  const move = (n: 1 | -1) => goTo(addDays(day, n));
 
   return (
-    <section
-      className="space-y-2"
-      onTouchStart={(e) => (touch.current = e.touches[0]?.clientX ?? null)}
-      onTouchEnd={(e) => {
-        const start = touch.current;
-        const end = e.changedTouches[0]?.clientX;
-        touch.current = null;
-        if (start === null || end === undefined || Math.abs(end - start) < 60) return;
-        move(end < start ? 1 : -1);
-      }}
-    >
+    <Card className="min-w-0 space-y-2 p-2">
       <PeriodStepper
         label={relativeDay(day)}
         sublabel={
@@ -197,123 +193,140 @@ export function DayPlan({
         nextLabel="Next day"
         onPrev={() => move(-1)}
         onNext={() => move(1)}
-        onToday={isToday ? undefined : () => setDay(today())}
-        pick={{ value: day, onChange: setDay }}
+        onToday={isToday ? undefined : () => goTo(today())}
+        pick={{ value: day, onChange: goTo }}
+        className="shadow-none"
       />
 
-      {isToday && renderToday ? (
-        renderToday(sessions)
-      ) : q.isPending ? (
-        <Skeleton className="h-24 rounded-2xl" />
-      ) : sessions.length === 0 ? (
-        <Card className="p-4 text-center text-[13px] text-muted-foreground">
-          <CalendarCheck2 className="mx-auto mb-1 size-5" />
-          {isToday ? 'No sessions today. Enjoy the rest day.' : 'No sessions on this day.'}
-        </Card>
-      ) : (
-        <ol className="space-y-1.5" aria-label="Timeline">
-          {sessions.map((s) => {
-            const st = stateOf(s, isToday, isPast, now, nextId);
-            const style = STATE_STYLE[st];
-            const todos = todosFor(s.batch.id);
-            return (
-              <li key={s.batch.id}>
-                <Card className={cn('p-2', (st === 'done' || st === 'cancelled') && 'opacity-70')}>
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-[4.5rem] shrink-0">
-                      <p className="tabular flex items-center gap-1.5 text-[13px] font-semibold">
-                        <span
-                          aria-hidden
-                          className={cn('size-2 shrink-0 rounded-full', style.dot)}
-                        />
-                        {formatTime(s.batch.startTime)}
-                      </p>
-                      <p className="tabular pl-3.5 text-[11px] text-muted-foreground">
-                        to {formatTime(s.batch.endTime)}
-                      </p>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        to={`/attendance?batch=${s.batch.id}&date=${day}`}
-                        className="block truncate text-[14px] font-semibold hover:underline"
-                      >
-                        {s.batch.name}
-                      </Link>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {isAdmin ? `${s.batch.coach.name} · ` : ''}
-                        {s.batch.location.name}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
-                        {style.label && (
+      <SwipeDays
+        dayKey={day}
+        direction={dir}
+        onStep={move}
+        prevLabel={relativeDay(addDays(day, -1))}
+        nextLabel={relativeDay(addDays(day, 1))}
+      >
+        {isToday && renderToday ? (
+          renderToday(sessions)
+        ) : q.isPending ? (
+          <Skeleton className="h-24 rounded-2xl" />
+        ) : sessions.length === 0 ? (
+          <Card className="p-4 text-center text-[13px] text-muted-foreground">
+            <CalendarCheck2 className="mx-auto mb-1 size-5" />
+            {isToday ? 'No sessions today. Enjoy the rest day.' : 'No sessions on this day.'}
+          </Card>
+        ) : (
+          <ol className="space-y-1.5" aria-label="Timeline">
+            {sessions.map((s) => {
+              const st = stateOf(s, isToday, isPast, now, nextId);
+              const style = STATE_STYLE[st];
+              const todos = todosFor(s.batch.id);
+              return (
+                <li key={s.batch.id}>
+                  <Card
+                    className={cn('p-2', (st === 'done' || st === 'cancelled') && 'opacity-70')}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-[4.5rem] shrink-0">
+                        <p className="tabular flex items-center gap-1.5 text-[13px] font-semibold">
                           <span
-                            className={cn('rounded-full px-1.5 py-0.5 font-semibold', style.badge)}
-                          >
-                            {style.label}
-                            {st === 'cancelled' && s.cancelled ? ` · ${s.cancelled}` : ''}
-                          </span>
-                        )}
-                        {s.substitute && (
-                          <Badge variant="muted">
-                            <Repeat /> {s.substitute.name}
-                          </Badge>
-                        )}
-                        {!s.cancelled && (isToday || isPast) && (
-                          <>
-                            <Badge
-                              variant={
-                                s.coachSession
-                                  ? s.coachSession.flagged
-                                    ? 'warning'
-                                    : 'success'
-                                  : 'muted'
-                              }
+                            aria-hidden
+                            className={cn('size-2 shrink-0 rounded-full', style.dot)}
+                          />
+                          {formatTime(s.batch.startTime)}
+                        </p>
+                        <p className="tabular pl-3.5 text-[11px] text-muted-foreground">
+                          to {formatTime(s.batch.endTime)}
+                        </p>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to={`/attendance?batch=${s.batch.id}&date=${day}`}
+                          className="block truncate text-[14px] font-semibold hover:underline"
+                        >
+                          {s.batch.name}
+                        </Link>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {isAdmin ? `${s.batch.coach.name} · ` : ''}
+                          {s.batch.location.name}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
+                          {style.label && (
+                            <span
+                              className={cn(
+                                'rounded-full px-1.5 py-0.5 font-semibold',
+                                style.badge,
+                              )}
                             >
-                              <MapPin />
-                              {s.coachSession
-                                ? `In ${formatClock(s.coachSession.checkInAt)}`
-                                : 'No check-in'}
+                              {style.label}
+                              {st === 'cancelled' && s.cancelled ? ` · ${s.cancelled}` : ''}
+                            </span>
+                          )}
+                          {s.substitute && (
+                            <Badge variant="muted">
+                              <Repeat /> {s.substitute.name}
                             </Badge>
-                            <Badge
-                              variant={
-                                s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'
-                              }
-                            >
-                              <Users /> {s.marked}/{s.expectedStudents}
+                          )}
+                          {!s.cancelled && (isToday || isPast) && (
+                            <>
+                              <Badge
+                                variant={
+                                  s.coachSession
+                                    ? s.coachSession.flagged
+                                      ? 'warning'
+                                      : 'success'
+                                    : 'muted'
+                                }
+                              >
+                                <MapPin />
+                                {s.coachSession
+                                  ? `In ${formatClock(s.coachSession.checkInAt)}`
+                                  : 'No check-in'}
+                              </Badge>
+                              <Badge
+                                variant={
+                                  s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'
+                                }
+                              >
+                                <Users /> {s.marked}/{s.expectedStudents}
+                              </Badge>
+                            </>
+                          )}
+                          {!s.cancelled && (
+                            <Badge variant={s.hasLessonPlan ? 'success' : 'muted'}>
+                              <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'No plan'}
                             </Badge>
-                          </>
-                        )}
-                        {!s.cancelled && (
-                          <Badge variant={s.hasLessonPlan ? 'success' : 'muted'}>
-                            <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'No plan'}
-                          </Badge>
+                          )}
+                        </div>
+                        {todos.length > 0 && (
+                          <ul className="mt-1.5 space-y-0.5">
+                            {todos.map((t) => (
+                              <li key={t.id}>
+                                <Link
+                                  to={t.link}
+                                  className="flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
+                                >
+                                  <span
+                                    className={cn(
+                                      'size-1.5 rounded-full',
+                                      SEVERITY_DOT[t.severity],
+                                    )}
+                                  />
+                                  {t.title}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </div>
-                      {todos.length > 0 && (
-                        <ul className="mt-1.5 space-y-0.5">
-                          {todos.map((t) => (
-                            <li key={t.id}>
-                              <Link
-                                to={t.link}
-                                className="flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
-                              >
-                                <span
-                                  className={cn('size-1.5 rounded-full', SEVERITY_DOT[t.severity])}
-                                />
-                                {t.title}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
                     </div>
-                  </div>
-                </Card>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-    </section>
+                  </Card>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </SwipeDays>
+    </Card>
   );
 }
 
