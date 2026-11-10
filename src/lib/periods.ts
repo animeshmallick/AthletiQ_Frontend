@@ -1,9 +1,13 @@
 /** The standard reporting periods used by every period filter in the app. */
 import { addDays, addMonths, endOfMonth, startOfMonth, startOfWeek, today } from './format';
 
-export type PeriodKey = 'week' | 'next' | '4w' | 'month' | 'last-month' | 'quarter' | 'fy';
+export type PeriodKey =
+  'today' | 'yesterday' | '7d' | 'week' | 'next' | '4w' | 'month' | 'last-month' | 'quarter' | 'fy';
 
 export const PERIOD_LABELS: Record<PeriodKey, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  '7d': 'Last 7 days',
   week: 'This week',
   next: 'Next 2 weeks',
   '4w': 'Last 4 weeks',
@@ -16,6 +20,14 @@ export const PERIOD_LABELS: Record<PeriodKey, string> = {
 /** Past-looking periods, for money and activity. */
 export const PAST_PERIODS: PeriodKey[] = ['week', '4w', 'month', 'last-month', 'quarter', 'fy'];
 
+/** Activity and audit logs also look at a single day. */
+export const ACTIVITY_PERIODS: PeriodKey[] = [
+  'today',
+  'yesterday',
+  '7d',
+  ...PAST_PERIODS.filter((p) => p !== 'week'),
+];
+
 /**
  * Dates covered by a period. Periods end today unless `future` is set, in which case the
  * current week / month run to their end (useful for planning).
@@ -25,6 +37,14 @@ export function periodRange(
   { now = today(), future = false }: { now?: string; future?: boolean } = {},
 ): { from: string; to: string } {
   switch (key) {
+    case 'today':
+      return { from: now, to: now };
+    case '7d':
+      return { from: addDays(now, -6), to: now };
+    case 'yesterday': {
+      const d = addDays(now, -1);
+      return { from: d, to: d };
+    }
     case 'week': {
       const from = startOfWeek(now);
       return { from, to: future ? addDays(from, 6) : now };

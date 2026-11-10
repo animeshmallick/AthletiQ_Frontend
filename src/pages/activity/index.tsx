@@ -15,7 +15,7 @@ import { PageHeader, SearchInput } from '@/components/common';
 import { FilterBar, FilterField, FilterMenu, PeriodFilter } from '@/components/filters';
 import { Segmented, Switch } from '@/components/ui/controls';
 import { Select } from '@/components/ui/primitives';
-import { periodRange, PAST_PERIODS, type PeriodKey } from '@/lib/periods';
+import { ACTIVITY_PERIODS, periodRange, type PeriodKey } from '@/lib/periods';
 import { useActivityInsights } from '@/lib/queries';
 import { ErrorsView } from './errors';
 import { EventFeed, FilterChip, RequestFeed } from './feed';
@@ -34,7 +34,7 @@ export function AuditLogPage() {
   const rawTab = params.get('tab');
   const tab: Tab = rawTab === 'activity' || (rawTab === 'errors' && admin) ? rawTab : 'insights';
   const rawPeriod = params.get('period') as PeriodKey | null;
-  const period: PeriodKey = rawPeriod && PAST_PERIODS.includes(rawPeriod) ? rawPeriod : '4w';
+  const period: PeriodKey = rawPeriod && ACTIVITY_PERIODS.includes(rawPeriod) ? rawPeriod : '4w';
   const range = periodRange(period);
   const view: View = params.get('view') === 'changes' ? 'changes' : 'events';
   const area = params.get('area') ?? '';
@@ -112,7 +112,7 @@ export function AuditLogPage() {
         <PeriodFilter
           value={period}
           onChange={(k) => set({ period: k === '4w' ? null : k })}
-          options={PAST_PERIODS}
+          options={ACTIVITY_PERIODS}
         />
         {tab === 'activity' && view === 'events' && (
           <FilterMenu

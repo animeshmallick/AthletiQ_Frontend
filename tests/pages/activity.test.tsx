@@ -1,4 +1,6 @@
 import { within } from '@testing-library/react';
+import { today } from '@/lib/format';
+import { ACTIVITY_PERIODS, periodRange } from '@/lib/periods';
 import { AuditLogPage } from '@/pages/activity';
 import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
@@ -64,6 +66,28 @@ const requestInsights = {
 };
 
 describe('Activity log (admin)', () => {
+  it('filters to just today, or the last 7 days', async () => {
+    const api = mockApi({ 'GET /activity/logs': () => page([log()]) });
+    await renderPage(<AuditLogPage />, {
+      path: '/audit-log',
+      route: '/audit-log?tab=activity&period=today',
+      user: adminUser,
+    });
+    await screen.findByRole('button', { name: /Invoice payment reverted/ });
+    const q = api.find('GET /activity/logs')[0]!.query;
+    expect(q.get('from')).toBe(today());
+    expect(q.get('to')).toBe(today());
+    expect(periodRange('7d', { now: '2026-03-10' })).toEqual({
+      from: '2026-03-04',
+      to: '2026-03-10',
+    });
+    expect(periodRange('yesterday', { now: '2026-03-10' })).toEqual({
+      from: '2026-03-09',
+      to: '2026-03-09',
+    });
+    expect(ACTIVITY_PERIODS).not.toContain('week');
+  });
+
   it('lists key events and opens details, with a link to the record and its history', async () => {
     const api = mockApi({ 'GET /activity/logs': () => page([log()]) });
     const { user, router } = await renderPage(<AuditLogPage />, {
