@@ -25,7 +25,7 @@ export function StudentCard({
   return (
     <Card
       className={cn(
-        'relative flex min-w-0 flex-col gap-2 p-2.5 transition-shadow hover:shadow-e2',
+        'relative flex min-w-0 flex-col gap-1 px-2 py-1.5 transition-shadow hover:shadow-e2',
         s.status === 'left' && 'opacity-60',
       )}
     >
@@ -37,8 +37,8 @@ export function StudentCard({
         className="absolute inset-0 rounded-[inherit]"
         aria-label={`Open ${s.fullName}`}
       />
-      <div className="flex items-center gap-2.5">
-        <Avatar name={s.fullName} className="size-10" />
+      <div className="flex items-center gap-2">
+        <Avatar name={s.fullName} className="size-8 text-[11px]" />
         <div className="min-w-0 flex-1">
           <p className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-[14px] font-semibold">{s.fullName}</span>
@@ -56,7 +56,7 @@ export function StudentCard({
         {s.level?.code && <LevelBadge name={s.level.name ?? ''} code={s.level.code} short />}
       </div>
 
-      <div className="flex min-w-0 items-start gap-1.5 text-[12px]">
+      <div className="flex min-w-0 items-start gap-1 text-[12px]">
         <LayoutGrid className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate">
           {s.batches.length
@@ -70,7 +70,7 @@ export function StudentCard({
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+      <div className="flex flex-wrap items-center gap-1 text-[11px]">
         {s.outstanding > 0 ? (
           <Badge variant={s.overdue > 0 ? 'destructive' : 'warning'}>
             {s.overdue > 0 ? 'Overdue' : 'Due'} · {money(s.outstanding)}
@@ -85,7 +85,7 @@ export function StudentCard({
         <span
           title="Attendance, last 30 days"
           className={cn(
-            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold',
+            'inline-flex items-center gap-1 rounded-full px-1.5 py-px font-semibold',
             rate === null
               ? 'bg-muted text-muted-foreground'
               : rate >= 80
@@ -99,22 +99,22 @@ export function StudentCard({
           {rate === null ? 'No attendance' : `${rate}%`}
         </span>
         {digits && (
-          <span className="relative z-10 ml-auto flex gap-1">
+          <span className="relative z-10 ml-auto flex gap-0.5">
             <a
               href={`tel:${s.phone}`}
               aria-label={`Call ${s.fullName}`}
-              className="flex size-7 items-center justify-center rounded-lg border bg-card text-muted-foreground hover:text-foreground"
+              className="flex size-6 items-center justify-center rounded-md border bg-card text-muted-foreground hover:text-foreground"
             >
-              <Phone className="size-3.5" />
+              <Phone className="size-3" />
             </a>
             <a
               href={`https://wa.me/${digits}`}
               target="_blank"
               rel="noreferrer"
               aria-label={`WhatsApp ${s.fullName}`}
-              className="flex size-7 items-center justify-center rounded-lg border bg-card text-success hover:bg-success/10"
+              className="flex size-6 items-center justify-center rounded-md border bg-card text-success hover:bg-success/10"
             >
-              <MessageCircle className="size-3.5" />
+              <MessageCircle className="size-3" />
             </a>
           </span>
         )}

@@ -150,7 +150,7 @@ export function StudentsPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-2 *:min-w-0 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-1.5 *:min-w-0 sm:grid-cols-2 sm:gap-2 xl:grid-cols-3">
             {students.data.data.map((s) => (
               <StudentCard key={s.id} s={s} isAdmin={isAdmin} onPrefetch={() => prefetch(s.id)} />
             ))}
