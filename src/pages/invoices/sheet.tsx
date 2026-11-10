@@ -1,7 +1,6 @@
 import {
   ArrowLeftRight,
   Ban,
-  CheckCircle2,
   ShieldAlert,
   Whistle,
   Download,
@@ -28,6 +27,7 @@ import {
   MoneyInput,
 } from '@/components/common';
 import { PdfViewer, type PdfFile } from '@/components/pdf-viewer';
+import { SlideToConfirm } from '@/components/slide-to-confirm';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
 import {
@@ -141,6 +141,7 @@ function MarkPaidDialog({
   const [paidOn, setPaidOn] = useState(today());
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   async function submit() {
     try {
@@ -155,6 +156,7 @@ function MarkPaidDialog({
       toast.success(`${money(invoice.totalAmount)} received from ${invoice.student.fullName}`);
       onOpenChange(false);
     } catch (err) {
+      setAttempt((n) => n + 1);
       toast.error('Could not mark as paid', { description: errorMessage(err) });
     }
   }
@@ -229,31 +231,26 @@ function MarkPaidDialog({
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        {/* Slide to confirm: a deliberate gesture for money changing hands. */}
+        <div className="space-y-1.5">
+          <SlideToConfirm
+            key={attempt}
+            tone={alsoCoach && receivedAs === 'admin' ? 'warning' : 'success'}
+            disabled={!paidOn}
+            doneLabel="Recording payment…"
+            label={
+              alsoCoach && receivedAs === 'admin'
+                ? `Slide to accept ${money(invoice.totalAmount)} as admin`
+                : alsoCoach
+                  ? `Slide to receive ${money(invoice.totalAmount)} as coach`
+                  : `Slide to confirm ${money(invoice.totalAmount)} received`
+            }
+            onConfirm={() => void submit()}
+          />
+          <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            variant={alsoCoach && receivedAs === 'admin' ? 'warning' : 'success'}
-            loading={markPaid.isPending}
-            disabled={!paidOn}
-            onClick={() => void submit()}
-          >
-            {alsoCoach && receivedAs === 'admin' ? (
-              <>
-                <ShieldAlert /> Accept as admin anyway
-              </>
-            ) : alsoCoach ? (
-              <>
-                <CheckCircle2 /> I’m receiving the payment as coach
-              </>
-            ) : (
-              <>
-                <CheckCircle2 /> I have received the payment
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

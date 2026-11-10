@@ -250,9 +250,9 @@ describe('InvoicesPage', () => {
 
     await user.click(screen.getByRole('button', { name: /i have received the payment/i }));
     await user.type(screen.getByLabelText(/UPI reference/i), 'UTR123');
-    await user.click(
-      screen.getAllByRole('button', { name: /i have received the payment/i }).at(-1)!,
-    );
+    // Slide to confirm (keyboard: Enter on the slider).
+    screen.getByRole('slider', { name: /slide to confirm ₹2,500 received/i }).focus();
+    await user.keyboard('{Enter}');
     await waitFor(() => expect(api.find('POST /invoices/i1/payments')).toHaveLength(1));
     expect(api.find('POST /invoices/i1/payments')[0]!.body).toMatchObject({
       mode: 'upi',
@@ -277,14 +277,17 @@ describe('InvoicesPage', () => {
 
     // Warning first: taking it as admin sends it to academy cash.
     expect(await screen.findByRole('alert')).toHaveTextContent('You’re receiving this as admin');
-    expect(screen.getByRole('button', { name: /accept as admin anyway/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('slider', { name: /slide to accept ₹2,500 as admin/i }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /receive as coach instead/i }));
 
     // Go-ahead: as coach, counted with them; the warning is gone.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByText('Receiving as coach')).toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: 'Where is the money now?' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /receiving the payment as coach/i }));
+    screen.getByRole('slider', { name: /slide to receive ₹2,500 as coach/i }).focus();
+    await user.keyboard('{Enter}');
     await waitFor(() => expect(api.find('POST /invoices/i1/payments')).toHaveLength(1));
     expect(api.find('POST /invoices/i1/payments')[0]!.body).toMatchObject({
       receivedAs: 'coach',
@@ -306,7 +309,8 @@ describe('InvoicesPage', () => {
     });
     await user.click(await screen.findByRole('button', { name: /Anya Rao/ }));
     await user.click(await screen.findByRole('button', { name: /i have received the payment/i }));
-    await user.click(await screen.findByRole('button', { name: /accept as admin anyway/i }));
+    (await screen.findByRole('slider', { name: /slide to accept ₹2,500 as admin/i })).focus();
+    await user.keyboard('{Enter}');
     await waitFor(() => expect(api.find('POST /invoices/i1/payments')).toHaveLength(1));
     const body = api.find('POST /invoices/i1/payments')[0]!.body as Record<string, unknown>;
     expect(body.receivedAs).toBe('admin');

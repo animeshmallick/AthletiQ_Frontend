@@ -12,17 +12,48 @@ const PAD = 4; // px around the knob
 /** How far (share of the track) counts as "at the end". */
 const DONE_AT = 0.92;
 
+type Tone = 'primary' | 'success' | 'warning';
+const TONES: Record<
+  Tone,
+  { gradient: string; soft: string; text: string; color: string; glow: string }
+> = {
+  primary: {
+    gradient: 'bg-gradient-to-r from-primary via-primary to-violet-500',
+    soft: 'bg-primary/8 border-primary/25',
+    text: 'text-primary',
+    color: 'var(--color-primary)',
+    glow: 'shadow-[0_6px_20px_-4px_var(--color-primary)]',
+  },
+  success: {
+    gradient: 'bg-gradient-to-r from-emerald-600 via-success to-teal-500',
+    soft: 'bg-success/10 border-success/30',
+    text: 'text-success',
+    color: 'var(--color-success)',
+    glow: 'shadow-[0_6px_20px_-4px_var(--color-success)]',
+  },
+  warning: {
+    gradient: 'bg-gradient-to-r from-amber-500 via-warning to-orange-400',
+    soft: 'bg-warning/12 border-warning/40',
+    text: 'text-warning-foreground dark:text-warning',
+    color: 'var(--color-warning)',
+    glow: 'shadow-[0_6px_20px_-4px_var(--color-warning)]',
+  },
+};
+
 export function SlideToConfirm({
   label,
   onConfirm,
   disabled = false,
   tone = 'primary',
+  doneLabel = 'Switching…',
   className,
 }: {
   label: string;
   onConfirm: () => void;
   disabled?: boolean;
-  tone?: 'primary' | 'success';
+  tone?: Tone;
+  /** Shown in the track once confirmed. */
+  doneLabel?: string;
   className?: string;
 }) {
   const track = useRef<HTMLDivElement>(null);
@@ -34,10 +65,10 @@ export function SlideToConfirm({
   const [armed, setArmed] = useState(false);
 
   const progress = max > 0 ? pos / max : 0;
-  const fill = tone === 'success' ? 'bg-success' : 'bg-primary';
-  const soft =
-    tone === 'success' ? 'bg-success/10 border-success/30' : 'bg-primary/8 border-primary/25';
-  const text = tone === 'success' ? 'text-success' : 'text-primary';
+  const t = TONES[tone];
+  const fill = t.gradient;
+  const soft = t.soft;
+  const text = t.text;
 
   function confirm() {
     if (done || disabled) return;
@@ -89,6 +120,7 @@ export function SlideToConfirm({
       className={cn(
         'relative h-14 w-full touch-none overflow-hidden rounded-full border select-none',
         soft,
+        'shadow-[inset_0_1px_3px_rgb(0_0_0/0.08)]',
         disabled && 'opacity-60',
         className,
       )}
@@ -118,7 +150,7 @@ export function SlideToConfirm({
           className="slide-shimmer"
           style={
             {
-              '--shimmer': tone === 'success' ? 'var(--color-success)' : 'var(--color-primary)',
+              '--shimmer': t.color,
             } as CSSProperties
           }
         >
@@ -126,8 +158,8 @@ export function SlideToConfirm({
         </span>
       </span>
       {done && (
-        <span className="absolute inset-0 flex items-center justify-center text-[14px] font-semibold text-primary-foreground">
-          Switching…
+        <span className="absolute inset-0 flex animate-[page-in_260ms_ease-out] items-center justify-center pl-10 text-[14px] font-semibold text-white">
+          {doneLabel}
         </span>
       )}
       <button
@@ -147,6 +179,11 @@ export function SlideToConfirm({
         className={cn(
           'absolute top-1 left-1 flex cursor-grab items-center justify-center rounded-full text-primary-foreground shadow-e2 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:cursor-grabbing',
           fill,
+          [
+            'ring-1 ring-white/40',
+            t.glow,
+            'before:pointer-events-none before:absolute before:inset-x-1.5 before:top-1 before:h-1/2 before:rounded-full before:bg-gradient-to-b before:from-white/45 before:to-transparent',
+          ],
           armed && 'scale-105',
         )}
         style={{
@@ -157,7 +194,7 @@ export function SlideToConfirm({
         }}
       >
         {done || armed ? (
-          <Check className="size-5" />
+          <Check className={cn('size-5', done && 'animate-[pop_360ms_ease-out_both]')} />
         ) : (
           <ArrowRight className={cn('size-5', !dragging && 'slide-nudge')} />
         )}
