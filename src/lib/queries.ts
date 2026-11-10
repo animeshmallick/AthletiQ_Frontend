@@ -903,6 +903,8 @@ export const useMarkPaid = (id: string) =>
       paidOn: string;
       note?: string | null;
       heldBy?: 'collector' | 'academy';
+      /** For people who are both admin and coach: the role they're receiving it in. */
+      receivedAs?: 'admin' | 'coach';
     }) => api.post<InvoiceDetail>(`/invoices/${id}/payments`, body),
   );
 

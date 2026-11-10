@@ -260,6 +260,59 @@ describe('InvoicesPage', () => {
     });
   });
 
+  it('suggests receiving as coach when an admin who also coaches records a payment', async () => {
+    const both = { ...adminUser, roles: ['admin', 'coach'] as ('admin' | 'coach')[] };
+    const api = mockApi({
+      'GET /invoices': () => list,
+      'GET /invoices/i1': () => invoiceDetail,
+      'POST /invoices/i1/payments': () => ({ ...invoiceDetail, status: 'paid' }),
+    });
+    const { user } = await renderPage(<InvoicesPage />, {
+      path: '/invoices',
+      route: '/invoices',
+      user: both,
+    });
+    await user.click(await screen.findByRole('button', { name: /Anya Rao/ }));
+    await user.click(await screen.findByRole('button', { name: /i have received the payment/i }));
+
+    // Warning first: taking it as admin sends it to academy cash.
+    expect(await screen.findByRole('alert')).toHaveTextContent('You’re receiving this as admin');
+    expect(screen.getByRole('button', { name: /accept as admin anyway/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /receive as coach instead/i }));
+
+    // Go-ahead: as coach, counted with them; the warning is gone.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('Receiving as coach')).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Where is the money now?' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /receiving the payment as coach/i }));
+    await waitFor(() => expect(api.find('POST /invoices/i1/payments')).toHaveLength(1));
+    expect(api.find('POST /invoices/i1/payments')[0]!.body).toMatchObject({
+      receivedAs: 'coach',
+      heldBy: 'collector',
+    });
+  });
+
+  it('records as admin when they accept the warning', async () => {
+    const both = { ...adminUser, roles: ['admin', 'coach'] as ('admin' | 'coach')[] };
+    const api = mockApi({
+      'GET /invoices': () => list,
+      'GET /invoices/i1': () => invoiceDetail,
+      'POST /invoices/i1/payments': () => ({ ...invoiceDetail, status: 'paid' }),
+    });
+    const { user } = await renderPage(<InvoicesPage />, {
+      path: '/invoices',
+      route: '/invoices',
+      user: both,
+    });
+    await user.click(await screen.findByRole('button', { name: /Anya Rao/ }));
+    await user.click(await screen.findByRole('button', { name: /i have received the payment/i }));
+    await user.click(await screen.findByRole('button', { name: /accept as admin anyway/i }));
+    await waitFor(() => expect(api.find('POST /invoices/i1/payments')).toHaveLength(1));
+    const body = api.find('POST /invoices/i1/payments')[0]!.body as Record<string, unknown>;
+    expect(body.receivedAs).toBe('admin');
+    expect(body.heldBy).toBeUndefined();
+  });
+
   it('lets admins revert a payment with a reason', async () => {
     const paid = {
       ...invoiceDetail,

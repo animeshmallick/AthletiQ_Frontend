@@ -1,6 +1,9 @@
 import {
+  ArrowLeftRight,
   Ban,
   CheckCircle2,
+  ShieldAlert,
+  Whistle,
   Download,
   FileText,
   MessageCircle,
@@ -55,6 +58,69 @@ import {
 import type { InvoiceDetail, Payment } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+/**
+ * For someone who is both an admin and a coach, signed in as admin: payments they take as admin
+ * go straight to academy cash, so we suggest receiving it as coach (counted in the cash they hold,
+ * like any coach). Switching here only affects this payment; they stay signed in as admin.
+ */
+function ReceiveAsNotice({
+  receivedAs,
+  onChange,
+}: {
+  receivedAs: 'admin' | 'coach';
+  onChange: (r: 'admin' | 'coach') => void;
+}) {
+  if (receivedAs === 'coach')
+    return (
+      <div
+        role="status"
+        className="flex animate-rise items-start gap-2.5 rounded-xl border border-success/30 bg-success/8 p-3"
+      >
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-success/15 text-success">
+          <Whistle className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1 text-[12px] leading-snug">
+          <p className="text-[13px] font-semibold text-foreground">Receiving as coach</p>
+          <p className="text-muted-foreground">
+            It’s counted with you, like any coach collection. You stay signed in as admin.
+          </p>
+          <button
+            type="button"
+            onClick={() => onChange('admin')}
+            className="mt-1 cursor-pointer text-[12px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Receive as admin instead
+          </button>
+        </div>
+      </div>
+    );
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/10 p-3"
+    >
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning/20 text-warning-foreground dark:text-warning">
+        <ShieldAlert className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1 text-[12px] leading-snug">
+        <p className="text-[13px] font-semibold text-foreground">You’re receiving this as admin</p>
+        <p className="text-muted-foreground">
+          As admin, it goes straight into academy cash. You also coach — if the money is with you,
+          we suggest receiving it as coach so it’s counted in the cash you hold.
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-2 h-8 border-warning/50 bg-card"
+          onClick={() => onChange('coach')}
+        >
+          <ArrowLeftRight /> Receive as coach instead
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function MarkPaidDialog({
   invoice,
   open,
@@ -65,7 +131,11 @@ function MarkPaidDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const markPaid = useMarkPaid(invoice.id);
-  const isCoach = useUser().role === 'coach';
+  const me = useUser();
+  // Someone who is both admin and coach, signed in as admin: suggest receiving it as coach.
+  const alsoCoach = me.role === 'admin' && (me.roles ?? []).includes('coach');
+  const [receivedAs, setReceivedAs] = useState<'admin' | 'coach'>(me.role);
+  const isCoach = receivedAs === 'coach';
   const [heldBy, setHeldBy] = useState<'collector' | 'academy'>('collector');
   const [mode, setMode] = useState('upi');
   const [paidOn, setPaidOn] = useState(today());
@@ -80,6 +150,7 @@ function MarkPaidDialog({
         reference: nullIfEmpty(reference),
         note: nullIfEmpty(note),
         ...(isCoach ? { heldBy } : {}),
+        ...(alsoCoach ? { receivedAs } : {}),
       });
       toast.success(`${money(invoice.totalAmount)} received from ${invoice.student.fullName}`);
       onOpenChange(false);
@@ -98,6 +169,7 @@ function MarkPaidDialog({
             is counted as collected by you, and split as set in the fee plan.
           </DialogDescription>
         </DialogHeader>
+        {alsoCoach && <ReceiveAsNotice receivedAs={receivedAs} onChange={setReceivedAs} />}
         <div className="rounded-xl bg-success/10 px-4 py-3">
           <p className="text-xs font-medium text-success">Amount received</p>
           <p className="tabular text-2xl font-semibold">{money(invoice.totalAmount)}</p>
@@ -162,12 +234,24 @@ function MarkPaidDialog({
             Cancel
           </Button>
           <Button
-            variant="success"
+            variant={alsoCoach && receivedAs === 'admin' ? 'warning' : 'success'}
             loading={markPaid.isPending}
             disabled={!paidOn}
             onClick={() => void submit()}
           >
-            <CheckCircle2 /> I have received the payment
+            {alsoCoach && receivedAs === 'admin' ? (
+              <>
+                <ShieldAlert /> Accept as admin anyway
+              </>
+            ) : alsoCoach ? (
+              <>
+                <CheckCircle2 /> I’m receiving the payment as coach
+              </>
+            ) : (
+              <>
+                <CheckCircle2 /> I have received the payment
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
