@@ -151,7 +151,7 @@ describe('Batches smart filter', () => {
     });
     const { user, router } = await renderPage(<BatchesPage />, {
       path: '/batches',
-      route: '/batches',
+      route: '/batches?group=none',
       user: adminUser,
     });
     expect(await screen.findByText('Morning U-12')).toBeInTheDocument();

@@ -1,6 +1,6 @@
 /**
- * Students grouped by batch, location or sport (like the Batches page): one collapsible group open
- * at a time, each header summing up its students, dues and attendance. A student in two batches
+ * Students grouped by batch, location or sport (like the Batches page): collapsed to start, one group
+ * open at a time, each header summing up its students, dues and attendance. A student in two batches
  * shows in each group they belong to.
  */
 import { Accordion } from 'radix-ui';
@@ -83,8 +83,8 @@ export function StudentGroups({
   const byId = new Map(batches.map((b) => [b.id, b]));
   const groups = groupStudents(students, byId, by);
   const [open, setOpen] = useState<string | undefined>(undefined);
-  // The first group opens until the user picks one.
-  const value = open === undefined ? groups[0]?.id : groups.some((g) => g.id === open) ? open : '';
+  // All groups start collapsed; one opens at a time.
+  const value = open && groups.some((g) => g.id === open) ? open : '';
   const Icon = ICON[by];
 
   return (

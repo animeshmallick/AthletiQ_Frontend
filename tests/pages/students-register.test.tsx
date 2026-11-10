@@ -14,13 +14,27 @@ describe('StudentsPage', () => {
     const api = mockApi({ 'GET /students': () => page(), 'GET /batches': () => [batch] });
     const { router } = await renderPage(<StudentsPage />, {
       path: '/students',
-      route: '/students',
+      route: '/students?group=none',
       user: coachUser,
     });
     expect((await screen.findAllByText('Anya Rao')).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /add student/i })).not.toBeInTheDocument();
     expect(api.find('GET /students')[0]!.query.get('status')).toBe('active');
     await waitFor(() => expect(router.state.location.pathname).toBe('/students'));
+  });
+
+  it('groups students by batch, every group collapsed until opened', async () => {
+    mockApi({ 'GET /students': () => page(), 'GET /batches': () => [batch] });
+    const { user } = await renderPage(<StudentsPage />, {
+      path: '/students',
+      route: '/students',
+      user: coachUser,
+    });
+    const group = await screen.findByRole('button', { name: /Morning U-12/ });
+    expect(group).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Anya Rao')).not.toBeInTheDocument();
+    await user.click(group);
+    expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
   });
 
   it('lets admins register a student with smart fee suggestions', async () => {

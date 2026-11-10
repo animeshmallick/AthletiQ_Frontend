@@ -97,7 +97,7 @@ describe('Students → exclude free students', () => {
     const api = mockApi(lookups);
     const { user } = await renderPage(<StudentsPage />, {
       path: '/students',
-      route: '/students',
+      route: '/students?group=none',
       user: adminUser,
     });
     await screen.findAllByText('Anya Rao');

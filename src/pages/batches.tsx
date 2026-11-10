@@ -787,13 +787,9 @@ export function BatchesPage() {
       }))
       .sort((a, b) => b.batches.length - a.batches.length || a.name.localeCompare(b.name));
   })();
-  // One group open at a time; the first opens until the user picks (and follows filters).
+  // One group open at a time; all start collapsed (and a group filtered away closes).
   const openGroup =
-    openGroupState === undefined
-      ? groups[0]?.id
-      : groups.some((g) => g.id === openGroupState)
-        ? openGroupState
-        : '';
+    openGroupState && groups.some((g) => g.id === openGroupState) ? openGroupState : '';
   const grid = (list: Batch[]) => (
     <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
       {list.map((b) => (

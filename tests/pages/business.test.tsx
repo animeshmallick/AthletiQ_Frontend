@@ -209,7 +209,7 @@ describe('student lifecycle', () => {
     });
     const { user } = await renderPage(<StudentsPage />, {
       path: '/students',
-      route: '/students',
+      route: '/students?group=none',
       user: coachUser,
     });
     await screen.findAllByText('Anya Rao');
