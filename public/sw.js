@@ -59,15 +59,25 @@ function parse(event) {
   }
 }
 
+/** Safari (not Chrome, Edge or Firefox on iOS/Mac, which report Safari too). */
+const SAFARI = /^((?!chrome|chromium|crios|fxios|edg|android).)*safari/i.test(
+  self.navigator.userAgent,
+);
+
 self.addEventListener('push', (event) => {
   const msg = parse(event);
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
-      // The app is on screen: it shows its own banner instead of a system notification.
       const visible = windows.find((w) => w.visibilityState === 'visible' && w.focused);
       if (visible) {
-        visible.postMessage({ type: 'atq:push', ...msg });
-        return undefined;
+        // Safari (iPhone Home Screen app, Mac) requires every push to show a notification, or it
+        // may cancel the subscription: show it, and just refresh the open app's inbox and badge.
+        if (SAFARI) visible.postMessage({ type: 'atq:refresh' });
+        else {
+          // Other browsers: the open app shows its own banner instead of a system one.
+          visible.postMessage({ type: 'atq:push', ...msg });
+          return undefined;
+        }
       }
       return self.registration.showNotification(msg.title, {
         body: msg.body,

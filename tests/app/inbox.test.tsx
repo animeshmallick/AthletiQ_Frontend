@@ -78,4 +78,20 @@ describe('notification inbox', () => {
       expect(api.find('POST /me/notifications/read')[0]!.body).toEqual({ ids: ['n9'] }),
     );
   });
+
+  it('refreshes the inbox without a banner when Safari showed the notification itself', async () => {
+    const api = mockApi({ 'GET /me/notifications': () => inbox });
+    await renderPage(
+      <>
+        <PushBanner />
+        <InboxList onNavigate={() => undefined} />
+      </>,
+      { path: '/x', route: '/x', user: coachUser },
+    );
+    await screen.findByText('⏰ TT Grade 5 starts at 5:30 pm');
+    const before = api.find('GET /me/notifications').length;
+    act(() => void window.dispatchEvent(new Event('atq:refresh')));
+    await waitFor(() => expect(api.find('GET /me/notifications').length).toBeGreaterThan(before));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
 });

@@ -228,8 +228,17 @@ export function PushBanner() {
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(close, 6_000);
     };
+    // A notification Safari showed itself: refresh the inbox and badge, no banner.
+    const refresh = () => {
+      void qc.invalidateQueries({ queryKey: KEY });
+      void qc.invalidateQueries({ queryKey: ['me', 'tasks'] });
+    };
     window.addEventListener('atq:push', on);
-    return () => window.removeEventListener('atq:push', on);
+    window.addEventListener('atq:refresh', refresh);
+    return () => {
+      window.removeEventListener('atq:push', on);
+      window.removeEventListener('atq:refresh', refresh);
+    };
   }, [qc]);
 
   if (!current) return null;

@@ -68,6 +68,8 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
         if (data.notificationId) markNotificationRead(data.notificationId);
         window.dispatchEvent(new CustomEvent('atq:navigate', { detail: data.link }));
       }
+      // Safari showed the system notification: just refresh the inbox and badge.
+      if (data?.type === 'atq:refresh') window.dispatchEvent(new Event('atq:refresh'));
       // Arrived while the app is on screen: the in-app banner instead of a system one.
       if (data?.type === 'atq:push')
         showIncomingPush({
