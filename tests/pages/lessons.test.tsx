@@ -419,3 +419,38 @@ describe('Session plans', () => {
     expect(await screen.findByRole('button', { name: /Start with warm-up/ })).toBeInTheDocument();
   });
 });
+
+describe('Lesson plan insights', () => {
+  it('shows fill rate per batch, most used drills and opens a session not filled in', async () => {
+    mockApi({
+      'GET /batches': () => [batch],
+      'GET /lessons/overview': () => ({ batches: [item({ status: 'ready' })] }),
+      'GET /lessons/session': (c) => session({ date: c.query.get('date')! }),
+      'GET /lessons/insights': () => ({
+        from: '2026-03-01',
+        to: '2026-03-11',
+        totals: { sessions: 8, filled: 6, rate: 0.75, drills: 5 },
+        batches: [{ id: 'b1', name: 'Morning U-12', sessions: 8, filled: 6, rate: 0.75 }],
+        weeks: [
+          { start: '2026-03-02', sessions: 4, filled: 4 },
+          { start: '2026-03-09', sessions: 4, filled: 2 },
+        ],
+        drills: [{ name: 'Skipping', block: 'Warm-up', sessions: 6, batches: 1 }],
+        blocks: [{ name: 'Warm-up', color: '#22c55e', minutes: 120 }],
+        unfilled: [{ batchId: 'b1', batchName: 'Morning U-12', date: '2026-03-10' }],
+      }),
+    });
+    const { user, router } = await renderPage(<LessonPlansPage />, {
+      path: '/lesson-plans',
+      route: '/lesson-plans?date=2026-03-09',
+      user: coachUser,
+    });
+    await user.click(await screen.findByRole('button', { name: /Insights/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect((await within(dialog).findAllByText('75%')).length).toBeGreaterThan(0);
+    expect(within(dialog).getByText('Skipping')).toBeInTheDocument();
+    expect(within(dialog).getByText('6/8 ·', { exact: false })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /Morning U-12/ }));
+    await waitFor(() => expect(router.state.location.search).toContain('date=2026-03-10'));
+  });
+});

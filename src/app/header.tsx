@@ -34,6 +34,8 @@ import { RoleBadge } from './role-switch';
 import { parentPath, useGoBack } from './go-back';
 import { activeItem, navFor, tabsFor } from './nav';
 import { applyUpdate, useUpdateAvailable } from './version-check';
+import { InboxList, useInbox } from './inbox';
+import { Segmented } from '@/components/ui/controls';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/primitives';
 
@@ -206,8 +208,13 @@ const SEVERITY_STYLE: Record<AppTask['severity'], string> = {
 /** Bell with a live count; opens "Needs your attention". */
 export function TasksBell() {
   const tasks = useTasks();
+  const inbox = useInbox();
   const [open, setOpen] = useState(false);
-  const total = tasks.data?.total ?? 0;
+  const todo = tasks.data?.total ?? 0;
+  const unread = inbox.data?.unread ?? 0;
+  const total = todo + unread;
+  // Opens on notifications when there are unread ones, else on to-dos.
+  const [tab, setTab] = useState<'todo' | 'inbox'>('todo');
   const urgent = tasks.data?.items.some((t) => t.severity === 'critical') ?? false;
   // Wiggle the bell when new items arrive.
   const prev = useRef(total);
@@ -226,10 +233,13 @@ export function TasksBell() {
     <Dialog open={open} onOpenChange={setOpen}>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setTab(unread > 0 ? 'inbox' : 'todo');
+          setOpen(true);
+        }}
         aria-label={
           total
-            ? `${total} item${total === 1 ? '' : 's'} need attention`
+            ? `${todo} to-do${todo === 1 ? '' : 's'}, ${unread} unread notification${unread === 1 ? '' : 's'}`
             : 'Nothing needs attention'
         }
         className="relative flex size-10 cursor-pointer items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-muted active:scale-95"
@@ -248,17 +258,42 @@ export function TasksBell() {
         )}
       </button>
       <DialogContent className="gap-0 p-0 sm:max-w-md">
-        <div className="border-b px-4 pt-5 pb-3">
-          <DialogTitle className="text-base">Needs your attention</DialogTitle>
-          <DialogDescription className="text-[13px]">
-            {tasks.isError
-              ? 'Couldn’t load your tasks'
-              : total
-                ? `${total} item${total === 1 ? '' : 's'}, most urgent first`
-                : 'Everything is up to date'}
-          </DialogDescription>
+        <div className="space-y-2 border-b px-4 pt-5 pb-3">
+          <div>
+            <DialogTitle className="text-base">
+              {tab === 'inbox' ? 'Notifications' : 'Needs your attention'}
+            </DialogTitle>
+            <DialogDescription className="text-[13px]">
+              {tab === 'inbox'
+                ? unread
+                  ? `${unread} unread`
+                  : 'You’re all caught up'
+                : tasks.isError
+                  ? 'Couldn’t load your tasks'
+                  : todo
+                    ? `${todo} item${todo === 1 ? '' : 's'}, most urgent first`
+                    : 'Everything is up to date'}
+            </DialogDescription>
+          </div>
+          <Segmented
+            ariaLabel="To-dos or notifications"
+            size="sm"
+            className="w-full"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'todo', label: `To-dos${todo ? ` · ${todo}` : ''}`, className: 'flex-1' },
+              {
+                value: 'inbox',
+                label: `Notifications${unread ? ` · ${unread}` : ''}`,
+                className: 'flex-1',
+              },
+            ]}
+          />
         </div>
-        {tasks.isError ? (
+        {tab === 'inbox' ? (
+          <InboxList onNavigate={() => setOpen(false)} />
+        ) : tasks.isError ? (
           <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
             <p className="text-[13px] text-muted-foreground">
               Check your connection and try again.
@@ -272,7 +307,7 @@ export function TasksBell() {
             <Skeleton className="h-12 rounded-xl" />
             <Skeleton className="h-12 rounded-xl" />
           </div>
-        ) : total === 0 ? (
+        ) : todo === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-success/14 text-success">
               <CheckCircle2 className="size-6" />

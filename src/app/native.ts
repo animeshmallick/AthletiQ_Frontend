@@ -16,6 +16,21 @@ import { request } from '@/lib/api';
 import { overlayOnStack } from './back-stack';
 import { parentPath } from './go-back';
 
+/** Shows the in-app banner for a notification that arrived while the app is open. */
+function showIncomingPush(detail: {
+  title: string;
+  body: string;
+  link?: string;
+  notificationId?: string;
+}) {
+  window.dispatchEvent(new CustomEvent('atq:push', { detail }));
+}
+
+/** Marks a notification read in the in-app inbox (it was opened from the phone). */
+function markNotificationRead(id: string) {
+  void request('/me/notifications/read', { method: 'POST', body: { ids: [id] } }).catch(() => {});
+}
+
 export const isNativeApp = () => Capacitor.isNativePlatform();
 
 const PUSH_TOKEN_KEY = 'atq-push-token';
@@ -104,14 +119,48 @@ export async function registerPush(): Promise<'granted' | 'denied' | 'unavailabl
     return 'denied';
   }
 
-  await PushNotifications.createChannel({
-    id: 'default',
-    name: 'General',
-    description: 'Registrations, check-in alerts and session reminders',
-    importance: 4,
-    visibility: 1,
-    vibration: true,
-  }).catch(() => {});
+  // One channel per kind of notification, so people can mute one (e.g. money) in Android
+  // settings and keep the rest. Importance: 4 = sound + banner, 2 = quiet.
+  const channels = [
+    {
+      id: 'sessions',
+      name: 'Sessions & check-in',
+      description: 'Session starts, check-in reminders, cancellations and wrap-up',
+      importance: 5,
+    },
+    {
+      id: 'students',
+      name: 'Students',
+      description: 'New students, leavers, moves and makeups',
+      importance: 4,
+    },
+    {
+      id: 'money',
+      name: 'Fees & money',
+      description: 'Fees received, your share, cash you hold, overdue fees',
+      importance: 4,
+    },
+    {
+      id: 'approvals',
+      name: 'Approvals',
+      description: 'Sign-ups, substitute and makeup requests',
+      importance: 4,
+    },
+    {
+      id: 'summaries',
+      name: 'Daily summaries',
+      description: 'Morning schedule, daily digest and weekly numbers',
+      importance: 2,
+    },
+  ] as const;
+  for (const c of channels)
+    await PushNotifications.createChannel({
+      ...c,
+      visibility: 1,
+      vibration: c.importance >= 4,
+      lights: c.importance >= 4,
+      lightColor: '#4f46e5',
+    }).catch(() => {});
 
   await PushNotifications.removeAllListeners();
   await PushNotifications.addListener('registration', ({ value }) => {
@@ -122,18 +171,18 @@ export async function registerPush(): Promise<'granted' | 'denied' | 'unavailabl
     }).catch(() => {});
   });
   await PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
-    const link = (notification.data as { link?: string } | undefined)?.link;
-    if (link?.startsWith('/')) navigateTo(link);
+    const data = notification.data as { link?: string; notificationId?: string } | undefined;
+    if (data?.notificationId) markNotificationRead(data.notificationId);
+    if (data?.link?.startsWith('/')) navigateTo(data.link);
   });
-  // In the foreground Android doesn't show the system banner; show an in-app toast instead.
-  await PushNotifications.addListener('pushNotificationReceived', async (n) => {
-    const { toast } = await import('sonner');
-    const link = (n.data as { link?: string } | undefined)?.link;
-    toast(n.title ?? 'AthletiQ', {
-      description: n.body,
-      action: link?.startsWith('/')
-        ? { label: 'Open', onClick: () => navigateTo(link) }
-        : undefined,
+  // While the app is open the phone shows no banner: show the in-app one.
+  await PushNotifications.addListener('pushNotificationReceived', (n) => {
+    const data = n.data as { link?: string; notificationId?: string } | undefined;
+    showIncomingPush({
+      title: n.title ?? 'AthletiQ',
+      body: n.body ?? '',
+      link: data?.link,
+      notificationId: data?.notificationId,
     });
   });
   await PushNotifications.register();

@@ -1,3 +1,4 @@
+import { PushBanner } from './inbox';
 import { Ellipsis, WifiOff } from 'lucide-react';
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { logClientEvent } from './client-log';
@@ -138,6 +139,7 @@ function AppShell() {
         />
 
         <OfflineBanner />
+        <PushBanner />
         <PullToRefresh />
         <IosInstallBanner />
         <main

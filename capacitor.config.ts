@@ -39,8 +39,9 @@ const config: CapacitorConfig = {
       splashFullScreen: false,
       splashImmersive: false,
     },
+    // While the app is open it shows its own banner (and plays no sound); the icon badge updates.
     PushNotifications: {
-      presentationOptions: ['badge', 'sound', 'alert'],
+      presentationOptions: ['badge'],
     },
   },
 };

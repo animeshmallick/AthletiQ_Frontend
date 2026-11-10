@@ -115,9 +115,14 @@ describe('push notifications', () => {
   it('asks permission, registers the device and opens tapped notifications', async () => {
     expect(await native.registerPush()).toBe('granted');
     expect(push.requestPermissions!).toHaveBeenCalled();
+    // A channel per kind, so people can mute one: urgent sessions, quiet summaries.
     expect(push.createChannel!).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'default', importance: 4 }),
+      expect.objectContaining({ id: 'sessions', importance: 5 }),
     );
+    expect(push.createChannel!).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'summaries', importance: 2, vibration: false }),
+    );
+    expect(push.createChannel!).toHaveBeenCalledTimes(5);
     expect(push.register!).toHaveBeenCalled();
 
     (pushListeners.registration as (t: { value: string }) => void)({ value: 'fcm-token-123' });
@@ -135,6 +140,30 @@ describe('push notifications', () => {
       notification: { data: { link: 'https://evil.example' } },
     });
     expect(navigate).toHaveBeenCalledTimes(1);
+
+    // Opening one marks it read in the in-app inbox.
+    (pushListeners.pushNotificationActionPerformed as (a: object) => void)({
+      notification: { data: { link: '/registrations', notificationId: 'n-1' } },
+    });
+    expect(request).toHaveBeenCalledWith('/me/notifications/read', {
+      method: 'POST',
+      body: { ids: ['n-1'] },
+    });
+
+    // While the app is open: the in-app banner, not the phone's.
+    const banner = jest.fn();
+    window.addEventListener('atq:push', (e) => banner((e as CustomEvent).detail), { once: true });
+    (pushListeners.pushNotificationReceived as (n: object) => void)({
+      title: '⏰ TT starts in 30 min',
+      body: 'Namma Smash',
+      data: { link: '/', notificationId: 'n-2' },
+    });
+    expect(banner).toHaveBeenCalledWith({
+      title: '⏰ TT starts in 30 min',
+      body: 'Namma Smash',
+      link: '/',
+      notificationId: 'n-2',
+    });
 
     // Signing out removes the device.
     await native.unregisterPush();

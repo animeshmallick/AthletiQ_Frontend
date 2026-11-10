@@ -27,6 +27,7 @@ import { useBatches, usePlanOverview, useSessionPlan } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { snapToSession } from './meta';
+import { LessonInsightsButton } from './insights';
 import { PlanTab } from './plan-tab';
 import { DayStepper, SessionPlan, SessionStatus } from './session-tab';
 
@@ -117,6 +118,9 @@ export function LessonPlansPage() {
           isCoach
             ? 'Each session follows its batch plan; fill in the day’s drills before it starts.'
             : 'What each batch is working on, day by day.'
+        }
+        actions={
+          <LessonInsightsButton onOpenDay={(b, d) => set({ batch: b, date: d, plan: '' })} />
         }
       />
 

@@ -9,6 +9,21 @@ import { FIREBASE } from '@/lib/env';
 import { isStandalone } from './install';
 import { isNativeApp } from './native';
 
+/** Shows the in-app banner for a notification that arrived while the app is open. */
+function showIncomingPush(detail: {
+  title: string;
+  body: string;
+  link?: string;
+  notificationId?: string;
+}) {
+  window.dispatchEvent(new CustomEvent('atq:push', { detail }));
+}
+
+/** Marks a notification read in the in-app inbox (it was opened from the phone). */
+function markNotificationRead(id: string) {
+  void request('/me/notifications/read', { method: 'POST', body: { ids: [id] } }).catch(() => {});
+}
+
 const TOKEN_KEY = 'atq-web-push-token';
 
 export const isIOS = () =>
@@ -46,10 +61,21 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     // Notification taps while the app is open: navigate in place.
     navigator.serviceWorker.addEventListener('message', (e: MessageEvent) => {
-      const data = e.data as { type?: string; link?: string } | undefined;
+      const data = e.data as
+        | { type?: string; link?: string; title?: string; body?: string; notificationId?: string }
+        | undefined;
       if (data?.type === 'atq:navigate' && data.link?.startsWith('/')) {
+        if (data.notificationId) markNotificationRead(data.notificationId);
         window.dispatchEvent(new CustomEvent('atq:navigate', { detail: data.link }));
       }
+      // Arrived while the app is on screen: the in-app banner instead of a system one.
+      if (data?.type === 'atq:push')
+        showIncomingPush({
+          title: data.title ?? 'AthletiQ',
+          body: data.body ?? '',
+          link: data.link,
+          notificationId: data.notificationId,
+        });
     });
     return reg;
   } catch {

@@ -109,7 +109,7 @@ describe('app header', () => {
     expect(
       (await screen.findAllByRole('link', { name: /AthletiQ, go to Today/ }))[0],
     ).toHaveAttribute('href', '/');
-    const bell = await screen.findByRole('button', { name: '3 items need attention' });
+    const bell = await screen.findByRole('button', { name: '3 to-dos, 0 unread notifications' });
     await user.click(bell);
     const panel = await screen.findByRole('dialog', { name: 'Needs your attention' });
     const links = within(panel).getAllByRole('link');
