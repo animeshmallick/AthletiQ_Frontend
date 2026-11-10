@@ -29,6 +29,7 @@ import { useTasks } from '@/lib/queries';
 import type { AppTask } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useUser } from './auth';
+import { RoleBadge } from './role-switch';
 import { parentPath, useGoBack } from './go-back';
 import { navFor } from './nav';
 import { Button } from '@/components/ui/button';
@@ -133,6 +134,7 @@ export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
           <p className="text-xs text-muted-foreground">{formatLongDate(today())}</p>
         </div>
         <div className="flex-1" />
+        <RoleBadge />
         <TasksBell />
         {userMenu}
       </div>

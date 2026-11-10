@@ -6,7 +6,7 @@ import { Dialog } from '@/components/ui/overlays';
 import { Skeleton } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils';
 import { useUser } from './auth';
-import { RoleBadge, RoleChooser, useNeedsRoleChoice } from './role-switch';
+import { RoleChooser, useNeedsRoleChoice } from './role-switch';
 import { IosInstallBanner } from '@/components/notifications';
 import { checkForAppUpdate, isNativeApp, registerPush } from './native';
 import { matches, NAV_GROUPS, navFor, tabsFor, type NavItem } from './nav';
@@ -124,7 +124,6 @@ function AppShell() {
               aria-label="Open menu"
               aria-haspopup="dialog"
             >
-              <RoleBadge className="mr-1.5" />
               <Avatar name={user.name} />
             </button>
           }

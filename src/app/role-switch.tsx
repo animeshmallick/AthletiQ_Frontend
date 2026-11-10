@@ -3,7 +3,8 @@
  * first time on a device (afterwards they open in the role they used last), see which role
  * they're in, and switch from the menu — the app reloads into the other role.
  */
-import { ArrowLeftRight, Briefcase, ShieldCheck, Whistle } from 'lucide-react';
+import { ArrowLeftRight, Briefcase, Check, ChevronDown, ShieldCheck, Whistle } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/overlays';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { BrandMark } from '@/components/brand-mark';
@@ -90,23 +91,104 @@ export function RoleChooser({ onDone }: { onDone: () => void }) {
   );
 }
 
-/** A small pill showing which role is in use (only for people with both). */
+const ROLE_TONE: Record<Role, { pill: string; icon: string }> = {
+  admin: {
+    pill: 'border-primary/25 bg-primary/8 text-primary hover:bg-primary/12',
+    icon: 'bg-primary text-primary-foreground',
+  },
+  coach: {
+    pill: 'border-success/30 bg-success/10 text-success hover:bg-success/15',
+    icon: 'bg-success text-success-foreground',
+  },
+};
+const ROLE_ICON: Record<Role, typeof Briefcase> = { admin: Briefcase, coach: Whistle };
+
+/**
+ * The role in use, as a pill in the header (only for people with both roles). Tapping it lists
+ * both roles; picking the other switches and reloads the app.
+ */
 export function RoleBadge({ className }: { className?: string }) {
   const user = useUser();
+  const { switchRole } = useAuth();
+  const [busy, setBusy] = useState<Role | null>(null);
   if (!hasBothRoles(user.roles)) return null;
+  const Icon = ROLE_ICON[user.role];
+  const tone = ROLE_TONE[user.role];
+  async function pick(r: Role) {
+    if (r === user.role) return;
+    setBusy(r);
+    try {
+      await switchRole(r);
+    } catch (err) {
+      setBusy(null);
+      toast.error('Could not switch role', { description: errorMessage(err) });
+    }
+  }
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
-        user.role === 'admin'
-          ? 'bg-primary/10 text-primary'
-          : 'bg-success/12 text-success dark:text-success',
-        className,
-      )}
-    >
-      {user.role === 'admin' ? <Briefcase className="size-3" /> : <Whistle className="size-3" />}
-      {ROLE_LABEL[user.role]}
-    </span>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Signed in as ${ROLE_LABEL[user.role]}. Switch role`}
+          className={cn(
+            'flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full border py-0.5 pr-1.5 pl-0.5 text-[12px] font-semibold transition-colors active:scale-[0.97]',
+            tone.pill,
+            className,
+          )}
+        >
+          <span className={cn('flex size-5.5 items-center justify-center rounded-full', tone.icon)}>
+            <Icon className="size-3" />
+          </span>
+          {ROLE_LABEL[user.role]}
+          <ChevronDown className="size-3 opacity-70" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-1.5">
+        <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          Signed in as
+        </p>
+        <div role="radiogroup" aria-label="Role" className="space-y-1">
+          {(user.roles ?? [user.role]).map((r) => {
+            const RIcon = ROLE_ICON[r];
+            const on = r === user.role;
+            return (
+              <button
+                key={r}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                disabled={busy !== null}
+                onClick={() => void pick(r)}
+                className={cn(
+                  'flex w-full cursor-pointer items-center gap-2.5 rounded-xl p-2 text-left transition-colors disabled:opacity-60',
+                  on ? 'bg-muted' : 'hover:bg-muted/60',
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-xl',
+                    ROLE_TONE[r].icon,
+                  )}
+                >
+                  <RIcon className="size-4.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold">{ROLE_LABEL[r]}</span>
+                  <span className="block text-[11px] leading-snug text-muted-foreground">
+                    {ROLE_INFO[r].text}
+                  </span>
+                </span>
+                {on ? (
+                  <Check className="size-4 shrink-0 text-primary" />
+                ) : busy === r ? (
+                  <span className="text-[11px] text-muted-foreground">Switching…</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

@@ -212,9 +212,32 @@ describe('admin and coach in one account', () => {
       },
     );
     const user = userEvent.setup();
-    const menu = await screen.findByRole('button', { name: 'Open menu' }, { timeout: 5000 });
-    expect(menu).toHaveTextContent('Admin');
-    await user.click(menu);
+    // The role pill in the header shows the role in use and switches from a short list.
+    const pill = await screen.findByRole(
+      'button',
+      { name: /signed in as admin/i },
+      { timeout: 5000 },
+    );
+    expect(pill).toHaveTextContent('Admin');
+    await user.click(pill);
+    await user.click(await screen.findByRole('radio', { name: /coach/i }));
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    reload.mockRestore();
+  });
+
+  it('also switches from the menu', async () => {
+    localStorage.setItem(`atq-role-chosen:${both.id}`, '1');
+    const reload = jest.spyOn(appReload, 'now').mockImplementation(() => {});
+    await boot(
+      '/',
+      { ...both, roles: [...both.roles] },
+      {
+        'POST /auth/switch-role': () =>
+          sessionFor({ ...both, roles: [...both.roles], role: 'coach' }),
+      },
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Open menu' }, { timeout: 5000 }));
     await user.click(await screen.findByRole('button', { name: /switch to coach/i }));
     await waitFor(() => expect(reload).toHaveBeenCalled());
     reload.mockRestore();
