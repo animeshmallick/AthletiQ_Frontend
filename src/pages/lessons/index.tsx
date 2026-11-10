@@ -213,7 +213,11 @@ export function LessonPlansPage() {
       </div>
 
       {view === 'insights' ? (
-        <LessonInsightsView batchId={isCoach ? undefined : batchId} onOpen={openDay} />
+        <LessonInsightsView
+          // "All batches" means no batch filter.
+          batchId={isCoach || isAll ? undefined : batchId}
+          onOpen={openDay}
+        />
       ) : (
         <>
           {isCoach && (

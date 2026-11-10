@@ -318,19 +318,19 @@ export function CoachesPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 gap-2 *:min-w-0 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-1.5 *:min-w-0 sm:grid-cols-2 sm:gap-2 xl:grid-cols-3">
           {q.data.data.map((u) => (
             <Card
               key={u.id}
-              className={cn('flex flex-col gap-2.5 p-3', u.status === 'disabled' && 'opacity-70')}
+              className={cn('flex flex-col gap-1.5 p-1.5', u.status === 'disabled' && 'opacity-70')}
             >
-              <div className="flex items-start gap-2.5">
+              <div className="flex items-start gap-2">
                 <span className="relative shrink-0">
-                  <Avatar name={u.name} className="size-11" />
+                  <Avatar name={u.name} className="size-9" />
                   <span
                     aria-hidden
                     className={cn(
-                      'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-card',
+                      'absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-card',
                       u.status === 'active'
                         ? 'bg-success'
                         : u.status === 'invited'
@@ -341,16 +341,19 @@ export function CoachesPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate text-[15px] font-semibold">{u.name}</span>
+                    <span className="truncate text-[14px] font-semibold">{u.name}</span>
                     {u.id === me.id && (
                       <span className="shrink-0 text-[11px] text-muted-foreground">(you)</span>
                     )}
                   </p>
-                  <p className="truncate text-[12px] text-muted-foreground">{u.email}</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <Badge variant="muted" className="capitalize">
-                      {u.role}
-                    </Badge>
+                  <p className="truncate text-[11px] text-muted-foreground">{u.email}</p>
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    {/* Every role they hold (someone can be both admin and coach). */}
+                    {(u.roles ?? [u.role]).map((r) => (
+                      <Badge key={r} variant="muted" className="h-5 px-1.5 text-[10px] capitalize">
+                        {r}
+                      </Badge>
+                    ))}
                     {u.status !== 'active' && (
                       <Badge
                         variant={u.status === 'invited' ? 'warning' : 'muted'}
@@ -403,7 +406,7 @@ export function CoachesPage() {
               </div>
 
               {role === 'coach' && (
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-3 gap-0.5">
                   {[
                     { label: 'Batches', value: String(u.activeBatches ?? 0) },
                     { label: 'Students', value: String(u.students ?? 0) },
@@ -428,7 +431,7 @@ export function CoachesPage() {
                   ].map((x) => (
                     <div
                       key={x.label}
-                      className="min-w-0 rounded-lg bg-muted/40 px-2 py-1"
+                      className="min-w-0 rounded-md bg-muted/40 px-1.5 py-0.5"
                       title={x.hint}
                     >
                       <p className="truncate text-[10px] font-medium text-muted-foreground">
@@ -436,7 +439,7 @@ export function CoachesPage() {
                       </p>
                       <p
                         className={cn(
-                          'tabular truncate text-[13px] font-bold',
+                          'tabular truncate text-[12px] font-bold',
                           x.warn && 'text-warning-foreground dark:text-warning',
                         )}
                       >
@@ -456,13 +459,24 @@ export function CoachesPage() {
               )}
 
               {u.phone && (
-                <div className="mt-auto flex gap-1.5">
-                  <Button asChild size="sm" variant="outline" className="flex-1">
+                <div className="mt-auto flex gap-1">
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="outline"
+                    className="h-7 flex-1 text-[12px] pointer-coarse:h-7"
+                  >
                     <a href={`tel:${u.phone}`} aria-label={`Call ${u.name}`}>
                       <Phone /> {formatPhone(u.phone)}
                     </a>
                   </Button>
-                  <Button asChild size="sm" variant="outline" aria-label={`WhatsApp ${u.name}`}>
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="outline"
+                    className="h-7 pointer-coarse:h-7"
+                    aria-label={`WhatsApp ${u.name}`}
+                  >
                     <a
                       href={`https://wa.me/${u.phone.replace(/\D/g, '')}`}
                       target="_blank"

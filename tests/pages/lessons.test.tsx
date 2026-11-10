@@ -295,6 +295,18 @@ describe('Lesson plans (coach)', () => {
     });
   });
 
+  it('shows admins insights for all batches without a batch filter', async () => {
+    const api = mockApi(routes({}));
+    await renderPage(<LessonPlansPage />, {
+      path: '/lesson-plans',
+      route: '/lesson-plans?batch=all&view=insights',
+      user: adminUser,
+    });
+    expect(await screen.findByText('Sessions planned')).toBeInTheDocument();
+    // 'all' is not a batch id: the request asks for every batch instead.
+    expect(api.find('GET /lessons/insights').every((c) => !c.query.get('batchId'))).toBe(true);
+  });
+
   it('renders planning insights', async () => {
     mockApi(routes({}));
     const { user } = await renderPage(<LessonPlansPage />, {

@@ -132,7 +132,7 @@ export function PayeesPage() {
       ) : list.length === 0 ? (
         <p className="py-8 text-center text-[13px] text-muted-foreground">No payees match.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-2 *:min-w-0 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-1.5 *:min-w-0 sm:grid-cols-2 sm:gap-2 xl:grid-cols-3">
           {list.map((p) => (
             <button
               key={p.id}
@@ -140,20 +140,20 @@ export function PayeesPage() {
               onClick={() => set({ payee: p.id })}
               aria-label={`${p.name} details`}
               className={cn(
-                'flex cursor-pointer flex-col gap-2.5 rounded-2xl border bg-card p-3 text-left shadow-e1 transition-shadow hover:shadow-e2',
+                'flex cursor-pointer flex-col gap-1.5 rounded-xl border bg-card p-1.5 text-left shadow-e1 transition-shadow hover:shadow-e2',
                 !p.isActive && 'opacity-60',
               )}
             >
-              <span className="flex items-center gap-2.5">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-700 dark:text-amber-300">
+              <span className="flex items-center gap-2">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/12 text-amber-700 dark:text-amber-300">
                   <Building2 className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="truncate text-[15px] font-semibold">{p.name}</span>
+                    <span className="truncate text-[14px] font-semibold">{p.name}</span>
                     {!p.isActive && <Badge variant="muted">Retired</Badge>}
                   </span>
-                  <span className="block truncate text-[12px] text-muted-foreground">
+                  <span className="block truncate text-[11px] text-muted-foreground">
                     {p.note ||
                       (p.plans
                         ? `${plural(p.plans, 'fee plan')} · ${plural(p.students, 'student')}`
@@ -162,7 +162,7 @@ export function PayeesPage() {
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
               </span>
-              <span className="grid grid-cols-3 gap-1">
+              <span className="grid grid-cols-3 gap-0.5">
                 {[
                   {
                     label: 'Owed now',
@@ -177,13 +177,13 @@ export function PayeesPage() {
                     hint: p.lastPayout ? formatShortDate(p.lastPayout.date) : 'never',
                   },
                 ].map((x) => (
-                  <span key={x.label} className="min-w-0 rounded-lg bg-muted/40 px-2 py-1">
+                  <span key={x.label} className="min-w-0 rounded-md bg-muted/40 px-1.5 py-0.5">
                     <span className="block truncate text-[10px] font-medium text-muted-foreground">
                       {x.label}
                     </span>
                     <span
                       className={cn(
-                        'tabular block truncate text-[13px] font-bold',
+                        'tabular block truncate text-[12px] font-bold',
                         x.warn && 'text-warning-foreground dark:text-warning',
                       )}
                     >
@@ -196,7 +196,7 @@ export function PayeesPage() {
                 ))}
               </span>
               {p.expectedMonthly > 0 && (
-                <span className="text-[11px] text-muted-foreground">
+                <span className="px-0.5 text-[10px] text-muted-foreground">
                   About {money(p.expectedMonthly)} expected each month
                 </span>
               )}
