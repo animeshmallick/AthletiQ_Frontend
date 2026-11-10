@@ -1,4 +1,4 @@
-import { Plus, Users } from 'lucide-react';
+import { Layers, LayoutGrid, MapPin, Plus, Trophy, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
@@ -12,9 +12,11 @@ import {
 } from '@/components/common';
 import { FilterBar, FilterField, FilterMenu } from '@/components/filters';
 import { Button } from '@/components/ui/button';
+import { Segmented } from '@/components/ui/controls';
 import { Select } from '@/components/ui/primitives';
 import { useBatches, usePrefetchStudent, useStudents } from '@/lib/queries';
 import { StudentFormDialog } from './forms';
+import { StudentGroups, type StudentGroupBy } from './grouped';
 import { StudentCard } from './student-card';
 
 export function StudentsPage() {
@@ -37,7 +39,10 @@ export function StudentsPage() {
     dues: (params.get('dues') ?? '') as '' | 'outstanding' | 'overdue' | 'paying',
     sort: (params.get('sort') ?? '') as '' | 'name' | 'recent' | 'joiningDate' | 'dues',
     page: Number(params.get('page') ?? 1),
+    /** Grouped by batch (default), location or sport; 'none' = the plain paged list. */
+    group: (params.get('group') ?? 'batch') as StudentGroupBy | 'none',
   };
+  const grouped = q.group !== 'none';
   // Filter choices come from the batches in view: only places, sports, coaches and plans in use.
   const options = useMemo(() => {
     const uniq = <T extends { id: string; name: string }>(list: T[]) =>
@@ -63,8 +68,9 @@ export function StudentsPage() {
     dues: q.dues || undefined,
     // Unpaid filters list the biggest dues first unless a sort is picked.
     sort: q.sort || (q.dues === 'outstanding' || q.dues === 'overdue' ? 'dues' : undefined),
-    page: q.page,
-    pageSize: 25,
+    // Grouping needs everyone in view at once; the plain list pages through.
+    page: grouped ? 1 : q.page,
+    pageSize: grouped ? 500 : 25,
   });
 
   const set = (patch: Record<string, string>) => {
@@ -97,6 +103,18 @@ export function StudentsPage() {
           onChange={(v) => set({ q: v })}
           placeholder="Search name, ID, phone or guardian…"
           className="min-w-0 flex-1 lg:max-w-96"
+        />
+        <Segmented
+          ariaLabel="Group students by"
+          value={q.group}
+          onChange={(v) => set({ group: v === 'batch' ? '' : v })}
+          options={[
+            { value: 'batch', label: <Layers className="size-4" aria-label="By batch" /> },
+            { value: 'location', label: <MapPin className="size-4" aria-label="By location" /> },
+            { value: 'sport', label: <Trophy className="size-4" aria-label="By sport" /> },
+            { value: 'none', label: <LayoutGrid className="size-4" aria-label="All students" /> },
+          ]}
+          className="shrink-0"
         />
         <FilterMenu
           active={
@@ -264,6 +282,14 @@ export function StudentsPage() {
               </Button>
             )
           }
+        />
+      ) : grouped ? (
+        <StudentGroups
+          students={students.data.data}
+          batches={batches.data ?? []}
+          by={q.group as StudentGroupBy}
+          isAdmin={isAdmin}
+          onPrefetch={prefetch}
         />
       ) : (
         <>
