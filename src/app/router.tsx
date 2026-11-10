@@ -1,5 +1,6 @@
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, type ReactNode, useEffect } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation, useRouteError } from 'react-router';
+import { logClientEvent, noteReload } from './client-log';
 import { Button } from '@/components/ui/button';
 import type { Role } from '@/lib/types';
 import { useAuth } from './auth';
@@ -96,7 +97,13 @@ function GuestOnly() {
 }
 
 function RouteError() {
-  const error = useRouteError() as { status?: number } | undefined;
+  const error = useRouteError() as
+    { status?: number; message?: string; stack?: string } | undefined;
+  // A screen that failed to render (not a plain "page not found").
+  useEffect(() => {
+    if (error?.status === 404) return;
+    logClientEvent('crash', error ?? 'Screen crashed', { stack: error?.stack });
+  }, [error]);
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
       <p className="text-5xl font-semibold text-primary">
@@ -111,10 +118,23 @@ function RouteError() {
           : 'An unexpected error occurred. Reloading usually fixes it.'}
       </p>
       <div className="flex gap-2">
-        <Button variant="outline" onClick={() => window.location.reload()}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            noteReload('Reloaded from the error screen');
+            window.location.reload();
+          }}
+        >
           Reload
         </Button>
-        <Button onClick={() => (window.location.href = '/')}>Go home</Button>
+        <Button
+          onClick={() => {
+            noteReload('Went home from the error screen');
+            window.location.href = '/';
+          }}
+        >
+          Go home
+        </Button>
       </div>
     </div>
   );

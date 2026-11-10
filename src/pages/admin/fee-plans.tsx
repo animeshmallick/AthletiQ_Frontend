@@ -1,5 +1,6 @@
 import { Pencil, Plus, Tags } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Sortable, SortableList } from '@/components/sortable';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import {
@@ -25,7 +26,7 @@ import {
 import { Badge, Card, Input, Select } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { money, moneyCompact, plural } from '@/lib/format';
-import { useFeePlans, useSaveFeePlan } from '@/lib/queries';
+import { useFeePlans, useReorderFeePlans, useSaveFeePlan } from '@/lib/queries';
 import { useMedia } from '@/lib/use-phone';
 import type { FeePlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -118,12 +119,15 @@ const SESSIONS_PER_WEEK_TO_MONTH = 52 / 12;
 
 function PlanCard({
   p,
+  handle,
   share,
   selected,
   onEdit,
   onSelect,
 }: {
   p: FeePlan;
+  /** Drag handle to reorder the plan. */
+  handle?: ReactNode;
   /** This plan's share of all students on active plans (0–100). */
   share: number;
   selected: boolean;
@@ -142,6 +146,7 @@ function PlanCard({
         selected && 'border-primary ring-2 ring-primary/25',
       )}
     >
+      {handle && <div className="relative z-10 -ml-1.5 flex items-center">{handle}</div>}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 pr-7">
           <button
@@ -229,12 +234,8 @@ export function FeePlansPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const all = useMemo(
     () =>
-      [...(q.data ?? [])].sort(
-        (a, b) =>
-          Number(b.isActive) - Number(a.isActive) ||
-          a.daysPerWeek - b.daysPerWeek ||
-          a.monthlyFee - b.monthlyFee,
-      ),
+      // The admin's order (from the server), active plans first.
+      [...(q.data ?? [])].sort((a, b) => Number(b.isActive) - Number(a.isActive)),
     [q.data],
   );
   const active = all.filter((p) => p.isActive);
@@ -253,16 +254,35 @@ export function FeePlansPage() {
         <Switch checked={showRetired} onCheckedChange={setShowRetired} /> Retired ({retired})
       </label>
     ) : null;
-  const cards = shown.map((p) => (
-    <PlanCard
-      key={p.id}
-      p={p}
-      share={students && p.isActive ? Math.round(((p.activeStudents ?? 0) / students) * 100) : 0}
-      selected={wide && p.id === selected?.id}
-      onEdit={() => setEditing(p)}
-      onSelect={() => setSelectedId(p.id)}
-    />
-  ));
+  const reorder = useReorderFeePlans();
+  // Drag a plan to reorder; plans not in view (retired, when hidden) keep their place after.
+  const onReorder = (next: FeePlan[]) => {
+    const ids = next.map((p) => p.id);
+    reorder.mutate([...ids, ...all.filter((p) => !ids.includes(p.id)).map((p) => p.id)], {
+      onError: (e) => toast.error('Couldn’t save the order', { description: errorMessage(e) }),
+    });
+  };
+  const items = shown.map((p) => ({ ...p, key: p.id }));
+  const cards = (
+    <SortableList items={items} onReorder={onReorder} className="contents">
+      {items.map((p) => (
+        <Sortable key={p.id} id={p.id} label={p.name}>
+          {(handle) => (
+            <PlanCard
+              p={p}
+              handle={handle}
+              share={
+                students && p.isActive ? Math.round(((p.activeStudents ?? 0) / students) * 100) : 0
+              }
+              selected={wide && p.id === selected?.id}
+              onEdit={() => setEditing(p)}
+              onSelect={() => setSelectedId(p.id)}
+            />
+          )}
+        </Sortable>
+      ))}
+    </SortableList>
+  );
   const newButton = (
     <Button onClick={() => setEditing('new')}>
       <Plus /> New plan

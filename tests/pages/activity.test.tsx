@@ -242,6 +242,7 @@ describe('Activity log (admin)', () => {
     expect(screen.queryByText('Actions by day')).not.toBeInTheDocument();
     expect(screen.queryByText('Time of day')).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: /errors/i }));
+    await user.click(await screen.findByRole('radio', { name: /Failed requests/ }));
     expect(await screen.findByText('Failures by hour')).toBeInTheDocument();
   });
 
@@ -283,7 +284,7 @@ describe('Activity log (admin)', () => {
     });
     const { user } = await renderPage(<AuditLogPage />, {
       path: '/audit-log',
-      route: '/audit-log?tab=errors',
+      route: '/audit-log?tab=errors&errors=requests',
       user: adminUser,
     });
     const names = () =>
@@ -323,7 +324,7 @@ describe('Activity log (admin)', () => {
     });
     const { user } = await renderPage(<AuditLogPage />, {
       path: '/audit-log',
-      route: '/audit-log?tab=errors',
+      route: '/audit-log?tab=errors&errors=requests',
       user: adminUser,
     });
     expect(await screen.findByText('Server errors')).toBeInTheDocument();
@@ -390,7 +391,7 @@ describe('Activity log (admin)', () => {
 });
 
 describe('Activity log (coach)', () => {
-  it('shows only “My activity”, without the Errors tab or the person filter', async () => {
+  it('shows only “My activity”, without the person filter', async () => {
     const api = mockApi({
       'GET /activity/logs': () =>
         page([log({ action: 'attendance.saved', entityType: 'batch', metadata: {} })]),
@@ -401,7 +402,6 @@ describe('Activity log (coach)', () => {
       user: coachUser,
     });
     expect(await screen.findByRole('heading', { name: 'My activity' })).toBeInTheDocument();
-    expect(screen.queryByRole('radio', { name: /Errors/ })).toBeNull();
     // Another person can't be asked for.
     const row = await screen.findByRole('button', { name: /Attendance saved/ });
     expect(row).toHaveTextContent('Batch');
@@ -409,19 +409,84 @@ describe('Activity log (coach)', () => {
     expect(api.find('GET /activity/insights')).toHaveLength(0);
   });
 
-  it('opens on their own insights; the admin-only Errors tab falls back to it', async () => {
+  it('shows coaches the app errors from their own devices, not the server’s failed requests', async () => {
     const api = mockApi({
-      'GET /activity/insights': () => ({ ...insights, byActor: [] }),
-      'GET /activity/requests/insights': () => requestInsights,
+      'GET /client-events/insights': () => ({
+        scope: 'self',
+        totals: {
+          events: 3,
+          groups: 2,
+          users: 1,
+          crashes: 2,
+          freezes: 0,
+          api: 1,
+          console: 0,
+          reloads: 0,
+          offline: 1,
+        },
+        byKind: [
+          { kind: 'crash', n: 2 },
+          { kind: 'api', n: 1 },
+        ],
+        byPlatform: [{ platform: 'android', n: 3 }],
+        byDay: [],
+        groups: [
+          {
+            fingerprint: 'f1',
+            kind: 'crash',
+            message: 'Cannot read properties of undefined',
+            stack: 'TypeError: x\n  at Rows (index.js)',
+            details: { trail: ['screen /students', 'tap: Save'] },
+            n: 2,
+            users: 1,
+            firstSeen: new Date().toISOString(),
+            lastSeen: new Date().toISOString(),
+            screens: ['/students'],
+            versions: ['abc1234'],
+            platforms: ['android'],
+          },
+        ],
+        recent: [
+          {
+            id: 'e1',
+            at: new Date().toISOString(),
+            kind: 'api',
+            message: 'Could not reach the server',
+            screen: '/attendance',
+            platform: 'android',
+            appVersion: 'abc1234',
+            online: false,
+            count: 1,
+            details: null,
+            fingerprint: 'f2',
+            user: null,
+            role: 'coach',
+          },
+        ],
+      }),
     });
-    await renderPage(<AuditLogPage />, {
+    const { user } = await renderPage(<AuditLogPage />, {
       path: '/audit-log',
-      route: '/audit-log?tab=errors',
+      route: '/audit-log?tab=errors&errors=requests',
       user: coachUser,
     });
-    expect(await screen.findByText('Records touched')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Insights/ })).toBeChecked();
-    expect(screen.queryByText('Most active people')).toBeNull();
+    expect(await screen.findByText('Cannot read properties of undefined')).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Failed requests/ })).toBeNull();
+    expect(screen.getByText(/1 while offline/)).toBeInTheDocument();
+    expect(screen.getByText(/Could not reach the server/)).toBeInTheDocument();
+    // Open a problem: the trail and stack.
+    await user.click(screen.getByRole('button', { name: /Cannot read properties/ }));
+    expect(screen.getByText('tap: Save')).toBeInTheDocument();
+    expect(screen.getByText(/at Rows/)).toBeInTheDocument();
+    // Filter by kind.
+    await user.click(
+      screen
+        .getAllByRole('button', { name: /^Crash/ })
+        .find((b) => b.hasAttribute('aria-pressed'))!,
+    );
+    await waitFor(() =>
+      expect(api.find('GET /client-events/insights').at(-1)!.query.get('kind')).toBe('crash'),
+    );
     expect(api.find('GET /activity/errors/insights')).toHaveLength(0);
   });
 });

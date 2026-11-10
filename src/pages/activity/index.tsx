@@ -3,7 +3,8 @@
  * ("My activity"). Tabs:
  *  - Insights (default): volume, timing, areas, people, items to review, response times.
  *  - Activity: key events (audit trail) or every change (request log), grouped by day.
- *  - Errors (admins): failed requests, by kind, endpoint and code.
+ *  - Errors: app errors from devices (admins: everyone; coaches: their own) and, for admins,
+ *    failed requests by kind, endpoint and code.
  * A "Summarise all" button reads the whole log on request. Filters live in the URL, so
  * back / forward and shared links keep them.
  */
@@ -17,6 +18,7 @@ import { Segmented, Switch } from '@/components/ui/controls';
 import { Select } from '@/components/ui/primitives';
 import { ACTIVITY_PERIODS, activityWindow, type PeriodKey } from '@/lib/periods';
 import { useActivityInsights } from '@/lib/queries';
+import { ClientErrorsView } from './client-errors';
 import { ErrorsView } from './errors';
 import { EventFeed, FilterChip, RequestFeed } from './feed';
 import { ActivityInsightsView, type Drill } from './insights';
@@ -32,7 +34,10 @@ export function AuditLogPage() {
   const [params, setParams] = useSearchParams();
 
   const rawTab = params.get('tab');
-  const tab: Tab = rawTab === 'activity' || (rawTab === 'errors' && admin) ? rawTab : 'insights';
+  const tab: Tab = rawTab === 'activity' || rawTab === 'errors' ? rawTab : 'insights';
+  // Errors: app errors from devices, or (admins) failed requests on the server.
+  const errorsView: 'app' | 'requests' =
+    admin && params.get('errors') === 'requests' ? 'requests' : 'app';
   const rawPeriod = params.get('period') as PeriodKey | null;
   const period: PeriodKey = rawPeriod && ACTIVITY_PERIODS.includes(rawPeriod) ? rawPeriod : '24h';
   const range = activityWindow(period);
@@ -78,7 +83,7 @@ export function AuditLogPage() {
   const tabs: { value: Tab; label: string; icon: typeof ListTree }[] = [
     { value: 'insights', label: 'Insights', icon: BarChart3 },
     { value: 'activity', label: 'Activity', icon: ListTree },
-    ...(admin ? [{ value: 'errors' as const, label: 'Errors', icon: Bug }] : []),
+    { value: 'errors' as const, label: 'Errors', icon: Bug },
   ];
 
   return (
@@ -233,7 +238,27 @@ export function AuditLogPage() {
         </>
       )}
       {tab === 'insights' && <ActivityInsightsView range={range} admin={admin} onDrill={drill} />}
-      {tab === 'errors' && admin && <ErrorsView range={range} />}
+      {tab === 'errors' && (
+        <div className="space-y-2">
+          {admin && (
+            <Segmented
+              ariaLabel="Which errors"
+              size="sm"
+              value={errorsView}
+              onChange={(v) => set({ errors: v === 'requests' ? 'requests' : null })}
+              options={[
+                { value: 'app', label: 'App errors' },
+                { value: 'requests', label: 'Failed requests' },
+              ]}
+            />
+          )}
+          {errorsView === 'requests' ? (
+            <ErrorsView range={range} />
+          ) : (
+            <ClientErrorsView range={range} />
+          )}
+        </div>
+      )}
     </div>
   );
 }

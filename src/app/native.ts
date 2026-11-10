@@ -1,3 +1,4 @@
+import { logClientEvent } from './client-log';
 /**
  * Android app integration (Capacitor). Everything here is a no-op in a normal browser, and the
  * plugin code is only downloaded inside the app.
@@ -96,7 +97,12 @@ export async function registerPush(): Promise<'granted' | 'denied' | 'unavailabl
   if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
     perm = await PushNotifications.requestPermissions();
   }
-  if (perm.receive !== 'granted') return 'denied';
+  if (perm.receive !== 'granted') {
+    logClientEvent('device', 'Notifications not allowed (app)', {
+      details: { state: perm.receive },
+    });
+    return 'denied';
+  }
 
   await PushNotifications.createChannel({
     id: 'default',

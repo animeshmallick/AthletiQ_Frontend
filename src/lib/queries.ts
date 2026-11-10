@@ -184,6 +184,25 @@ export const useFeePlans = (q: Query = {}) =>
     queryFn: ({ signal }) => api.get<FeePlan[]>('/fee-plans', q, signal),
   });
 
+/** Admin: the order fee plans are listed in (every plan, the built-in free plan aside). */
+export function useReorderFeePlans() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => api.put('/fee-plans/order', { ids }),
+    // Show the new order straight away; the list refetches after.
+    onMutate: (ids) => {
+      const rank = new Map(ids.map((id, i) => [id, i]));
+      for (const [key, data] of qc.getQueriesData<FeePlan[]>({ queryKey: ['fee-plans'] }))
+        if (Array.isArray(data))
+          qc.setQueryData(
+            key,
+            [...data].sort((a, b) => (rank.get(a.id) ?? -1) - (rank.get(b.id) ?? -1)),
+          );
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['fee-plans'] }),
+  });
+}
+
 export function useSaveFeePlan() {
   const invalidate = useInvalidate();
   return useMutation({
@@ -1033,6 +1052,80 @@ export const useRequestInsights = (r: Range, enabled = true) =>
   useQuery({
     queryKey: ['activity', 'requests', r],
     queryFn: ({ signal }) => api.get<RequestInsights>('/activity/requests/insights', r, signal),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+
+export type ClientEventKind =
+  | 'crash'
+  | 'error'
+  | 'update'
+  | 'freeze'
+  | 'stuck'
+  | 'api'
+  | 'network'
+  | 'console'
+  | 'reload'
+  | 'slow'
+  | 'offline'
+  | 'shown'
+  | 'device';
+
+export interface ClientErrorInsights {
+  scope: 'academy' | 'self';
+  totals: {
+    events: number;
+    groups: number;
+    users: number;
+    crashes: number;
+    freezes: number;
+    api: number;
+    console: number;
+    reloads: number;
+    offline: number;
+  };
+  byKind: { kind: ClientEventKind; n: number }[];
+  byPlatform: { platform: string; n: number }[];
+  byDay: { date: string; n: number }[];
+  groups: {
+    fingerprint: string;
+    kind: ClientEventKind;
+    message: string;
+    stack: string | null;
+    details: Record<string, unknown> | null;
+    n: number;
+    users: number;
+    firstSeen: string;
+    lastSeen: string;
+    screens: string[] | null;
+    versions: string[] | null;
+    platforms: string[];
+  }[];
+  recent: {
+    id: string;
+    at: string;
+    kind: ClientEventKind;
+    message: string;
+    screen: string | null;
+    platform: string;
+    appVersion: string | null;
+    online: boolean | null;
+    count: number;
+    details: Record<string, unknown> | null;
+    fingerprint: string;
+    user: { id: string; name: string } | null;
+    role: string | null;
+  }[];
+}
+
+/** Client-side logs (crashes, freezes, failed calls…) for a period of up to 30 days. */
+export const useClientErrorInsights = (
+  r: { from: string; to: string; kind?: ClientEventKind; platform?: string },
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: ['activity', 'client-errors', r],
+    queryFn: ({ signal }) => api.get<ClientErrorInsights>('/client-events/insights', r, signal),
     placeholderData: keepPreviousData,
     enabled,
   });

@@ -5,6 +5,8 @@
  * changed (only after a real break, so nobody loses their place mid-task).
  */
 
+import { noteReload } from './client-log';
+
 /** Only check after the app was away at least this long. */
 const AWAY_MS = 20 * 60_000;
 const ENTRY = /\/assets\/index-[\w-]+\.js/;
@@ -31,7 +33,10 @@ async function latestEntry(): Promise<string | null> {
 /** Reloads into the new version if one was deployed while the app was away. */
 export async function reloadIfOutdated(
   running: string | null = runningEntry(),
-  reload: () => void = () => window.location.reload(),
+  reload: () => void = () => {
+    noteReload('Reloaded into the new version');
+    window.location.reload();
+  },
 ) {
   if (!running) return false;
   const latest = await latestEntry();

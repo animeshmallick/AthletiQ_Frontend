@@ -3,7 +3,8 @@
  * level ladder reached by the average rating. Removing a skill that already has ratings retires
  * it (kept for history) instead of deleting it.
  */
-import { ArrowDown, ArrowUp, Plus, Save, Trash2, Trophy } from 'lucide-react';
+import { Plus, Save, Trash2, Trophy } from 'lucide-react';
+import { Sortable, SortableList } from '@/components/sortable';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -66,14 +67,6 @@ function toDraft(s: Framework): Draft {
       min: (l.minScore / 100).toFixed(2),
     })),
   };
-}
-
-function move<T>(list: T[], i: number, d: number) {
-  const j = i + d;
-  if (j < 0 || j >= list.length) return list;
-  const out = [...list];
-  [out[i], out[j]] = [out[j]!, out[i]!];
-  return out;
 }
 
 export function SportsPage() {
@@ -202,97 +195,105 @@ function Editor({ sport }: { sport: SportListItem }) {
       </Card>
 
       <SectionDivider>Skill areas</SectionDivider>
-      {draft.areas.map((area, i) => (
-        <Card key={area.key} className="space-y-1.5 p-2.5">
-          <div className="flex items-center gap-1.5">
-            <Input
-              value={area.name}
-              maxLength={60}
-              aria-label="Area name"
-              className="h-9 font-semibold"
-              onChange={(e) => setArea(i, { name: e.target.value })}
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Move area up"
-              disabled={i === 0}
-              onClick={() => setDraft((d) => ({ ...d, areas: move(d.areas, i, -1) }))}
-            >
-              <ArrowUp />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Move area down"
-              disabled={i === draft.areas.length - 1}
-              onClick={() => setDraft((d) => ({ ...d, areas: move(d.areas, i, 1) }))}
-            >
-              <ArrowDown />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Remove ${area.name || 'area'}`}
-              onClick={() => setDraft((d) => ({ ...d, areas: d.areas.filter((_, j) => j !== i) }))}
-            >
-              <Trash2 className="text-destructive" />
-            </Button>
-          </div>
-          <ul className="space-y-1 pl-2">
-            {area.skills.map((skill, si) => (
-              <li key={skill.key} className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
-                <Input
-                  value={skill.name}
-                  maxLength={80}
-                  aria-label="Skill name"
-                  placeholder="Skill"
-                  className="h-8 min-w-0 flex-1 basis-40"
-                  onChange={(e) =>
-                    setArea(i, {
-                      skills: area.skills.map((x, j) =>
-                        j === si ? { ...x, name: e.target.value } : x,
-                      ),
-                    })
-                  }
-                />
-                <Input
-                  value={skill.description}
-                  maxLength={300}
-                  aria-label="What good looks like"
-                  placeholder="What good looks like (optional)"
-                  className="h-8 min-w-0 flex-[2] basis-56"
-                  onChange={(e) =>
-                    setArea(i, {
-                      skills: area.skills.map((x, j) =>
-                        j === si ? { ...x, description: e.target.value } : x,
-                      ),
-                    })
-                  }
-                />
+      <SortableList
+        items={draft.areas}
+        onReorder={(areas) => setDraft((d) => ({ ...d, areas }))}
+        className="space-y-2"
+      >
+        {draft.areas.map((area, i) => (
+          <Sortable key={area.key} id={area.key} label={area.name || 'area'}>
+            {(handle) => (
+              <Card className="space-y-1.5 p-2.5">
+                <div className="flex items-center gap-1.5">
+                  {handle}
+                  <Input
+                    value={area.name}
+                    maxLength={60}
+                    aria-label="Area name"
+                    className="h-9 font-semibold"
+                    onChange={(e) => setArea(i, { name: e.target.value })}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove ${area.name || 'area'}`}
+                    onClick={() =>
+                      setDraft((d) => ({ ...d, areas: d.areas.filter((_, j) => j !== i) }))
+                    }
+                  >
+                    <Trash2 className="text-destructive" />
+                  </Button>
+                </div>
+                <SortableList
+                  items={area.skills}
+                  onReorder={(skills) => setArea(i, { skills })}
+                  className="space-y-1"
+                >
+                  {area.skills.map((skill, si) => (
+                    <Sortable key={skill.key} id={skill.key} label={skill.name || 'skill'}>
+                      {(skillHandle) => (
+                        <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
+                          {skillHandle}
+                          <Input
+                            value={skill.name}
+                            maxLength={80}
+                            aria-label="Skill name"
+                            placeholder="Skill"
+                            className="h-8 min-w-0 flex-1 basis-40"
+                            onChange={(e) =>
+                              setArea(i, {
+                                skills: area.skills.map((x, j) =>
+                                  j === si ? { ...x, name: e.target.value } : x,
+                                ),
+                              })
+                            }
+                          />
+                          <Input
+                            value={skill.description}
+                            maxLength={300}
+                            aria-label="What good looks like"
+                            placeholder="What good looks like (optional)"
+                            className="h-8 min-w-0 flex-[2] basis-56"
+                            onChange={(e) =>
+                              setArea(i, {
+                                skills: area.skills.map((x, j) =>
+                                  j === si ? { ...x, description: e.target.value } : x,
+                                ),
+                              })
+                            }
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            aria-label={`Remove ${skill.name || 'skill'}`}
+                            onClick={() =>
+                              setArea(i, { skills: area.skills.filter((_, j) => j !== si) })
+                            }
+                          >
+                            <Trash2 className="text-muted-foreground" />
+                          </Button>
+                        </div>
+                      )}
+                    </Sortable>
+                  ))}
+                </SortableList>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  aria-label={`Remove ${skill.name || 'skill'}`}
-                  onClick={() => setArea(i, { skills: area.skills.filter((_, j) => j !== si) })}
+                  size="sm"
+                  onClick={() =>
+                    setArea(i, {
+                      skills: [...area.skills, { key: k(), name: '', description: '' }],
+                    })
+                  }
                 >
-                  <Trash2 className="text-muted-foreground" />
+                  <Plus /> Add skill
                 </Button>
-              </li>
-            ))}
-          </ul>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              setArea(i, { skills: [...area.skills, { key: k(), name: '', description: '' }] })
-            }
-          >
-            <Plus /> Add skill
-          </Button>
-        </Card>
-      ))}
+              </Card>
+            )}
+          </Sortable>
+        ))}
+      </SortableList>
       <Button
         variant="outline"
         size="sm"

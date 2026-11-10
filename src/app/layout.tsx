@@ -1,5 +1,6 @@
 import { Ellipsis, WifiOff } from 'lucide-react';
 import { Suspense, useEffect, useState, useSyncExternalStore } from 'react';
+import { logClientEvent } from './client-log';
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
 import { Avatar } from '@/components/common';
 import { Dialog } from '@/components/ui/overlays';
@@ -312,6 +313,11 @@ function OfflineBanner() {
 }
 
 export function PageFallback() {
+  // Still loading after 10 seconds: the screen is stuck (slow network or a hung load).
+  useEffect(() => {
+    const t = setTimeout(() => logClientEvent('stuck', 'Screen still loading after 10s'), 10_000);
+    return () => clearTimeout(t);
+  }, []);
   return (
     <div className="space-y-3" aria-busy aria-label="Loading page">
       <Skeleton className="h-8 w-56" />

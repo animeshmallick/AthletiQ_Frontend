@@ -1,3 +1,4 @@
+import { noteReload } from './client-log';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   createContext,
@@ -111,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       rememberRoleChosen(session.user.id);
       queryClient.clear();
       tokenStore.set(session);
+      noteReload(`Switched to the ${role} view`);
       appReload.now();
     },
     [queryClient],

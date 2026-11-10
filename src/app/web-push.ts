@@ -1,3 +1,4 @@
+import { logClientEvent } from './client-log';
 /**
  * Push notifications for the web app: iPhone Home Screen app (iOS 16.4+), Android and desktop
  * browsers. Uses Firebase Cloud Messaging so the API sends to phones and browsers the same way.
@@ -89,7 +90,12 @@ export async function enableWebPush(): Promise<WebPushState> {
   const state = webPushState();
   if (state === 'unsupported' || state === 'needs-install' || state === 'blocked') return state;
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return permission === 'denied' ? 'blocked' : 'off';
+  if (permission !== 'granted') {
+    logClientEvent('device', 'Notifications not allowed (browser)', {
+      details: { state: permission },
+    });
+    return permission === 'denied' ? 'blocked' : 'off';
+  }
   const token = await fcmToken();
   await request('/me/devices', { method: 'POST', body: { token, platform: platform() } });
   localStorage.setItem(TOKEN_KEY, token);

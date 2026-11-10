@@ -1,4 +1,5 @@
 import { API_URL } from '@/lib/env';
+import { flush as flushClientLog, logClientEvent, routeOf } from '@/app/client-log';
 import type { User } from './types';
 
 /**
@@ -127,7 +128,15 @@ export function refreshSession(): Promise<Session | null> {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) tokenStore.set(null);
+        if (res.status === 401 || res.status === 403) {
+          if (accessToken) {
+            logClientEvent('reload', 'Signed out: the session ended', {
+              details: { reason: 'session-ended', status: res.status },
+            });
+            void flushClientLog();
+          }
+          tokenStore.set(null);
+        }
         return null;
       }
       const { data } = (await res.json()) as Envelope<Session>;
@@ -146,6 +155,9 @@ export function refreshSession(): Promise<Session | null> {
 async function ensureFreshToken() {
   if (accessToken && Date.now() >= accessTokenExpiresAt - REFRESH_EARLY_MS) await refreshSession();
 }
+
+/** A call slower than this is logged (venues with poor signal). */
+const SLOW_MS = 8_000;
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -174,6 +186,9 @@ async function rawRequest(path: string, opts: RequestOptions): Promise<Response>
     });
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err;
+    logClientEvent('api', 'Could not reach the server', {
+      details: { method: opts.method ?? 'GET', route: routeOf(path), status: 0 },
+    });
     throw new ApiError(
       0,
       'NETWORK',
@@ -188,6 +203,7 @@ export async function requestEnvelope<T, M = Record<string, unknown>>(
   opts: RequestOptions = {},
 ): Promise<Envelope<T, M>> {
   if (!opts.noRetry) await ensureFreshToken();
+  const started = Date.now();
   let res = await rawRequest(path, opts);
 
   if (res.status === 401 && !opts.noRetry) {
@@ -195,7 +211,25 @@ export async function requestEnvelope<T, M = Record<string, unknown>>(
     if (session) res = await rawRequest(path, opts);
   }
 
-  if (!res.ok) throw await toApiError(res);
+  const took = Date.now() - started;
+  if (took > SLOW_MS)
+    logClientEvent('slow', `Slow call: ${opts.method ?? 'GET'} ${routeOf(path)}`, {
+      details: { method: opts.method ?? 'GET', route: routeOf(path), ms: took, status: res.status },
+    });
+  if (!res.ok) {
+    const error = await toApiError(res);
+    if (res.status >= 500)
+      logClientEvent('api', error.message, {
+        details: {
+          method: opts.method ?? 'GET',
+          route: routeOf(path),
+          status: res.status,
+          code: error.code,
+          requestId: error.requestId ?? null,
+        },
+      });
+    throw error;
+  }
   if (res.status === 204) return { data: undefined as T };
   return (await res.json()) as Envelope<T, M>;
 }
