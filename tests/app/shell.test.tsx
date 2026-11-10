@@ -221,6 +221,12 @@ describe('admin and coach in one account', () => {
     expect(pill).toHaveTextContent('Admin');
     await user.click(pill);
     await user.click(await screen.findByRole('radio', { name: /coach/i }));
+    // Asks first: slide (or Enter on the slider) to confirm, then a switching screen.
+    expect(await screen.findByRole('heading', { name: 'Switch to Coach?' })).toBeInTheDocument();
+    const slider = screen.getByRole('slider', { name: /slide to switch to coach/i });
+    slider.focus();
+    await user.keyboard('{Enter}');
+    expect(await screen.findByText('Switching to Coach')).toBeInTheDocument();
     await waitFor(() => expect(reload).toHaveBeenCalled());
     reload.mockRestore();
   });
@@ -239,6 +245,12 @@ describe('admin and coach in one account', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Open menu' }, { timeout: 5000 }));
     await user.click(await screen.findByRole('button', { name: /switch to coach/i }));
+    // Backing out changes nothing; confirming switches.
+    await user.click(await screen.findByRole('button', { name: 'Not now' }));
+    expect(reload).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole('button', { name: /switch to coach/i }));
+    (await screen.findByRole('slider', { name: /slide to switch to coach/i })).focus();
+    await user.keyboard('{Enter}');
     await waitFor(() => expect(reload).toHaveBeenCalled());
     reload.mockRestore();
   });

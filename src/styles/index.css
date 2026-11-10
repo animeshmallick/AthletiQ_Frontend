@@ -332,3 +332,40 @@
 [data-day-enter] li:nth-child(n + 5) {
   animation-delay: 220ms;
 }
+
+/* Slide to confirm: a light sweeping across the label, and the arrow nudging forward. */
+.slide-shimmer {
+  /* --shimmer: the label colour (set by the component). */
+  background: linear-gradient(
+      100deg,
+      var(--shimmer) 30%,
+      color-mix(in oklab, var(--shimmer) 35%, white) 50%,
+      var(--shimmer) 70%
+    )
+    0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: slide-shimmer 2.2s linear infinite;
+}
+.slide-nudge {
+  animation: slide-nudge 1.6s ease-in-out infinite;
+}
+@keyframes slide-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+@keyframes slide-nudge {
+  0%,
+  60%,
+  100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(4px);
+  }
+}
