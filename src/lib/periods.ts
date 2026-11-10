@@ -43,6 +43,8 @@ export const PAST_PERIODS: PeriodKey[] = ['week', '4w', 'month', 'last-month', '
 export const ACTIVITY_PERIODS: PeriodKey[] = ['1h', '3h', '24h', '7d', '1m', '1y'];
 
 const HOURS: Partial<Record<PeriodKey, number>> = { '1h': 1, '3h': 3, '24h': 24 };
+/** Chart slices for the short windows: every 5 minutes of the last hour, 10 of the last 3. */
+const BUCKET: Partial<Record<PeriodKey, number>> = { '1h': 5, '3h': 10 };
 
 /**
  * An audit-log window. Hour windows also carry the exact start (`since`), rounded to the minute
@@ -51,11 +53,17 @@ const HOURS: Partial<Record<PeriodKey, number>> = { '1h': 1, '3h': 3, '24h': 24 
 export function activityWindow(
   key: PeriodKey,
   nowMs: number = Date.now(),
-): { from: string; to: string; since?: string } {
+): { from: string; to: string; since?: string; bucket?: number } {
   const hours = HOURS[key];
   if (!hours) return periodRange(key, { now: today(new Date(nowMs)) });
   const start = new Date(Math.floor(nowMs / 60_000) * 60_000 - hours * 3_600_000);
-  return { from: today(start), to: today(new Date(nowMs)), since: start.toISOString() };
+  const bucket = BUCKET[key];
+  return {
+    from: today(start),
+    to: today(new Date(nowMs)),
+    since: start.toISOString(),
+    ...(bucket ? { bucket } : {}),
+  };
 }
 
 /**

@@ -88,7 +88,10 @@ describe('Activity log (admin)', () => {
       from: '2026-03-10',
       to: '2026-03-10',
       since: '2026-03-10T05:30:00.000Z',
+      bucket: 5, // charted every 5 minutes
     });
+    expect(activityWindow('3h', now)).toMatchObject({ bucket: 10 });
+    expect(activityWindow('24h', now).bucket).toBeUndefined();
     expect(activityWindow('24h', now)).toMatchObject({ from: '2026-03-09', to: '2026-03-10' });
     expect(activityWindow('7d', now)).toEqual({ from: '2026-03-04', to: '2026-03-10' });
     expect(activityWindow('1m', now)).toEqual({ from: '2026-02-09', to: '2026-03-10' });
@@ -240,6 +243,59 @@ describe('Activity log (admin)', () => {
     expect(screen.queryByText('Time of day')).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: /errors/i }));
     expect(await screen.findByText('Failures by hour')).toBeInTheDocument();
+  });
+
+  it('sorts the failing endpoints from the corner menu', async () => {
+    mockApi({
+      'GET /activity/errors/insights': () => ({
+        totals: { total: 6, server: 1, client: 5, routes: 3, users: 1 },
+        byDay: [],
+        byStatus: [],
+        byCode: [],
+        byRoute: [
+          {
+            method: 'GET',
+            route: '/api/v1/students/:id',
+            n: 4,
+            server: 0,
+            last: '2026-03-09T05:00:00Z',
+            sample: 'Not found',
+          },
+          {
+            method: 'POST',
+            route: '/api/v1/invoices/:id/payments',
+            n: 1,
+            server: 1,
+            last: '2026-03-09T09:00:00Z',
+            sample: 'Boom',
+          },
+          {
+            method: 'GET',
+            route: '/api/v1/batches',
+            n: 1,
+            server: 0,
+            last: '2026-03-09T01:00:00Z',
+            sample: 'Nope',
+          },
+        ],
+      }),
+      'GET /activity/errors': () => page([]),
+    });
+    const { user } = await renderPage(<AuditLogPage />, {
+      path: '/audit-log',
+      route: '/audit-log?tab=errors',
+      user: adminUser,
+    });
+    const names = () =>
+      screen.getAllByRole('button', { name: /Boom|Not found|Nope/ }).map((b) => b.textContent);
+    await screen.findByText('Failing endpoints');
+    expect(names()[0]).toMatch(/Not found/); // most failures first
+    await user.click(screen.getByRole('button', { name: /sort endpoints: most failures/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /most recent/i }));
+    expect(names()[0]).toMatch(/Boom/);
+    await user.click(screen.getByRole('button', { name: /sort endpoints: most recent/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /server errors first/i }));
+    expect(names()[0]).toMatch(/Boom/);
   });
 
   it('shows failed requests on the Errors tab and filters by endpoint', async () => {

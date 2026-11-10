@@ -27,7 +27,18 @@ import {
 import { cn } from '@/lib/utils';
 import { Bars, HourStrip, RankList } from './charts';
 import { EventDetails, EventRow, type FeedFilters } from './feed';
-import { entityMeta, hourLabel, hoursSince, humanize, ms, num, requestLabel } from './meta';
+import {
+  entityMeta,
+  hourLabel,
+  hoursSince,
+  clockAt,
+  sliceBars,
+  sliceSize,
+  humanize,
+  ms,
+  num,
+  requestLabel,
+} from './meta';
 
 export type Drill = Partial<Pick<FeedFilters, 'entityType' | 'actorId' | 'sensitive' | 'search'>>;
 
@@ -150,7 +161,15 @@ export function ActivityInsightsView({
         </button>
       </div>
 
-      {d.since || d.from === d.to ? (
+      {d.byBucket?.length ? (
+        // The last hour or few: actions in short slices (every 5 or 10 minutes).
+        <Panel
+          title={`Actions · ${sliceSize(d.byBucket)}`}
+          hint={`Since ${clockAt(d.byBucket[0]!.at)}`}
+        >
+          <Bars unit="actions" data={sliceBars(d.byBucket)} />
+        </Panel>
+      ) : d.since || d.from === d.to ? (
         // Up to a day: the actions hour by hour (just the hours the window covers).
         <Panel
           title="Actions by hour"

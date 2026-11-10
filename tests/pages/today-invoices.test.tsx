@@ -496,8 +496,10 @@ describe('Today insights', () => {
     await renderPage(<TodayPage />, { user: adminUser });
     expect(await screen.findByText('Do now')).toBeInTheDocument();
     expect(screen.getByText('Later')).toBeInTheDocument();
-    // The session's to-do also sits on its timeline card.
-    expect(await screen.findAllByText('Kavya hasn’t checked in')).toHaveLength(2);
+    // The session's to-do also sits on its timeline card, as a short chip beside the time.
+    expect(await screen.findByRole('link', { name: 'Kavya hasn’t checked in' })).toHaveTextContent(
+      'Missed check-in',
+    );
   });
 
   it('moves the day plan between days', async () => {

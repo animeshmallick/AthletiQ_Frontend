@@ -235,3 +235,31 @@ export function hoursSince(since: string, now: Date = new Date()): number[] {
   const count = span >= 23 * 3_600_000 ? 24 : ((hourOf(now) - start + 24) % 24) + 1;
   return Array.from({ length: count }, (_, i) => (start + i) % 24);
 }
+
+const istClock = new Intl.DateTimeFormat('en-IN', {
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+  timeZone: 'Asia/Kolkata',
+});
+/** "2:05 pm" (IST) for a chart slice. */
+export const clockAt = (iso: string) => istClock.format(new Date(iso)).toLowerCase();
+/** Chart bars for time slices: short tick ("2:05"), full label ("2:05 – 2:10 pm"). */
+export function sliceBars<T extends { at: string; n: number }>(
+  slices: T[],
+  part?: (s: T) => number,
+) {
+  const step = slices.length > 1 ? Date.parse(slices[1]!.at) - Date.parse(slices[0]!.at) : 0;
+  return slices.map((s) => ({
+    key: s.at,
+    tick: clockAt(s.at).replace(/ ?[ap]m$/, ''),
+    label: `${clockAt(s.at)} – ${clockAt(new Date(Date.parse(s.at) + step).toISOString())}`,
+    value: s.n,
+    ...(part ? { part: part(s) } : {}),
+  }));
+}
+/** "every 5 min" for a chart title. */
+export const sliceSize = (slices: { at: string }[]) =>
+  slices.length > 1
+    ? `every ${Math.round((Date.parse(slices[1]!.at) - Date.parse(slices[0]!.at)) / 60_000)} min`
+    : '';

@@ -17,16 +17,49 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui/primitives';
 import { formatLongDate, formatShortDate } from '@/lib/format';
 import { useApiErrors, useErrorInsights, type ApiRequest } from '@/lib/queries';
+import { SortMenu, type SortOption } from '@/components/sort-menu';
 import { cn } from '@/lib/utils';
 import { Bars, RankList } from './charts';
 import { FilterChip, RequestDetails, RequestRow, StatusChip } from './feed';
-import { hourLabel, hoursSince, num, requestLabel } from './meta';
+import { hourLabel, hoursSince, num, requestLabel, sliceBars, sliceSize } from './meta';
 
 type Kind = 'all' | 'client' | 'server';
 
-export function ErrorsView({ range }: { range: { from: string; to: string; since?: string } }) {
+type RouteSort = 'count' | 'recent' | 'server' | 'name';
+const ROUTE_SORTS: SortOption<RouteSort>[] = [
+  { value: 'count', label: 'Most failures', hint: 'Endpoints failing the most first' },
+  { value: 'recent', label: 'Most recent', hint: 'Latest failure first' },
+  { value: 'server', label: 'Server errors first', hint: 'Bugs and outages on top' },
+  { value: 'name', label: 'Endpoint A–Z', hint: 'By screen and action' },
+];
+
+function sortRoutes<
+  R extends { n: number; server: number; last: string; method: string; route: string },
+>(rows: R[], by: RouteSort): R[] {
+  const list = [...rows];
+  const byCount = (a: R, b: R) => b.n - a.n;
+  switch (by) {
+    case 'recent':
+      return list.sort((a, b) => b.last.localeCompare(a.last) || byCount(a, b));
+    case 'server':
+      return list.sort((a, b) => b.server - a.server || byCount(a, b));
+    case 'name':
+      return list.sort((a, b) =>
+        requestLabel(a.method, a.route).localeCompare(requestLabel(b.method, b.route)),
+      );
+    default:
+      return list.sort(byCount);
+  }
+}
+
+export function ErrorsView({
+  range,
+}: {
+  range: { from: string; to: string; since?: string; bucket?: number };
+}) {
   const ins = useErrorInsights(range);
   const oneDay = !!range.since || range.from === range.to;
+  const [routeSort, setRouteSort] = useState<RouteSort>('count');
   const [kind, setKind] = useState<Kind>('all');
   const [route, setRoute] = useState<string | null>(null);
   const [open, setOpen] = useState<ApiRequest | null>(null);
@@ -88,7 +121,11 @@ export function ErrorsView({ range }: { range: { from: string; to: string; since
         <Card className="min-w-0">
           <CardHeader className="pb-1">
             <CardTitle className="text-[14px]">
-              {oneDay ? 'Failures by hour' : 'Failures by day'}
+              {d.byBucket?.length
+                ? `Failures · ${sliceSize(d.byBucket)}`
+                : oneDay
+                  ? 'Failures by hour'
+                  : 'Failures by day'}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-1">
@@ -98,24 +135,28 @@ export function ErrorsView({ range }: { range: { from: string; to: string; since
               partLabel="server errors"
               restLabel="Rejected"
               data={
-                oneDay && d.byHour
-                  ? (range.since
-                      ? hoursSince(range.since).map((h) => d.byHour![h]!)
-                      : d.byHour
-                    ).map((x) => ({
-                      key: String(x.hour),
-                      tick: hourLabel(x.hour),
-                      label: `${hourLabel(x.hour)} – ${hourLabel((x.hour + 1) % 24)}`,
-                      value: x.n,
-                      part: x.server,
-                    }))
-                  : d.byDay.map((x) => ({
-                      key: x.date,
-                      tick: formatShortDate(x.date).replace(/ \d{4}$/, ''),
-                      label: formatLongDate(x.date),
-                      value: x.n,
-                      part: x.server,
-                    }))
+                d.byBucket?.length
+                  ? sliceBars(d.byBucket, (s) => s.server)
+                  : oneDay && d.byHour
+                    ? (range.since
+                        ? hoursSince(range.since).map(
+                            (h) => d.byHour?.[h] ?? { hour: h, n: 0, server: 0 },
+                          )
+                        : d.byHour
+                      ).map((x) => ({
+                        key: String(x.hour),
+                        tick: hourLabel(x.hour),
+                        label: `${hourLabel(x.hour)} – ${hourLabel((x.hour + 1) % 24)}`,
+                        value: x.n,
+                        part: x.server,
+                      }))
+                    : d.byDay.map((x) => ({
+                        key: x.date,
+                        tick: formatShortDate(x.date).replace(/ \d{4}$/, ''),
+                        label: formatLongDate(x.date),
+                        value: x.n,
+                        part: x.server,
+                      }))
               }
             />
           </CardContent>
@@ -146,13 +187,23 @@ export function ErrorsView({ range }: { range: { from: string; to: string; since
 
       <Card className="min-w-0">
         <CardHeader className="pb-1">
-          <CardTitle className="flex items-baseline justify-between text-[14px]">
-            Failing endpoints
-            <span className="text-[11px] font-normal text-muted-foreground">Tap to filter</span>
+          <CardTitle className="flex items-center justify-between gap-2 text-[14px]">
+            <span className="min-w-0">
+              Failing endpoints
+              <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+                Tap to filter
+              </span>
+            </span>
+            <SortMenu
+              label="Sort endpoints"
+              value={routeSort}
+              onChange={setRouteSort}
+              options={ROUTE_SORTS}
+            />
           </CardTitle>
         </CardHeader>
-        <CardContent className="-mx-1 divide-y pt-1">
-          {d.byRoute.map((r) => (
+        <CardContent key={routeSort} className="-mx-1 animate-rise divide-y pt-1">
+          {sortRoutes(d.byRoute, routeSort).map((r) => (
             <button
               key={r.method + r.route}
               type="button"

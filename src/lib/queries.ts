@@ -1014,6 +1014,8 @@ export type ActivityInsights = {
   to: string;
   /** Set for hour windows (e.g. the last 3 hours). */
   since?: string | null;
+  /** Short windows: actions per slice (e.g. every 5 minutes), oldest first. */
+  byBucket?: { at: string; n: number }[] | null;
   totals: {
     events: number;
     people: number;
@@ -1059,6 +1061,8 @@ export type ErrorInsights = {
   byDay: ({ date: string; server: number } & Count)[];
   /** Hour of day (IST), 24 slots: the chart for a single day. */
   byHour?: ({ hour: number; server: number } & Count)[];
+  /** Short windows: failures per slice (e.g. every 5 minutes), oldest first. */
+  byBucket?: ({ at: string; server: number } & Count)[] | null;
   byStatus: ({ status: number } & Count)[];
   byCode: ({ code: string | null } & Count)[];
   byRoute: ({
@@ -1109,7 +1113,7 @@ export type ActivitySummary = {
   highlights: string[];
 };
 /** Dates covered, plus an exact start for windows shorter than whole days. */
-type Range = { from: string; to: string; since?: string };
+type Range = { from: string; to: string; since?: string; bucket?: number };
 const nextPage = (last: { meta?: PageMeta }) =>
   last.meta && last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined;
 

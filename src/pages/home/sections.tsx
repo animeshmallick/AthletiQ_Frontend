@@ -236,20 +236,45 @@ export function DayPlan({
                   <Card
                     className={cn('p-2', (st === 'done' || st === 'cancelled') && 'opacity-70')}
                   >
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-[4.5rem] shrink-0">
-                        <p className="tabular flex items-center gap-1.5 text-[13px] font-semibold">
+                    <div>
+                      {/* Time on one line, then the session below at full width. */}
+                      <div className="flex items-center gap-2">
+                        <p className="tabular flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
                           <span
                             aria-hidden
                             className={cn('size-2 shrink-0 rounded-full', style.dot)}
                           />
-                          {formatTime(s.batch.startTime)}
+                          {formatTime(s.batch.startTime)} – {formatTime(s.batch.endTime)}
                         </p>
-                        <p className="tabular pl-3.5 text-[11px] text-muted-foreground">
-                          to {formatTime(s.batch.endTime)}
-                        </p>
+                        {/* What still needs doing for this session, at the right end. */}
+                        {todos.length > 0 && (
+                          <ul className="ml-auto flex min-w-0 flex-wrap justify-end gap-1">
+                            {todos.map((t) => (
+                              <li key={t.id}>
+                                <Link
+                                  to={t.link}
+                                  title={t.title}
+                                  aria-label={t.title}
+                                  className={cn(
+                                    'inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-[10px] font-semibold whitespace-nowrap transition-colors hover:brightness-95',
+                                    TODO_CHIP[t.severity],
+                                  )}
+                                >
+                                  <span
+                                    aria-hidden
+                                    className={cn(
+                                      'size-1.5 rounded-full',
+                                      SEVERITY_DOT[t.severity],
+                                    )}
+                                  />
+                                  {TODO_SHORT[t.kind] ?? t.title}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
+                      <div className="mt-0.5 min-w-0">
                         <Link
                           to={`/attendance?batch=${s.batch.id}&date=${day}`}
                           className="block truncate text-[14px] font-semibold hover:underline"
@@ -260,13 +285,10 @@ export function DayPlan({
                           {isAdmin ? `${s.batch.coach.name} · ` : ''}
                           {s.batch.location.name}
                         </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] [&_[data-slot=badge]]:gap-0.5 [&_[data-slot=badge]]:px-1.5">
                           {style.label && (
                             <span
-                              className={cn(
-                                'rounded-full px-1.5 py-0.5 font-semibold',
-                                style.badge,
-                              )}
+                              className={cn('rounded-full px-1.5 py-px font-semibold', style.badge)}
                             >
                               {style.label}
                               {st === 'cancelled' && s.cancelled ? ` · ${s.cancelled}` : ''}
@@ -279,20 +301,7 @@ export function DayPlan({
                           )}
                           {!s.cancelled && (isToday || isPast) && (
                             <>
-                              <Badge
-                                variant={
-                                  s.coachSession
-                                    ? s.coachSession.flagged
-                                      ? 'warning'
-                                      : 'success'
-                                    : 'muted'
-                                }
-                              >
-                                <MapPin />
-                                {s.coachSession
-                                  ? `In ${formatClock(s.coachSession.checkInAt)}`
-                                  : 'No check-in'}
-                              </Badge>
+                              <CheckInBadge s={s} />
                               <Badge
                                 variant={
                                   s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'
@@ -308,26 +317,6 @@ export function DayPlan({
                             </Badge>
                           )}
                         </div>
-                        {todos.length > 0 && (
-                          <ul className="mt-1.5 space-y-0.5">
-                            {todos.map((t) => (
-                              <li key={t.id}>
-                                <Link
-                                  to={t.link}
-                                  className="flex items-center gap-1 text-[12px] font-medium text-primary hover:underline"
-                                >
-                                  <span
-                                    className={cn(
-                                      'size-1.5 rounded-full',
-                                      SEVERITY_DOT[t.severity],
-                                    )}
-                                  />
-                                  {t.title}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
                       </div>
                     </div>
                   </Card>
@@ -338,6 +327,70 @@ export function DayPlan({
         )}
       </SwipeDays>
     </Card>
+  );
+}
+
+/** Short labels for a session's to-dos, shown as chips beside its time. */
+const TODO_SHORT: Partial<Record<AppTask['kind'], string>> = {
+  'check-in': 'Check in',
+  'missed-check-in': 'Missed check-in',
+  attendance: 'Attendance pending',
+  'lesson-plan': 'Add plan',
+  'check-out': 'Check out',
+};
+const TODO_CHIP: Record<AppTask['severity'], string> = {
+  critical: 'bg-destructive/10 text-destructive',
+  warning: 'bg-warning/15 text-warning-foreground dark:text-warning',
+  info: 'bg-primary/8 text-primary',
+};
+
+/** Check-in at a glance: in → out times, a live dot while there, and how late it started. */
+function CheckInBadge({ s }: { s: DayOverviewSession }) {
+  const cs = s.coachSession;
+  if (!cs)
+    return (
+      <Badge variant="muted">
+        <MapPin /> No check-in
+      </Badge>
+    );
+  const lateBy = toMin(istClock.format(new Date(cs.checkInAt))) - toMin(s.batch.startTime);
+  const late = lateBy > 10;
+  const lateText =
+    lateBy >= 60
+      ? `${Math.floor(lateBy / 60)}h${lateBy % 60 ? ` ${lateBy % 60}m` : ''} late`
+      : `${lateBy}m late`;
+  return (
+    <span className="inline-flex flex-col items-start">
+      <Badge
+        variant={cs.flagged ? 'warning' : 'success'}
+        title={[
+          `Checked in ${formatClock(cs.checkInAt)}`,
+          cs.checkOutAt ? `out ${formatClock(cs.checkOutAt)}` : 'still there',
+          late ? lateText : 'on time',
+          cs.flagged ? 'away from the venue' : '',
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+      >
+        {cs.checkOutAt ? (
+          <LogOut />
+        ) : (
+          <span className="relative mr-0.5 flex size-1.5" aria-hidden>
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-60" />
+            <span className="relative inline-flex size-1.5 rounded-full bg-current" />
+          </span>
+        )}
+        {cs.checkOutAt
+          ? `${formatClock(cs.checkInAt)} → ${formatClock(cs.checkOutAt)}`
+          : `In ${formatClock(cs.checkInAt)}`}
+      </Badge>
+      {/* Lateness, quietly underneath. */}
+      {late && (
+        <span className="mt-px pl-2 text-[9px] leading-none font-semibold text-warning-foreground dark:text-warning">
+          {lateText}
+        </span>
+      )}
+    </span>
   );
 }
 
