@@ -220,3 +220,18 @@ export const friendly = (s: string) =>
       /\b(\d{1,2}):00–(\d{1,2}):00\b/g,
       (_, a: string, b: string) => `${hourLabel(Number(a))}–${hourLabel(Number(b) % 24)}`,
     );
+
+const istHour = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'Asia/Kolkata',
+});
+const hourOf = (d: Date) => Number(istHour.format(d)) % 24;
+
+/** The clock hours (IST) a window covers, in order: 2 pm, 3 pm, … up to the current hour. */
+export function hoursSince(since: string, now: Date = new Date()): number[] {
+  const start = hourOf(new Date(since));
+  const span = now.getTime() - Date.parse(since);
+  const count = span >= 23 * 3_600_000 ? 24 : ((hourOf(now) - start + 24) % 24) + 1;
+  return Array.from({ length: count }, (_, i) => (start + i) % 24);
+}

@@ -27,7 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Bars, HourStrip, RankList } from './charts';
 import { EventDetails, EventRow, type FeedFilters } from './feed';
-import { entityMeta, hourLabel, humanize, ms, num, requestLabel } from './meta';
+import { entityMeta, hourLabel, hoursSince, humanize, ms, num, requestLabel } from './meta';
 
 export type Drill = Partial<Pick<FeedFilters, 'entityType' | 'actorId' | 'sensitive' | 'search'>>;
 
@@ -150,20 +150,22 @@ export function ActivityInsightsView({
         </button>
       </div>
 
-      {d.from === d.to ? (
-        // A single day: the actions hour by hour.
+      {d.since || d.from === d.to ? (
+        // Up to a day: the actions hour by hour (just the hours the window covers).
         <Panel
           title="Actions by hour"
-          hint={`${formatLongDate(d.from)}${d.busiestHour !== null ? ` · peak ${hourLabel(d.busiestHour)}` : ''}`}
+          hint={`${d.since ? `Since ${hourLabel(hoursSince(d.since)[0]!)}` : formatLongDate(d.from)}${d.busiestHour !== null ? ` · peak ${hourLabel(d.busiestHour)}` : ''}`}
         >
           <Bars
             unit="actions"
-            data={d.byHour.map((n, h) => ({
-              key: String(h),
-              tick: hourLabel(h),
-              label: `${hourLabel(h)} – ${hourLabel((h + 1) % 24)}`,
-              value: n,
-            }))}
+            data={(d.since ? hoursSince(d.since) : Array.from({ length: 24 }, (_, h) => h)).map(
+              (h) => ({
+                key: String(h),
+                tick: hourLabel(h),
+                label: `${hourLabel(h)} – ${hourLabel((h + 1) % 24)}`,
+                value: d.byHour[h] ?? 0,
+              }),
+            )}
           />
         </Panel>
       ) : (

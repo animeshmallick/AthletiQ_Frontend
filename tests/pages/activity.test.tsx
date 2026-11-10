@@ -1,6 +1,7 @@
 import { within } from '@testing-library/react';
 import { today } from '@/lib/format';
-import { ACTIVITY_PERIODS, periodRange } from '@/lib/periods';
+import { ACTIVITY_PERIODS, activityWindow } from '@/lib/periods';
+import { hoursSince } from '@/pages/activity/meta';
 import { AuditLogPage } from '@/pages/activity';
 import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
@@ -66,26 +67,35 @@ const requestInsights = {
 };
 
 describe('Activity log (admin)', () => {
-  it('filters to just today, or the last 7 days', async () => {
+  it('looks back by the hour, day, month or year', async () => {
     const api = mockApi({ 'GET /activity/logs': () => page([log()]) });
     await renderPage(<AuditLogPage />, {
       path: '/audit-log',
-      route: '/audit-log?tab=activity&period=today',
+      route: '/audit-log?tab=activity&period=3h',
       user: adminUser,
     });
     await screen.findByRole('button', { name: /Invoice payment reverted/ });
+    // Hour windows send the exact start (to the minute).
     const q = api.find('GET /activity/logs')[0]!.query;
-    expect(q.get('from')).toBe(today());
+    const since = Date.parse(q.get('since')!);
+    expect(Date.now() - since).toBeGreaterThanOrEqual(3 * 3_600_000);
+    expect(Date.now() - since).toBeLessThan(3 * 3_600_000 + 61_000);
     expect(q.get('to')).toBe(today());
-    expect(periodRange('7d', { now: '2026-03-10' })).toEqual({
-      from: '2026-03-04',
+
+    expect(ACTIVITY_PERIODS).toEqual(['1h', '3h', '24h', '7d', '1m', '1y']);
+    const now = Date.parse('2026-03-10T06:30:45Z'); // 12:00:45 pm IST
+    expect(activityWindow('1h', now)).toEqual({
+      from: '2026-03-10',
       to: '2026-03-10',
+      since: '2026-03-10T05:30:00.000Z',
     });
-    expect(periodRange('yesterday', { now: '2026-03-10' })).toEqual({
-      from: '2026-03-09',
-      to: '2026-03-09',
-    });
-    expect(ACTIVITY_PERIODS).not.toContain('week');
+    expect(activityWindow('24h', now)).toMatchObject({ from: '2026-03-09', to: '2026-03-10' });
+    expect(activityWindow('7d', now)).toEqual({ from: '2026-03-04', to: '2026-03-10' });
+    expect(activityWindow('1m', now)).toEqual({ from: '2026-02-09', to: '2026-03-10' });
+    expect(activityWindow('1y', now)).toEqual({ from: '2025-03-11', to: '2026-03-10' });
+    // The hours a window covers, in order (IST).
+    expect(hoursSince('2026-03-10T05:30:00.000Z', new Date(now))).toEqual([11, 12]);
+    expect(hoursSince('2026-03-09T06:30:00.000Z', new Date(now))).toHaveLength(24);
   });
 
   it('lists key events and opens details, with a link to the record and its history', async () => {
@@ -98,9 +108,11 @@ describe('Activity log (admin)', () => {
     expect(await screen.findByRole('heading', { name: 'Audit log' })).toBeInTheDocument();
     const tile = await screen.findByRole('button', { name: /Invoice payment reverted/ });
     expect(tile).toHaveTextContent('Asha Admin · ₹2,500 · Mistake');
-    // Today is the default period.
+    // The last 24 hours is the default period.
     const first = api.find('GET /activity/logs')[0]!;
-    expect(first.query.get('from')).toBe(today());
+    expect(Date.now() - Date.parse(first.query.get('since')!)).toBeGreaterThanOrEqual(
+      24 * 3_600_000,
+    );
     expect(first.query.get('to')).toBe(today());
     expect(first.query.get('pageSize')).toBe('50');
 
@@ -220,7 +232,7 @@ describe('Activity log (admin)', () => {
     });
     const { user } = await renderPage(<AuditLogPage />, {
       path: '/audit-log',
-      route: '/audit-log?period=today',
+      route: '/audit-log?period=3h',
       user: adminUser,
     });
     expect(await screen.findByText('Actions by hour')).toBeInTheDocument();

@@ -1012,6 +1012,8 @@ export type ActivityPerson = { id: string; name: string; role: string; n: number
 export type ActivityInsights = {
   from: string;
   to: string;
+  /** Set for hour windows (e.g. the last 3 hours). */
+  since?: string | null;
   totals: {
     events: number;
     people: number;
@@ -1106,7 +1108,8 @@ export type ActivitySummary = {
   errors: { total: number; server: number; routes: number } | null;
   highlights: string[];
 };
-type Range = { from: string; to: string };
+/** Dates covered, plus an exact start for windows shorter than whole days. */
+type Range = { from: string; to: string; since?: string };
 const nextPage = (last: { meta?: PageMeta }) =>
   last.meta && last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined;
 

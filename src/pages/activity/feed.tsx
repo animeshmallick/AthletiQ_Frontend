@@ -38,6 +38,8 @@ import {
 export type FeedFilters = {
   from?: string;
   to?: string;
+  /** Exact start for hour windows (e.g. the last 3 hours). */
+  since?: string;
   entityType?: string;
   actorId?: string;
   entityId?: string;
@@ -130,6 +132,7 @@ export function EventFeed({
   const q = useActivityLogs({
     from: filters.from,
     to: filters.to,
+    since: filters.since,
     entityType: filters.entityType || undefined,
     actorId: filters.actorId || undefined,
     entityId: filters.entityId || undefined,
@@ -355,13 +358,14 @@ export function RequestFeed({
   filters,
   showActor,
 }: {
-  filters: { from: string; to: string; actorId?: string };
+  filters: { from: string; to: string; since?: string; actorId?: string };
   showActor: boolean;
 }) {
   const [open, setOpen] = useState<ApiRequest | null>(null);
   const q = useApiRequests({
     from: filters.from,
     to: filters.to,
+    since: filters.since,
     userId: filters.actorId || undefined,
   });
   const rows = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);

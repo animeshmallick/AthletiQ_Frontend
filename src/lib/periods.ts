@@ -2,9 +2,28 @@
 import { addDays, addMonths, endOfMonth, startOfMonth, startOfWeek, today } from './format';
 
 export type PeriodKey =
-  'today' | 'yesterday' | '7d' | 'week' | 'next' | '4w' | 'month' | 'last-month' | 'quarter' | 'fy';
+  | '1h'
+  | '3h'
+  | '24h'
+  | '1m'
+  | '1y'
+  | 'today'
+  | 'yesterday'
+  | '7d'
+  | 'week'
+  | 'next'
+  | '4w'
+  | 'month'
+  | 'last-month'
+  | 'quarter'
+  | 'fy';
 
 export const PERIOD_LABELS: Record<PeriodKey, string> = {
+  '1h': 'Last 1 hour',
+  '3h': 'Last 3 hours',
+  '24h': 'Last 24 hours',
+  '1m': 'Last 1 month',
+  '1y': 'Last 1 year',
   today: 'Today',
   yesterday: 'Yesterday',
   '7d': 'Last 7 days',
@@ -20,13 +39,24 @@ export const PERIOD_LABELS: Record<PeriodKey, string> = {
 /** Past-looking periods, for money and activity. */
 export const PAST_PERIODS: PeriodKey[] = ['week', '4w', 'month', 'last-month', 'quarter', 'fy'];
 
-/** Activity and audit logs also look at a single day. */
-export const ACTIVITY_PERIODS: PeriodKey[] = [
-  'today',
-  'yesterday',
-  '7d',
-  ...PAST_PERIODS.filter((p) => p !== 'week'),
-];
+/** The audit log looks back from now: hours, days, a month, a year. */
+export const ACTIVITY_PERIODS: PeriodKey[] = ['1h', '3h', '24h', '7d', '1m', '1y'];
+
+const HOURS: Partial<Record<PeriodKey, number>> = { '1h': 1, '3h': 3, '24h': 24 };
+
+/**
+ * An audit-log window. Hour windows also carry the exact start (`since`), rounded to the minute
+ * so it stays the same between renders.
+ */
+export function activityWindow(
+  key: PeriodKey,
+  nowMs: number = Date.now(),
+): { from: string; to: string; since?: string } {
+  const hours = HOURS[key];
+  if (!hours) return periodRange(key, { now: today(new Date(nowMs)) });
+  const start = new Date(Math.floor(nowMs / 60_000) * 60_000 - hours * 3_600_000);
+  return { from: today(start), to: today(new Date(nowMs)), since: start.toISOString() };
+}
 
 /**
  * Dates covered by a period. Periods end today unless `future` is set, in which case the
@@ -37,6 +67,16 @@ export function periodRange(
   { now = today(), future = false }: { now?: string; future?: boolean } = {},
 ): { from: string; to: string } {
   switch (key) {
+    // Hour windows as dates (the exact start comes from activityWindow).
+    case '1h':
+    case '3h':
+    case '24h':
+      return { from: addDays(now, key === '24h' ? -1 : 0), to: now };
+    // Rolling windows ending today: the last 30 days, and the last 365.
+    case '1m':
+      return { from: addDays(now, -29), to: now };
+    case '1y':
+      return { from: addDays(now, -364), to: now };
     case 'today':
       return { from: now, to: now };
     case '7d':

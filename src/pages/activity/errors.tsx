@@ -20,13 +20,13 @@ import { useApiErrors, useErrorInsights, type ApiRequest } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import { Bars, RankList } from './charts';
 import { FilterChip, RequestDetails, RequestRow, StatusChip } from './feed';
-import { hourLabel, num, requestLabel } from './meta';
+import { hourLabel, hoursSince, num, requestLabel } from './meta';
 
 type Kind = 'all' | 'client' | 'server';
 
-export function ErrorsView({ range }: { range: { from: string; to: string } }) {
+export function ErrorsView({ range }: { range: { from: string; to: string; since?: string } }) {
   const ins = useErrorInsights(range);
-  const oneDay = range.from === range.to;
+  const oneDay = !!range.since || range.from === range.to;
   const [kind, setKind] = useState<Kind>('all');
   const [route, setRoute] = useState<string | null>(null);
   const [open, setOpen] = useState<ApiRequest | null>(null);
@@ -99,7 +99,10 @@ export function ErrorsView({ range }: { range: { from: string; to: string } }) {
               restLabel="Rejected"
               data={
                 oneDay && d.byHour
-                  ? d.byHour.map((x) => ({
+                  ? (range.since
+                      ? hoursSince(range.since).map((h) => d.byHour![h]!)
+                      : d.byHour
+                    ).map((x) => ({
                       key: String(x.hour),
                       tick: hourLabel(x.hour),
                       label: `${hourLabel(x.hour)} – ${hourLabel((x.hour + 1) % 24)}`,
