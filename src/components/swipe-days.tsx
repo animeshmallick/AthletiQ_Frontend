@@ -36,6 +36,7 @@ export function SwipeDays({
   nextLabel,
   children,
   className,
+  disabled = false,
 }: {
   /** Changes when the day changes; replays the entrance. */
   dayKey: string;
@@ -46,6 +47,8 @@ export function SwipeDays({
   nextLabel: string;
   children: ReactNode;
   className?: string;
+  /** Hold the day (e.g. while editing): no swiping, and nothing clipped (sticky bars work). */
+  disabled?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [dx, setDx] = useState(0);
@@ -138,12 +141,12 @@ export function SwipeDays({
   return (
     <div
       ref={box}
-      className={cn('relative overflow-hidden', className)}
+      className={cn('relative', !disabled && 'overflow-hidden', className)}
       data-slot="swipe-days"
       style={{ touchAction: 'pan-y' }}
       onTouchStart={(e) => {
         const t = e.touches[0];
-        if (!t || leaving) return;
+        if (!t || leaving || disabled) return;
         const now = Date.now();
         if (box.current) setWidth(box.current.clientWidth || 360);
         touch.current = {

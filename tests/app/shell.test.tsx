@@ -5,7 +5,7 @@ import { RouterProvider } from 'react-router';
 import { appReload } from '@/app/auth';
 import { Providers } from '@/app/providers';
 import { router } from '@/app/router';
-import { matches, navFor, tabsFor } from '@/app/nav';
+import { activeItem, matches, navFor, tabsFor, UNPAID_INVOICES } from '@/app/nav';
 import {
   adminUser,
   coachUser,
@@ -91,6 +91,12 @@ describe('navigation', () => {
     ).toEqual(['/substitutions', '/registrations', '/makeups']);
     expect(matches({ to: '/people', also: ['/students'] }, '/students/abc')).toBe(true);
     expect(matches({ to: '/people', also: ['/students'] }, '/studentsx')).toBe(false);
+    // A tab with a query (Unpaid) wins over its plain screen (Finance).
+    const tabs = [{ to: '/finance' }, { to: UNPAID_INVOICES }];
+    expect(activeItem(tabs, '/finance', '?tab=invoices')).toBe(tabs[1]);
+    expect(activeItem(tabs, '/finance', '?tab=invoices&status=overdue')).toBe(tabs[0]);
+    expect(activeItem(tabs, '/finance', '')).toBe(tabs[0]);
+    expect(matches({ to: '/', also: ['/calendar'] }, '/calendar')).toBe(true);
     // Four tabs + "More" fit a phone; every tab is a screen the role can open.
     for (const role of ['coach', 'admin'] as const) {
       expect(tabsFor(role)).toHaveLength(4);
@@ -119,11 +125,29 @@ describe('route guards', () => {
     expect(screen.queryByRole('link', { name: 'Audit log' })).not.toBeInTheDocument();
   });
 
+  it('merges Today and the calendar into the dashboard, and badges overdue invoices', async () => {
+    await boot('/calendar?view=day', coachUser, {
+      'GET /invoices': () => ({
+        data: [],
+        meta: { total: 7, page: 1, pageSize: 1, totalPages: 7, totalAmount: 0 },
+      }),
+      'GET /calendar': () => ({ from: '', to: '', days: [] }),
+    });
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(router.state.location.search).toContain('tab=calendar');
+    expect(router.state.location.search).toContain('view=day');
+    expect(await screen.findByRole('radio', { name: /Calendar/ }, { timeout: 5000 })).toBeChecked();
+    const tabbar = screen.getByRole('navigation', { name: 'Quick navigation' });
+    const unpaid = within(tabbar).getByRole('link', { name: /Unpaid/ });
+    expect(unpaid).toHaveAttribute('href', '/finance?tab=invoices&status=open');
+    await waitFor(() => expect(unpaid).toHaveTextContent('7'));
+  });
+
   it('opens every screen from the phone "More" sheet', async () => {
     await boot('/', adminUser);
     const user = userEvent.setup();
     const tabbar = await screen.findByRole('navigation', { name: 'Quick navigation' });
-    expect(tabbar).toHaveTextContent('Calendar');
+    expect(tabbar).toHaveTextContent('HomeUsersFinanceBatchesMore');
     await user.click(screen.getByRole('button', { name: 'More' }));
     const sheet = await screen.findByRole('dialog', { name: 'Menu' });
     const audit = Array.from(sheet.querySelectorAll('a')).find(

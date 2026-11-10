@@ -84,7 +84,8 @@ describe('cancelling a session (rain / holiday)', () => {
       'GET /attendance/overview': () => ({ date: '2026-03-09', sessions: [] }),
     });
     await renderPage(<TodayPage />, { user: coachUser });
-    expect(await screen.findByText(/Cancelled · Heavy rain/)).toBeInTheDocument();
+    expect(await screen.findByText('Heavy rain')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /check in/i })).not.toBeInTheDocument();
   });
 });

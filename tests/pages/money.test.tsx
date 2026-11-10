@@ -462,7 +462,8 @@ describe('Money dashboard', () => {
       route: '/money',
       user: coachUser,
     });
-    await user.click(await screen.findByRole('button', { name: /Pay payee/ }));
+    await user.click(await screen.findByRole('button', { name: 'Pay' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Pay payee/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Pay what is owed' });
     expect(dialog).toHaveTextContent('Cash you hold₹1,250');
     const payTo = within(dialog).getByRole('combobox', { name: /Pay to/ });
@@ -509,14 +510,17 @@ describe('Money dashboard', () => {
     expect(screen.getByText('Belongs to the academy')).toBeInTheDocument();
     expect(await screen.findByText('No money movements in this period')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Hand over cash/ }));
+    // One Pay menu: pay to the academy, a purchase, or a payee.
+    await user.click(screen.getByRole('button', { name: 'Pay' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Pay to academy/ }));
     let dialog = await screen.findByRole('dialog', { name: 'Cash handed over' });
     expect(within(dialog).getByText('Up to ₹1,250')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Record handover' }));
     await waitFor(() => expect(api.find('POST /funds/handovers')).toHaveLength(1));
     expect(api.find('POST /funds/handovers')[0]!.body).toMatchObject({ amount: 125_000 });
 
-    await user.click(screen.getByRole('button', { name: /Purchase/ }));
+    await user.click(screen.getByRole('button', { name: 'Pay' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Purchase/ }));
     dialog = await screen.findByRole('dialog', { name: 'Record a purchase' });
     await user.click(within(dialog).getByRole('button', { name: 'Record purchase' }));
     expect(api.find('POST /funds/expenses')).toHaveLength(0); // no amount yet

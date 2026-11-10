@@ -44,22 +44,6 @@ function routes() {
       students: [],
       summary: { total: 10, present: 6, late: 1, absent: 1, excused: 0, unmarked: 2 },
     }),
-    'GET /lessons/plans/day': () => ({
-      batch: { id: 'b1', name: 'Morning U-12' },
-      date: '2026-03-10',
-      isSessionDay: true,
-      plan: {
-        id: 'p1',
-        batchId: 'b1',
-        coachId: 'coach-1',
-        date: '2026-03-10',
-        notes: 'Bring cones',
-        updatedAt: 'x',
-        stages: [{ id: 's1', name: 'Warm-up', color: null }],
-        events: [{ id: 'e1', name: 'Footwork', description: null }],
-        cells: [{ eventId: 'e1', stageId: 's1', content: 'Ladder' }],
-      },
-    }),
     'GET /attendance/register': () => ({
       batch: { id: 'b1', name: 'Morning U-12' },
       dates: ['2026-03-03', '2026-03-05', '2026-03-10'],
@@ -79,19 +63,23 @@ function routes() {
         },
       ],
     }),
-    'GET /lessons/insights': () => ({
-      totals: {},
-      batches: [
-        {
-          id: 'b1',
-          sessions: 12,
-          planned: 10,
-          missed: 1,
-          streak: 3,
-          fillRate: 0.9,
-          next: { date: '2026-03-11', status: 'unplanned' },
-        },
-      ],
+    'GET /lessons/session': () => ({
+      batch: {
+        id: 'b1',
+        name: 'Morning U-12',
+        weekdays: [1, 2],
+        sessionMinutes: 120,
+        minutesByDay: {},
+      },
+      date: '2026-03-10',
+      minutes: 120,
+      lockedReason: null,
+      source: 'session',
+      focus: null,
+      note: 'Bring cones',
+      blocks: [{ name: 'Warm-up', color: null, minutes: 120, drills: [] }],
+      totalMinutes: 120,
+      canAdjust: true,
     }),
   };
 }
@@ -107,9 +95,8 @@ describe('CalendarPage', () => {
     await user.click(await screen.findByRole('button', { name: /Morning U-12/ }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('8/10')).toBeInTheDocument();
-    expect(await within(dialog).findByText('1/1')).toBeInTheDocument(); // plan grid filled
+    expect(await within(dialog).findByText('120 min')).toBeInTheDocument(); // the session plan
     expect(await within(dialog).findByText('67%')).toBeInTheDocument(); // 4 of 6 marks
-    expect(within(dialog).getByText('10/12')).toBeInTheDocument();
     expect(within(dialog).getByText('Ravi · 33%')).toBeInTheDocument();
     expect(within(dialog).getByText(/Bring cones/)).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: /open batch/i })).toHaveAttribute(

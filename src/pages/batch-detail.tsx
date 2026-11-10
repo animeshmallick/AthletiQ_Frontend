@@ -97,8 +97,8 @@ export function BatchDetailPage() {
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="gap-1 px-2.5">
-              <Link to={`/lesson-plans?batch=${b.id}`}>
-                <ClipboardList /> Plans
+              <Link to={`/lesson-plans?batch=${b.id}&plan=1`}>
+                <ClipboardList /> Lesson plan
               </Link>
             </Button>
             {isAdmin && (

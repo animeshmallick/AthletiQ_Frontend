@@ -60,6 +60,8 @@ export function BatchSelect({
   className?: string;
   allowAll?: boolean;
 }) {
+  // Coaches see only their own batches: the coach's name is noise for them.
+  const isAdmin = useAuth().user?.role === 'admin';
   if (loading) return <Skeleton className={cn('h-10 w-64', className)} />;
   return (
     <Select
@@ -75,7 +77,7 @@ export function BatchSelect({
           {b.name} · {timeLabel(b)}
           {b.substitution &&
             ` · Substitute till ${b.substitution.toDate.slice(8)}/${b.substitution.toDate.slice(5, 7)}`}
-          {b.coach && ` · ${b.coach.name}`}
+          {isAdmin && b.coach && ` · ${b.coach.name}`}
         </option>
       ))}
     </Select>

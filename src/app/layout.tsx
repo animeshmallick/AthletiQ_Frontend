@@ -9,14 +9,14 @@ import { useUser } from './auth';
 import { RoleChooser, useNeedsRoleChoice } from './role-switch';
 import { IosInstallBanner } from '@/components/notifications';
 import { checkForAppUpdate, isNativeApp, registerPush } from './native';
-import { matches, NAV_GROUPS, navFor, tabsFor, type NavItem } from './nav';
+import { activeItem, NAV_GROUPS, navFor, tabsFor, UNPAID_INVOICES, type NavItem } from './nav';
 import { preloadRoute, preloadWhenIdle } from './pages';
 import { PullToRefresh } from './pull-to-refresh';
 import { refreshWebPush } from './web-push';
 import { AppHeader, BrandMark } from './header';
 import { DeploymentsInfo } from './deployments';
 import { MoreSheet } from './more-sheet';
-import { useTasks } from '@/lib/queries';
+import { useInvoices, useTasks } from '@/lib/queries';
 import { startAppUpdate } from './app-update';
 
 function SidebarNav({
@@ -29,7 +29,8 @@ function SidebarNav({
   counts?: Record<string, number>;
 }) {
   const user = useUser();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const current = activeItem(items, pathname, search);
   return (
     <nav aria-label="Main" className="flex flex-col gap-5">
       {NAV_GROUPS.map(({ key, label: title }) => {
@@ -49,11 +50,10 @@ function SidebarNav({
                 to={item.to}
                 end={item.to === '/'}
                 onClick={onNavigate}
-                className={({ isActive }) =>
+                className={() =>
                   cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                    (isActive || matches(item, pathname)) &&
-                      'bg-sidebar-accent text-sidebar-foreground',
+                    current === item && 'bg-sidebar-accent text-sidebar-foreground',
                   )
                 }
               >
@@ -85,7 +85,12 @@ function AppShell() {
   const items = navFor(user.role);
   const tabs = tabsFor(user.role);
   const [moreOpen, setMoreOpen] = useState(false);
-  const counts = useTasks().data?.counts ?? {};
+  const taskCounts = useTasks().data?.counts;
+  // The coach's Unpaid tab badge: how many invoices are overdue.
+  const overdue =
+    useInvoices({ status: 'overdue', page: 1, pageSize: 1 }, user.role === 'coach').data?.meta
+      ?.total ?? 0;
+  const counts: Record<string, number> = { ...taskCounts, [UNPAID_INVOICES]: overdue };
   const tabPaths = new Set(tabs.map((t) => t.to));
   // "More" shows the total for screens that aren't tabs.
   const moreCount = items
@@ -95,7 +100,9 @@ function AppShell() {
   useNativeApp();
   const location = useLocation();
   // "More" lights up when the current screen isn't one of the tabs.
-  const onTab = tabs.some((t) => matches(t, location.pathname));
+  // One tab lights up: a tab with a query (Unpaid) wins over its plain screen (Finance).
+  const activeTab = activeItem(tabs, location.pathname, location.search);
+  const onTab = !!activeTab;
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
@@ -134,7 +141,7 @@ function AppShell() {
         <IosInstallBanner />
         <main
           id="main"
-          className="mx-auto w-full max-w-7xl flex-1 px-2.5 pt-2.5 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:px-4 sm:pt-4 lg:px-6 lg:pb-8"
+          className="mx-auto w-full max-w-7xl flex-1 px-1.25 pt-1.25 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:px-2 sm:pt-2 lg:px-3 lg:pb-8"
         >
           <Suspense fallback={<PageFallback />} key={location.pathname}>
             <div className="animate-page">
@@ -154,16 +161,12 @@ function AppShell() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
-              className={({ isActive }) => tabClass(isActive || matches(item, location.pathname))}
+              className={() => tabClass(activeTab === item)}
               aria-label={counts[item.to] ? `${item.label}, ${counts[item.to]} to do` : undefined}
             >
-              {({ isActive }) => (
+              {() => (
                 <>
-                  <TabIcon
-                    icon={item.icon}
-                    active={isActive || matches(item, location.pathname)}
-                    badge={counts[item.to]}
-                  />
+                  <TabIcon icon={item.icon} active={activeTab === item} badge={counts[item.to]} />
                   <span className="max-w-full truncate px-0.5">{item.short ?? item.label}</span>
                 </>
               )}

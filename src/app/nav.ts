@@ -1,6 +1,5 @@
 import {
   CalendarPlus,
-  CalendarDays,
   CalendarCheck2,
   ClipboardList,
   Cog,
@@ -9,6 +8,7 @@ import {
   LayoutGrid,
   MapPin,
   MessageSquareText,
+  ReceiptText,
   Repeat,
   ScrollText,
   ShieldCheck,
@@ -20,6 +20,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { Role } from '@/lib/types';
+
+export const UNPAID_INVOICES = '/finance?tab=invoices&status=open';
 
 export interface NavItem {
   to: string;
@@ -37,20 +39,15 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   {
+    // Today and the calendar, as two tabs.
     to: '/',
-    label: 'Today',
+    label: 'Dashboard',
+    short: 'Home',
     icon: Home,
     roles: ['coach', 'admin'],
     tabs: ['coach', 'admin'],
     group: 'main',
-  },
-  {
-    to: '/calendar',
-    label: 'Calendar',
-    icon: CalendarDays,
-    roles: ['coach', 'admin'],
-    tabs: ['coach', 'admin'],
-    group: 'main',
+    also: ['/calendar'],
   },
   {
     to: '/attendance',
@@ -105,6 +102,17 @@ export const NAV: NavItem[] = [
     also: ['/invoices', '/money'],
   },
   {
+    // Straight to the unpaid invoices; its badge counts the overdue ones.
+    to: UNPAID_INVOICES,
+    label: 'Unpaid invoices',
+    short: 'Unpaid',
+    // Coaches only (admins have Finance, and Batches as their fourth tab).
+    tabs: ['coach'],
+    icon: ReceiptText,
+    roles: ['coach'],
+    group: 'main',
+  },
+  {
     to: '/coach-sessions',
     label: 'Coach check-ins',
     short: 'Check-ins',
@@ -116,6 +124,7 @@ export const NAV: NavItem[] = [
   {
     to: '/batches',
     label: 'Batches',
+    tabs: ['admin'],
     icon: LayoutGrid,
     roles: ['coach', 'admin'],
     group: 'manage',
@@ -162,10 +171,34 @@ export function tabsFor(role: Role) {
   return NAV.filter((n) => n.tabs?.includes(role));
 }
 
-/** Is the user on this item's screen (or one of its related screens)? */
-export function matches(item: Pick<NavItem, 'to' | 'also'>, path: string) {
-  if (item.to === '/') return path === '/';
+/**
+ * Is the user on this item's screen (or one of its related screens)? An item with a query (like
+ * the unpaid invoices) matches only when the current search has those values too.
+ */
+export function matches(item: Pick<NavItem, 'to' | 'also'>, path: string, search = '') {
+  const [to = '', query] = item.to.split('?');
+  if (query) {
+    const want = new URLSearchParams(query);
+    const have = new URLSearchParams(search);
+    if (path !== to) return false;
+    for (const [k, v] of want)
+      if ((have.get(k) ?? (k === 'status' ? 'open' : '')) !== v) return false;
+    return true;
+  }
+  if (item.to === '/') return path === '/' || (item.also ?? []).includes(path);
   return [item.to, ...(item.also ?? [])].some((p) => path === p || path.startsWith(`${p}/`));
+}
+
+/** The one item to highlight: one with a query (Unpaid) wins over its plain screen (Finance). */
+export function activeItem<T extends Pick<NavItem, 'to' | 'also'>>(
+  items: T[],
+  path: string,
+  search = '',
+): T | undefined {
+  return (
+    items.find((t) => t.to.includes('?') && matches(t, path, search)) ??
+    items.find((t) => !t.to.includes('?') && matches(t, path))
+  );
 }
 
 /** Section titles, in order (Approvals reads as Requests for coaches). */

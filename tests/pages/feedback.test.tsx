@@ -143,7 +143,7 @@ describe('FeedbackPage (week board)', () => {
             coachId: 'c',
             feedbackId: 'f',
             status: 'submitted',
-            submittedAt: 'x',
+            submittedAt: '2026-03-14T10:00:00Z',
             writtenBy: 'Ravi',
           },
         ],
@@ -157,7 +157,7 @@ describe('FeedbackPage (week board)', () => {
     });
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
     expect(screen.queryByText('Bhavin Shah')).not.toBeInTheDocument();
-    expect(screen.getByText('1 of 2 sent')).toBeInTheDocument();
+    expect(screen.getAllByText(/2 sent/)[0]).toHaveTextContent('1/2 sent');
     await user.click(screen.getByRole('radio', { name: /sent/i }));
     expect(await screen.findByText('Bhavin Shah')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Bhavin Shah/ })).toHaveAttribute(

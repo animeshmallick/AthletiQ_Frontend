@@ -37,6 +37,8 @@ export const AcceptInvitePage = page(m1, 'AcceptInvitePage');
 export const ResetPasswordPage = page(m1, 'ResetPasswordPage');
 export const RegisterPage = page(m2, 'RegisterPage');
 export const TodayPage = page(m3, 'TodayPage');
+const dashboardModule = () => import('@/pages/dashboard');
+export const DashboardPage = page(dashboardModule, 'DashboardPage');
 export const AttendancePage = page(m4, 'AttendancePage');
 export const LessonPlansPage = page(m5, 'LessonPlansPage');
 export const FeedbackPage = page(m6, 'FeedbackPage');
@@ -69,7 +71,7 @@ export const ShareReportPage = page(shareModule, 'ShareReportPage');
 export const ShareInvoicePage = page(shareModule, 'ShareInvoicePage');
 
 const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
-  [/^\/$/, m3],
+  [/^\/$/, () => Promise.all([dashboardModule(), m3()])],
   [/^\/calendar$/, calendarModule],
   [/^\/attendance$/, m4],
   [/^\/lesson-plans$/, m5],

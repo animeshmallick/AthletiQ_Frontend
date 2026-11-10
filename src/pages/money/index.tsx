@@ -685,25 +685,32 @@ export function MoneyPage({ embedded = false }: { embedded?: boolean } = {}) {
       </DropdownMenuContent>
     </DropdownMenu>
   ) : (
-    <div className="flex gap-1.5">
-      <Button size={size} variant="outline" onClick={() => setOpen({ action: 'expense' })}>
-        <ShoppingBag /> Purchase
-      </Button>
-      <Button
-        size={size}
-        onClick={() =>
-          setOpen({ action: 'handover', prefill: { amount: mine?.cash || undefined } })
-        }
-        disabled={!mine?.cash}
-      >
-        <ArrowRightLeft /> {embedded ? 'Hand over' : 'Hand over cash'}
-      </Button>
-      {canPay && (
-        <Button size={size} variant="outline" onClick={() => setOpen({ action: 'payout' })}>
-          <HandCoins /> {embedded ? 'Pay' : 'Pay payee'}
+    // Coaches: one Pay menu (pay to the academy, a purchase, pay a payee).
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size={size}>
+          <HandCoins /> Pay <ChevronDown />
         </Button>
-      )}
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => setOpen({ action: 'expense' })}>
+          <ShoppingBag /> Purchase / expense
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!mine?.cash}
+          onSelect={() =>
+            setOpen({ action: 'handover', prefill: { amount: mine?.cash || undefined } })
+          }
+        >
+          <ArrowRightLeft /> Pay to academy
+        </DropdownMenuItem>
+        {canPay && (
+          <DropdownMenuItem onSelect={() => setOpen({ action: 'payout' })}>
+            <HandCoins /> Pay payee
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 
   return (
@@ -719,11 +726,12 @@ export function MoneyPage({ embedded = false }: { embedded?: boolean } = {}) {
           actions={actions}
         />
       )}
+      {/* Embedded (Finance → Money): the actions get their own row, so nothing overlaps the period. */}
       <FilterBar className="flex-wrap">
         <PeriodFilter value={preset} onChange={setPreset} options={FINANCE_PERIODS} />
         {q.isFetching && !q.isPending && <Badge variant="muted">Updating…</Badge>}
-        {/* Embedded (Finance → Money): the actions sit beside the period. */}
-        {embedded && <div className="ml-auto flex shrink-0 gap-1.5">{actions}</div>}
+        {/* Embedded (Finance → Money): one Record menu at the end of the same row. */}
+        {embedded && <div className="ml-auto shrink-0">{actions}</div>}
       </FilterBar>
       {q.isPending ? (
         <ListSkeleton rows={5} />

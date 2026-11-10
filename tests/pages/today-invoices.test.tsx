@@ -78,7 +78,7 @@ describe('TodayPage (coach)', () => {
 
     expect(await screen.findByText('Morning U-12')).toBeInTheDocument();
     expect(await screen.findByText('4/10 marked · 3 present')).toBeInTheDocument();
-    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(screen.getByText('Fill now')).toBeInTheDocument(); // a plan, not filled in for today yet
     expect(screen.getByText(/2 students still need last week’s report/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /check in/i }));
@@ -120,7 +120,8 @@ describe('TodayPage (coach)', () => {
       'title',
       'In since 6:01 am',
     );
-    expect(screen.getByText('Flagged')).toBeInTheDocument();
+    // Away from the venue: the floating check-in badge turns amber.
+    expect(screen.getByText(/In since 6:01 am/)).toHaveClass('text-warning-foreground');
   });
 
   it('shows a rest-day state', async () => {
@@ -550,23 +551,20 @@ describe('Today insights', () => {
     expect(screen.getByRole('heading', { name: 'My money' })).toBeInTheDocument();
   });
 
-  it('nudges a coach about upcoming sessions without a plan', async () => {
+  it('nudges a coach about batches without a ready lesson plan', async () => {
     mockApi({
-      'GET /lessons/insights': () => ({
-        totals: { upcomingUnplanned: 3 },
-        needsPlan: [
-          {
-            batchId: 'b1',
-            batchName: 'M',
-            startTime: '06:00:00',
-            date: '2026-03-11',
-            status: 'unplanned',
-          },
+      'GET /lessons/overview': () => ({
+        batches: [
+          { id: 'b1', name: 'M', attendanceOnly: false, status: 'none' },
+          { id: 'b2', name: 'E', attendanceOnly: false, status: 'needs-update' },
+          { id: 'b3', name: 'V', attendanceOnly: true, status: 'none' },
+          { id: 'b4', name: 'R', attendanceOnly: false, status: 'ready' },
         ],
       }),
     });
     await renderPage(<TodayPage />, { user: coachUser });
-    const link = await screen.findByRole('link', { name: /3 sessions without a lesson plan/ });
-    expect(link).toHaveAttribute('href', '/lesson-plans?batch=b1&date=2026-03-11');
+    const link = await screen.findByRole('link', { name: /2 batches without a ready lesson plan/ });
+    expect(link).toHaveTextContent('1 needs an update');
+    expect(link).toHaveAttribute('href', '/lesson-plans?batch=b1&plan=1');
   });
 });

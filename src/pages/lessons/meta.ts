@@ -1,81 +1,44 @@
-import { addDays, formatShortDate, isoWeekday, today, WEEKDAYS } from '@/lib/format';
+import { addDays, isoWeekday, WEEKDAYS } from '@/lib/format';
+import type { FloatTone } from '@/components/floating-badge';
 import type { PlanStatus } from '@/lib/types';
 
-export const STAGE_COLORS = [
+/** Block colours (warm-up green, ball drills amber, workout red, cool-down cyan…). */
+export const BLOCK_COLORS = [
   '#22c55e',
-  '#4f46e5',
   '#f59e0b',
   '#ef4444',
   '#06b6d4',
+  '#4f46e5',
   '#a855f7',
   '#64748b',
 ];
 
-/** How each plan state looks everywhere on the page (dot, chip and words). */
+/** Common blocks offered when adding one, with their usual colour. */
+export const BLOCK_SUGGESTIONS: { name: string; color: string }[] = [
+  { name: 'Warm-up', color: '#22c55e' },
+  { name: 'Agility drills', color: '#22c55e' },
+  { name: 'Ball drills', color: '#f59e0b' },
+  { name: 'Skill work', color: '#4f46e5' },
+  { name: 'Game play', color: '#a855f7' },
+  { name: 'Workout', color: '#ef4444' },
+  { name: 'Cool down', color: '#06b6d4' },
+];
+
+/** How each plan status looks on the overview. */
 export const STATUS_META: Record<
   PlanStatus,
-  {
-    label: string;
-    dot: string;
-    chip: string;
-    badge: 'success' | 'warning' | 'muted' | 'destructive';
-  }
+  { label: string; badge: 'success' | 'warning' | 'muted'; tone: FloatTone }
 > = {
-  complete: {
-    label: 'Planned',
-    dot: 'bg-success',
-    chip: 'border-success/30 bg-success/10',
-    badge: 'success',
-  },
-  partial: {
-    label: 'Partly planned',
-    dot: 'bg-warning',
-    chip: 'border-warning/40 bg-warning/12',
-    badge: 'warning',
-  },
-  empty: {
-    label: 'Grid empty',
-    dot: 'bg-warning/60',
-    chip: 'border-warning/30 bg-warning/8',
-    badge: 'warning',
-  },
-  unplanned: {
-    label: 'Not planned',
-    dot: 'bg-muted-foreground/40',
-    chip: 'border-dashed bg-card',
-    badge: 'muted',
-  },
+  ready: { label: 'Ready', badge: 'success', tone: 'success' },
+  'needs-update': { label: 'Needs update', badge: 'warning', tone: 'warning' },
+  none: { label: 'Not set up', badge: 'muted', tone: 'neutral' },
 };
 
-/** Anything filled in (a drill, the focus or notes) counts as planned; an empty plan is pending. */
-export function planStatus(info?: {
-  planId: string | null;
-  hasContent?: boolean;
-  filledCells: number;
-  totalCells: number;
-}): PlanStatus {
-  if (!info?.planId) return 'unplanned';
-  return (info.hasContent ?? info.filledCells > 0) ? 'complete' : 'unplanned';
-}
-
-export const pct = (n: number | null | undefined) =>
-  n === null || n === undefined ? '—' : `${Math.round(n * 100)}%`;
-
-export function daysAgo(date: string, now = today()): string {
-  const d = Math.round((Date.parse(now) - Date.parse(date)) / 864e5);
-  if (d <= 0) return 'today';
-  if (d === 1) return 'yesterday';
-  if (d < 14) return `${d} days ago`;
-  return `${Math.round(d / 7)} weeks ago`;
-}
-
-/** "today", "tomorrow", "yesterday", else "Thu 12 Nov". */
-export function whenLabel(date: string, now = today()): string {
-  if (date === now) return 'today';
-  if (date === addDays(now, 1)) return 'tomorrow';
-  if (date === addDays(now, -1)) return 'yesterday';
-  return `${WEEKDAYS[isoWeekday(date) - 1]?.short} ${formatShortDate(date)}`;
-}
+/** "Mon 60 min · Thu 90 min" for a batch whose days differ. */
+export const dayLengths = (byDay: Record<string, number>) =>
+  Object.entries(byDay)
+    .map(([d, m]) => `${WEEKDAYS[Number(d) - 1]?.short} ${m} min`)
+    .join(' · ');
 
 /**
  * The nearest day on or after (dir 1) / on or before (dir -1) `date` that the batch trains,

@@ -25,12 +25,11 @@ import type {
   FinanceSummary,
   Invoice,
   InvoiceDetail,
-  LessonInsights,
+  BatchPlanView,
+  PlanOverviewItem,
+  SessionPlanView,
   Substitution,
   SubstitutionInsights,
-  LessonPlan,
-  LibraryItem,
-  SavedPlan,
   Location,
   Registration,
   RosterEntry,
@@ -65,9 +64,8 @@ export const keys = {
   register: (q: Query) => ['attendance', 'register', q] as const,
   coachToday: ['coach-sessions', 'today'] as const,
   coachSessions: (q: Query) => ['coach-sessions', q] as const,
-  library: (kind: 'stages' | 'events', q?: Query) => ['lessons', kind, q ?? {}] as const,
-  planCalendar: (q: Query) => ['lessons', 'calendar', q] as const,
-  planDay: (batchId: string, date: string) => ['lessons', 'day', batchId, date] as const,
+  batchPlan: (batchId: string) => ['lessons', 'batch-plan', batchId] as const,
+  sessionPlan: (batchId: string, date: string) => ['lessons', 'session', batchId, date] as const,
   feedbackTemplate: ['feedback', 'template'] as const,
   feedbackWeek: (q: Query) => ['feedback', 'week', q] as const,
   feedbackReport: (studentId: string, weekStart: string) =>
@@ -574,205 +572,96 @@ export function useAdminCheckOut() {
 
 // ─── Lessons ─────────────────────────────────────────────────────────────────
 
-/** The coach's library: stages (timed blocks) or events (drills). Admins pass a batch. */
-export const useLibrary = (
-  kind: 'stages' | 'events',
-  q: { batchId?: string; includeArchived?: 'true' } = {},
-  enabled = true,
-) =>
+/** Blocks as the API takes them (no ids). */
+export type PlanBlocksBody = {
+  name: string;
+  color: string | null;
+  minutes: number;
+  drills: { name: string; minutes: number | null; reps: string | null; note: string | null }[];
+}[];
+
+export const usePlanOverview = () =>
   useQuery({
-    queryKey: keys.library(kind, q),
-    queryFn: () => api.get<LibraryItem[]>(`/lessons/${kind}`, q),
-    enabled,
+    queryKey: ['lessons', 'overview'] as const,
+    queryFn: () => api.get<{ batches: PlanOverviewItem[] }>('/lessons/overview'),
   });
 
-export function useSaveLibraryItem(kind: 'stages' | 'events') {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: ({
-      id,
-      ...body
-    }: {
-      id?: string;
-      batchId?: string;
-      name?: string;
-      description?: string | null;
-      color?: string | null;
-      durationMin?: number | null;
-      isArchived?: boolean;
-    }) =>
-      id
-        ? api.patch<LibraryItem>(`/lessons/${kind}/${id}`, body)
-        : api.post<LibraryItem>(`/lessons/${kind}`, body),
-    onSuccess: () => invalidate(['lessons', kind]),
-  });
-}
-
-export function useReorderLibrary(kind: 'stages' | 'events') {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: (body: { ids: string[] }) => api.put(`/lessons/${kind}/order`, body),
-    onSuccess: () => invalidate(['lessons', kind]),
-  });
-}
-
-export type GridBody = {
-  stageIds: string[];
-  eventIds: string[];
-  durations: Record<string, number>;
-  focus: string | null;
-  notes: string | null;
-  cells: { eventId: string; stageId: string; content: string }[];
-};
-
-export const useSavedPlans = (q: { batchId?: string } = {}, enabled = true) =>
+export const useBatchPlan = (batchId: string | undefined) =>
   useQuery({
-    queryKey: ['lessons', 'saved', q] as const,
-    queryFn: () => api.get<SavedPlan[]>('/lessons/saved', q),
-    enabled,
-  });
-
-export function useSaveSavedPlan() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: (
-      body: { name: string } & ({ from: { batchId: string; date: string } } | GridBody),
-    ) => api.post<SavedPlan>('/lessons/saved', body),
-    onSuccess: () => invalidate(['lessons', 'saved']),
-  });
-}
-
-export function useEditSavedPlan() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      api.patch(`/lessons/saved/${id}`, { name }),
-    onSuccess: () => invalidate(['lessons', 'saved']),
-  });
-}
-
-export function useDeleteSavedPlan() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: (id: string) => api.delete(`/lessons/saved/${id}`),
-    onSuccess: () => invalidate(['lessons', 'saved']),
-  });
-}
-
-export function useApplySavedPlan() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: ({
-      id,
-      ...body
-    }: {
-      id: string;
-      targets: { batchId: string; dates: string[] }[];
-      overwrite?: boolean;
-    }) =>
-      api.post<{
-        copied: { batchId: string; date: string }[];
-        skipped: { batchId: string; date: string }[];
-      }>(`/lessons/saved/${id}/apply`, body),
-    onSuccess: () => invalidate(['lessons']),
-  });
-}
-
-export interface PlanCalendar {
-  batch: { id: string; name: string; weekdays: number[] };
-  days: {
-    date: string;
-    isSessionDay: boolean;
-    cancelled: string | null;
-    planId: string | null;
-    /** Anything filled in: the session counts as planned. */
-    hasContent?: boolean;
-    focus?: string | null;
-    /** Blocks with at least one drill. */
-    filledCells: number;
-    /** Blocks in the plan. */
-    totalCells: number;
-  }[];
-}
-
-/** Query options for one batch's plan calendar (shared by the hook and multi-batch views). */
-export const planCalendarQuery = (q: { batchId?: string; from: string; to: string }) => ({
-  queryKey: keys.planCalendar(q),
-  queryFn: () => api.get<PlanCalendar>('/lessons/plans', q),
-  enabled: Boolean(q.batchId),
-  placeholderData: keepPreviousData,
-});
-
-export const usePlanCalendar = (q: { batchId?: string; from: string; to: string }) =>
-  useQuery(planCalendarQuery(q));
-
-export const useLessonInsights = (q: {
-  from: string;
-  to: string;
-  batchId?: string;
-  coachId?: string;
-}) =>
-  useQuery({
-    queryKey: ['lessons', 'insights', q] as const,
-    queryFn: () => api.get<LessonInsights>('/lessons/insights', q),
-    placeholderData: keepPreviousData,
-  });
-
-export const usePlanDay = (batchId: string | undefined, date: string) =>
-  useQuery({
-    queryKey: keys.planDay(batchId ?? '', date),
-    queryFn: () =>
-      api.get<{
-        batch: { id: string; name: string; startTime?: string; endTime?: string };
-        date: string;
-        isSessionDay: boolean;
-        cancelled?: string | null;
-        lockedReason?: string | null;
-        previousPlanDate?: string | null;
-        plan: LessonPlan | null;
-      }>('/lessons/plans/day', { batchId, date }),
+    queryKey: keys.batchPlan(batchId ?? ''),
+    queryFn: () => api.get<BatchPlanView>('/lessons/batch-plan', { batchId }),
     enabled: Boolean(batchId),
   });
 
-export function useSavePlan() {
+export function useSaveBatchPlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { batchId: string; date: string } & GridBody) =>
-      api.put<LessonPlan>('/lessons/plans/day', body),
-    onSuccess: (plan, v) => {
-      qc.setQueryData(
-        keys.planDay(v.batchId, v.date),
-        (old: { plan: LessonPlan | null } | undefined) => (old ? { ...old, plan } : old),
-      );
+    mutationFn: (body: {
+      batchId: string;
+      focus: string | null;
+      notes: string | null;
+      blocks: PlanBlocksBody;
+    }) => api.put<BatchPlanView>('/lessons/batch-plan', body),
+    onSuccess: (data, v) => {
+      qc.setQueryData(keys.batchPlan(v.batchId), data);
       return Promise.all([
-        qc.invalidateQueries({ queryKey: ['lessons', 'calendar'] }),
-        qc.invalidateQueries({ queryKey: ['lessons', 'insights'] }),
+        qc.invalidateQueries({ queryKey: ['lessons', 'overview'] }),
+        qc.invalidateQueries({ queryKey: ['lessons', 'session'] }),
         qc.invalidateQueries({ queryKey: ['attendance', 'overview'] }),
+        qc.invalidateQueries({ queryKey: ['me', 'tasks'] }),
       ]);
     },
   });
 }
 
-export function useDeletePlan() {
+export function useCopyBatchPlan() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (q: { batchId: string; date: string }) => api.delete('/lessons/plans/day', q),
-    onSuccess: (_d, v) =>
-      invalidate(keys.planDay(v.batchId, v.date), ['lessons', 'calendar'], ['lessons', 'insights']),
+    mutationFn: (body: { fromBatchId: string; toBatchIds: string[]; overwrite?: boolean }) =>
+      api.post<{ copied: string[]; skipped: { batchId: string; reason: string }[] }>(
+        '/lessons/batch-plan/copy',
+        body,
+      ),
+    onSuccess: () => invalidate(['lessons'], ['attendance', 'overview'], ['me', 'tasks']),
   });
 }
 
-export function useCopyPlan() {
+export const useSessionPlan = (batchId: string | undefined, date: string) =>
+  useQuery({
+    queryKey: keys.sessionPlan(batchId ?? '', date),
+    queryFn: () => api.get<SessionPlanView>('/lessons/session', { batchId, date }),
+    enabled: Boolean(batchId),
+    placeholderData: keepPreviousData,
+  });
+
+export function useSaveSessionPlan() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (body: {
       batchId: string;
-      fromDate: string;
-      toDates: string[];
-      overwrite?: boolean;
-      toBatchId?: string;
-    }) => api.post<{ copied: string[]; skipped: string[] }>('/lessons/plans/copy', body),
-    onSuccess: () => invalidate(['lessons']),
+      date: string;
+      note: string | null;
+      blocks: PlanBlocksBody;
+    }) => api.put('/lessons/session', body),
+    onSuccess: (_d, v) =>
+      invalidate(
+        keys.sessionPlan(v.batchId, v.date),
+        ['lessons', 'overview'],
+        ['attendance', 'overview'],
+      ),
+  });
+}
+
+export function useResetSessionPlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (q: { batchId: string; date: string }) => api.delete('/lessons/session', q),
+    onSuccess: (_d, v) =>
+      invalidate(
+        keys.sessionPlan(v.batchId, v.date),
+        ['lessons', 'overview'],
+        ['attendance', 'overview'],
+      ),
   });
 }
 
@@ -864,12 +753,13 @@ export const useFeedbackTrends = (studentId: string) =>
 
 // ─── Invoices & finance ──────────────────────────────────────────────────────
 
-export const useInvoices = (q: Query) =>
+export const useInvoices = (q: Query, enabled = true) =>
   useQuery({
     queryKey: keys.invoices(q),
     queryFn: ({ signal }) =>
       api.page<Invoice[], PageMeta & { totalAmount: number }>('/invoices', q, signal),
     placeholderData: keepPreviousData,
+    enabled,
   });
 
 export const useInvoice = (id: string | null) =>
@@ -1226,7 +1116,7 @@ export function useCancelSession() {
     mutationFn: ({ batchId, date, reason }: { batchId: string; date: string; reason: string }) =>
       api.post(`/batches/${batchId}/cancellations`, { date, reason }),
     onSuccess: () =>
-      invalidate(['attendance'], ['coach-sessions'], ['lessons', 'calendar'], ['feedback']),
+      invalidate(['attendance'], ['coach-sessions'], ['lessons', 'session'], ['feedback']),
   });
 }
 
@@ -1236,7 +1126,7 @@ export function useRestoreSession() {
     mutationFn: ({ batchId, date }: { batchId: string; date: string }) =>
       api.delete(`/batches/${batchId}/cancellations/${date}`),
     onSuccess: () =>
-      invalidate(['attendance'], ['coach-sessions'], ['lessons', 'calendar'], ['feedback']),
+      invalidate(['attendance'], ['coach-sessions'], ['lessons', 'session'], ['feedback']),
   });
 }
 

@@ -9,6 +9,11 @@ import { cn } from '@/lib/utils';
 
 const KNOB = 48; // px
 const PAD = 4; // px around the knob
+/** Room left at the end for the armed knob's slight scale-up, so it never pokes out. */
+const EDGE = 2; // px
+/** Springy only when snapping back to the start; a plain ease forward never overshoots the end. */
+const ease = (back: boolean) =>
+  back ? 'cubic-bezier(0.34, 1.32, 0.64, 1)' : 'cubic-bezier(0.2, 0, 0, 1)';
 /** How far (share of the track) counts as "at the end". */
 const DONE_AT = 0.92;
 
@@ -81,7 +86,7 @@ export function SlideToConfirm({
   function down(e: PointerEvent<HTMLButtonElement>) {
     if (disabled || done) return;
     const width = track.current?.clientWidth ?? 0;
-    setMax(Math.max(width - KNOB - PAD * 2, 1));
+    setMax(Math.max(width - KNOB - PAD * 2 - EDGE, 1));
     start.current = { x: e.clientX, pos };
     setDragging(true);
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -130,11 +135,9 @@ export function SlideToConfirm({
         aria-hidden
         className={cn('absolute inset-y-0 left-0 rounded-full', fill)}
         style={{
-          width: pos + KNOB + PAD * 2,
+          width: pos + KNOB + PAD * 2 + (pos >= max ? EDGE : 0),
           opacity: 0.18 + progress * 0.82,
-          transition: dragging
-            ? 'none'
-            : 'width 420ms cubic-bezier(0.34, 1.32, 0.64, 1), opacity 300ms',
+          transition: dragging ? 'none' : `width 420ms ${ease(pos === 0)}, opacity 300ms`,
         }}
       />
       {/* Label, with a shimmer inviting the slide; fades as the handle passes. */}
@@ -190,7 +193,7 @@ export function SlideToConfirm({
           width: KNOB,
           height: KNOB,
           transform: `translate3d(${pos}px, 0, 0)`,
-          transition: dragging ? 'none' : 'transform 420ms cubic-bezier(0.34, 1.32, 0.64, 1)',
+          transition: dragging ? 'none' : `transform 420ms ${ease(pos === 0)}`,
         }}
       >
         {done || armed ? (

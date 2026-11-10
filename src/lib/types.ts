@@ -391,6 +391,8 @@ export interface DayOverviewSession {
     name: string;
     startTime: string;
     endTime: string;
+    /** False for attendance-only batches. */
+    coachFeedback?: boolean;
     coach: { id: string; name: string };
     location: { id: string; name: string; latitude?: number; longitude?: number };
   };
@@ -399,6 +401,10 @@ export interface DayOverviewSession {
   present: number;
   attendanceComplete: boolean;
   hasLessonPlan: boolean;
+  /** The plan adds up to this session (false after a timing change). */
+  lessonPlanFits?: boolean;
+  /** The coach picked this session's drills. */
+  lessonPlanFilled?: boolean;
   coachSession: { checkInAt: string; checkOutAt: string | null; flagged: boolean } | null;
   cancelled: string | null;
   /** Substitute coach covering this session, if any. */
@@ -465,105 +471,85 @@ export interface SubstitutionInsights {
   byBatch: { id: string; name: string; sessions: number; substitutions: number }[];
 }
 
-/** A coach's library item: a stage (timed block) or an event (drill). */
-export interface LibraryItem {
-  id: string;
-  batchId: string | null;
-  coachId: string;
+/** A drill inside a block: optional minutes, reps and a note. */
+export interface PlanDrill {
+  id?: string;
   name: string;
-  description?: string | null;
-  color?: string | null;
-  /** Stages: default minutes. */
-  durationMin?: number | null;
-  sortOrder: number;
-  isArchived: boolean;
+  minutes: number | null;
+  reps: string | null;
+  note: string | null;
 }
 
-export interface PlanCell {
-  eventId: string;
-  stageId: string;
-  content: string;
+/** A timed block of a lesson plan (warm-up, ball drills…) with its drills. */
+export interface PlanBlock {
+  id?: string;
+  name: string;
+  color: string | null;
+  minutes: number;
+  drills: PlanDrill[];
 }
 
-/** A plan's content: blocks in order (with minutes), drills, focus and notes. */
-export interface PlanGrid {
+export interface PlanBatchInfo {
+  id: string;
+  name: string;
+  weekdays: number[];
+  /** The one session length, or null when the batch's days differ. */
+  sessionMinutes: number | null;
+  /** ISO weekday → minutes. */
+  minutesByDay: Record<string, number>;
+}
+
+/** A batch's lesson plan: every session follows it. */
+export interface BatchPlan {
   focus: string | null;
   notes: string | null;
-  durations: Record<string, number>;
-  totalMinutes: number;
-  stages: {
-    id: string;
-    name: string;
-    color: string | null;
-    durationMin: number | null;
-    /** Minutes for this session (falls back to the stage default). */
-    minutes: number | null;
-  }[];
-  events: { id: string; name: string; description: string | null }[];
-  cells: PlanCell[];
-}
-
-export interface LessonPlan extends PlanGrid {
-  id: string;
-  batchId: string;
-  coachId: string;
-  date: string;
   updatedAt: string;
+  updatedBy: { id: string; name: string } | null;
+  totalMinutes: number;
+  blocks: PlanBlock[];
 }
 
-/** A whole plan saved under a name, to apply to any session. */
-export interface SavedPlan extends PlanGrid {
+export interface BatchPlanView {
+  batch: PlanBatchInfo;
+  plan: BatchPlan | null;
+  /** Why the plan no longer fits the sessions (e.g. after a timing change). */
+  mismatch: string | null;
+  canEdit: boolean;
+}
+
+/** One day's plan: its own adjusted copy, else the batch plan. */
+export interface SessionPlanView {
+  batch: PlanBatchInfo;
+  date: string;
+  minutes: number;
+  lockedReason: string | null;
+  source: 'session' | 'batch' | 'none';
+  focus: string | null;
+  note: string | null;
+  blocks: PlanBlock[];
+  totalMinutes: number;
+  canAdjust: boolean;
+  /** Each block's drills in the batch plan, to pick from when filling in the day. */
+  drillOptions?: Record<string, PlanDrill[]>;
+}
+
+export type PlanStatus = 'none' | 'ready' | 'needs-update';
+
+export interface PlanOverviewItem {
   id: string;
   name: string;
-  updatedAt: string;
-}
-
-export type PlanStatus = 'complete' | 'partial' | 'empty' | 'unplanned';
-
-export interface LessonInsights {
-  from: string;
-  to: string;
-  today: string;
-  totals: {
-    sessions: number;
-    cancelled: number;
-    planned: number;
-    complete: number;
-    missed: number;
-    upcomingUnplanned: number;
-    plannedAhead: number;
-    fillRate: number | null;
-    avgEvents: number | null;
-    streak: number;
-  };
-  batches: {
-    id: string;
-    name: string;
-    startTime: string;
-    endTime: string;
-    dayTimes?: DayTimes;
-    weekdays: number[];
-    coach: { id: string; name: string };
-    location: { id: string; name: string };
-    sessions: number;
-    planned: number;
-    complete: number;
-    missed: number;
-    fillRate: number | null;
-    streak: number;
-    next: { date: string; status: PlanStatus; filled: number; total: number } | null;
-  }[];
-  needsPlan: {
-    batchId: string;
-    batchName: string;
-    startTime: string;
-    date: string;
-    status: Exclude<PlanStatus, 'complete'>;
-  }[];
-  weeks: { start: string; sessions: number; planned: number; complete: number }[];
-  events: { id: string; name: string; plans: number; cells: number; lastUsed: string }[];
-  stages: { id: string; name: string; color: string | null; plans: number; cells: number }[];
-  unusedEvents: { id: string; name: string; lastUsed: string | null }[] | null;
+  sport: string;
+  location: string;
+  coach: { id: string; name: string };
+  attendanceOnly: boolean;
+  sessionMinutes: number | null;
+  status: PlanStatus;
+  totalMinutes: number;
+  blocks: number;
+  drills: number;
+  /** Days adjusted in the last 30 days. */
+  adjustedDays: number;
+  updatedAt: string | null;
 }
 
 export interface FeedbackField {

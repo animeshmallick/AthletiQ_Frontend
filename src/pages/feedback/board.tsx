@@ -1,3 +1,7 @@
+/**
+ * Weekly feedback: every student's report for a week, grouped by batch. Swipe (or the arrows)
+ * to move between weeks; the newest is last week, since reports follow a finished week.
+ */
 import { PeriodStepper } from '@/components/date-nav';
 import {
   ChevronRight,
@@ -16,12 +20,13 @@ import {
   ListSkeleton,
   PageHeader,
   Progress,
-  SectionDivider,
 } from '@/components/common';
+import { SwipeDays } from '@/components/swipe-days';
 import { Segmented } from '@/components/ui/controls';
 import { Badge, Card } from '@/components/ui/primitives';
 import { addDays, formatShortDate, startOfWeek, today } from '@/lib/format';
 import { useFeedbackWeek, type FeedbackBoardItem } from '@/lib/queries';
+import { cn } from '@/lib/utils';
 
 const STATUS = {
   pending: { label: 'To do', variant: 'muted' as const, icon: CircleDashed },
@@ -35,11 +40,21 @@ export function FeedbackPage() {
   const lastWeek = startOfWeek(addDays(today(), -7));
   const weekStart = params.get('week') ?? lastWeek;
   const [filter, setFilter] = useState<'all' | 'open' | 'submitted'>('open');
+  const [direction, setDirection] = useState<1 | -1 | 0>(0);
   const board = useFeedbackWeek({ weekStart });
   const thisWeek = startOfWeek(today());
 
-  const setWeek = (w: string) => setParams({ week: w }, { replace: true });
-  const items = (board.data?.students ?? []).filter((s) =>
+  const setWeek = (w: string) => {
+    setDirection(w > weekStart ? 1 : -1);
+    setParams({ week: w }, { replace: true });
+  };
+  // Feedback is written once a week is over, so the newest week is last week.
+  const step = (n: 1 | -1) => {
+    if (n === 1 && weekStart >= lastWeek) return;
+    setWeek(addDays(weekStart, 7 * n));
+  };
+  const all = board.data?.students ?? [];
+  const items = all.filter((s) =>
     filter === 'all'
       ? true
       : filter === 'open'
@@ -51,10 +66,12 @@ export function FeedbackPage() {
     return acc;
   }, {});
   const sum = board.data?.summary;
+  const next = all.find((s) => s.status === 'draft') ?? all.find((s) => s.status === 'pending');
 
   return (
     <div>
       <PageHeader
+        className="mb-2 sm:mb-3"
         title="Weekly feedback"
         description={
           user.role === 'coach'
@@ -63,104 +80,143 @@ export function FeedbackPage() {
         }
       />
 
-      <Card className="mb-3 p-2 sm:p-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <PeriodStepper
-            className="sm:w-72"
-            label={`${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`}
-            sublabel={
-              weekStart === lastWeek ? 'Last week' : weekStart === thisWeek ? 'This week' : 'Week'
-            }
-            prevLabel="Previous week"
-            nextLabel="Next week"
-            onPrev={() => setWeek(addDays(weekStart, -7))}
-            onNext={() => setWeek(addDays(weekStart, 7))}
-            // Feedback is written once a week is over, so the newest week is last week.
-            nextDisabled={weekStart >= lastWeek}
-            onToday={weekStart !== lastWeek ? () => setWeek(lastWeek) : undefined}
-            todayLabel="Last week"
-          />
-          {sum && (
-            <div className="flex-1 sm:max-w-xs">
-              <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
-                <span>
-                  {sum.submitted} of {sum.total} sent
-                </span>
-                <span className="tabular">
-                  {sum.total ? Math.round((sum.submitted / sum.total) * 100) : 0}%
-                </span>
-              </div>
+      <Card className="mb-1.5 space-y-1 p-1">
+        <PeriodStepper
+          label={`${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`}
+          sublabel={
+            weekStart === lastWeek ? 'Last week' : weekStart === thisWeek ? 'This week' : 'Week'
+          }
+          prevLabel="Previous week"
+          nextLabel="Next week"
+          onPrev={() => step(-1)}
+          onNext={() => step(1)}
+          nextDisabled={weekStart >= lastWeek}
+          onToday={weekStart !== lastWeek ? () => setWeek(lastWeek) : undefined}
+          todayLabel="Last week"
+          className="shadow-none"
+        />
+        {sum && sum.total > 0 && (
+          <div className="flex items-center gap-2 px-1 pb-0.5">
+            <div className="min-w-0 flex-1">
               <Progress
                 label="Feedback sent"
-                value={sum.total ? (sum.submitted / sum.total) * 100 : 0}
+                value={(sum.submitted / sum.total) * 100}
                 tone={sum.submitted === sum.total ? 'success' : 'primary'}
               />
             </div>
-          )}
-        </div>
+            <span className="tabular shrink-0 text-[11px] text-muted-foreground">
+              <b className="font-semibold text-foreground">{sum.submitted}</b>/{sum.total} sent
+              {sum.draft > 0 && ` · ${sum.draft} draft${sum.draft === 1 ? '' : 's'}`}
+            </span>
+          </div>
+        )}
       </Card>
 
-      <Segmented
-        ariaLabel="Filter"
-        className="mb-4"
-        size="sm"
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { value: 'open', label: `To do${sum ? ` (${sum.pending + sum.draft})` : ''}` },
-          { value: 'submitted', label: `Sent${sum ? ` (${sum.submitted})` : ''}` },
-          { value: 'all', label: 'All' },
-        ]}
-      />
-
-      {board.isPending ? (
-        <ListSkeleton rows={6} />
-      ) : board.isError ? (
-        <ErrorState error={board.error} onRetry={() => void board.refetch()} />
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={<MessageSquareText />}
-          title={filter === 'open' && sum?.total ? 'All caught up!' : 'No students this week'}
-          description={
-            filter === 'open' && sum?.total
-              ? 'Every report for this week has been sent.'
-              : undefined
-          }
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <Segmented
+          ariaLabel="Filter"
+          size="sm"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'open', label: `To do${sum ? ` (${sum.pending + sum.draft})` : ''}` },
+            { value: 'submitted', label: `Sent${sum ? ` (${sum.submitted})` : ''}` },
+            { value: 'all', label: 'All' },
+          ]}
         />
-      ) : (
-        <div className="space-y-3 sm:space-y-4">
-          {Object.entries(byBatch).map(([batchName, rows]) => (
-            <section key={batchName}>
-              <SectionDivider className="mb-1.5">{batchName}</SectionDivider>
-              <Card className="divide-y">
-                {rows.map((s) => {
-                  const st = STATUS[s.status];
-                  return (
-                    <Link
-                      key={s.studentId}
-                      to={`/feedback/${s.studentId}/${weekStart}`}
-                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
+        {user.role === 'coach' && next && (
+          <Link
+            to={`/feedback/${next.studentId}/${weekStart}`}
+            className="ml-auto inline-flex h-8 min-w-0 items-center gap-1 rounded-lg bg-primary px-2.5 text-[12px] font-semibold text-primary-foreground shadow-e1 hover:bg-primary/92"
+          >
+            <PencilLine className="size-3.5 shrink-0" />
+            <span className="truncate">
+              {next.status === 'draft' ? 'Continue' : 'Next'}: {next.fullName.split(' ')[0]}
+            </span>
+          </Link>
+        )}
+      </div>
+
+      <SwipeDays
+        dayKey={weekStart}
+        direction={direction}
+        onStep={step}
+        prevLabel="Previous week"
+        nextLabel={weekStart >= lastWeek ? 'Latest week' : 'Next week'}
+      >
+        {board.isPending ? (
+          <ListSkeleton rows={6} />
+        ) : board.isError ? (
+          <ErrorState error={board.error} onRetry={() => void board.refetch()} />
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={<MessageSquareText />}
+            title={filter === 'open' && sum?.total ? 'All caught up!' : 'No students this week'}
+            description={
+              filter === 'open' && sum?.total
+                ? 'Every report for this week has been sent.'
+                : undefined
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-1.5 lg:grid-cols-2">
+            {Object.entries(byBatch).map(([batchName, rows]) => {
+              const inBatch = all.filter((x) => x.batchName === batchName);
+              const sent = inBatch.filter((x) => x.status === 'submitted').length;
+              return (
+                <section
+                  key={batchName}
+                  className="overflow-hidden rounded-xl border bg-card shadow-e1"
+                >
+                  <header className="flex items-center gap-2 border-b bg-muted/30 px-2 py-1">
+                    <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                      {batchName}
+                    </h2>
+                    <span
+                      className={cn(
+                        'tabular shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold',
+                        sent === inBatch.length
+                          ? 'bg-success/12 text-success'
+                          : 'bg-primary/10 text-primary',
+                      )}
                     >
-                      <Avatar name={s.fullName} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{s.fullName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {s.code}
-                          {s.writtenBy && user.role === 'admin' && ` · by ${s.writtenBy}`}
-                        </p>
-                      </div>
-                      <Badge variant={st.variant}>
-                        <st.icon /> {st.label}
-                      </Badge>
-                      <ChevronRight className="size-4 text-muted-foreground" />
-                    </Link>
-                  );
-                })}
-              </Card>
-            </section>
-          ))}
-        </div>
-      )}
+                      {sent}/{inBatch.length} sent
+                    </span>
+                  </header>
+                  <ul className="divide-y">
+                    {rows.map((s) => {
+                      const st = STATUS[s.status];
+                      return (
+                        <li key={s.studentId}>
+                          <Link
+                            to={`/feedback/${s.studentId}/${weekStart}`}
+                            className="flex items-center gap-2 px-1.5 py-1 transition-colors hover:bg-muted/50"
+                          >
+                            <Avatar name={s.fullName} className="size-7 text-[10px]" />
+                            <div className="min-w-0 flex-1 leading-tight">
+                              <p className="truncate text-[13px] font-medium">{s.fullName}</p>
+                              <p className="truncate text-[11px] text-muted-foreground">
+                                {s.code}
+                                {s.writtenBy && user.role === 'admin' && ` · by ${s.writtenBy}`}
+                                {s.submittedAt &&
+                                  ` · sent ${formatShortDate(s.submittedAt.slice(0, 10))}`}
+                              </p>
+                            </div>
+                            <Badge variant={st.variant} className="px-1.5 text-[10px]">
+                              <st.icon /> {st.label}
+                            </Badge>
+                            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </SwipeDays>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { Accordion } from 'radix-ui';
+import { Floating, FloatBadge } from '@/components/floating-badge';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CalendarCheck2,
@@ -542,142 +543,147 @@ function BatchCard({
   const fill = b.capacity ? Math.min(100, (b.memberCount / b.capacity) * 100) : null;
   const full = b.capacity !== null && b.memberCount >= b.capacity;
   return (
-    <Card
-      className={cn(
-        'relative overflow-hidden p-0 transition-shadow hover:shadow-e2',
-        !b.isActive && 'opacity-60',
-      )}
+    <Floating
+      className="h-full"
+      badges={[
+        status === 'live' ? (
+          <FloatBadge key="live" tone="on-air">
+            Live
+          </FloatBadge>
+        ) : status === 'today' ? (
+          <FloatBadge key="today" tone="primary">
+            Today
+          </FloatBadge>
+        ) : null,
+        !b.isActive ? (
+          <FloatBadge key="off" tone="muted">
+            Inactive
+          </FloatBadge>
+        ) : null,
+      ]}
     >
-      <Link to={`/batches/${b.id}`} className="flex gap-3 p-3 pr-11">
-        {/* Start time block */}
-        <span
-          className={cn(
-            'flex w-14 shrink-0 flex-col items-center justify-center rounded-xl py-1.5 text-center',
-            status === 'live' ? 'bg-success/12 text-success' : 'bg-primary/10 text-primary',
-          )}
-        >
-          <span className="tabular text-[15px] leading-none font-bold">{hm}</span>
-          <span className="mt-0.5 text-[10px] font-semibold uppercase">{suffix}</span>
-          <span className="mt-1 text-[10px] text-current/70">
-            {formatDuration(toMin(t.endTime) - toMin(t.startTime))}
+      <Card
+        className={cn(
+          'relative h-full overflow-hidden p-0 transition-shadow hover:shadow-e2',
+          !b.isActive && 'opacity-60',
+        )}
+      >
+        <Link to={`/batches/${b.id}`} className="flex gap-3 p-3 pr-11">
+          {/* Start time block */}
+          <span
+            className={cn(
+              'flex w-14 shrink-0 flex-col items-center justify-center rounded-xl py-1.5 text-center',
+              status === 'live' ? 'bg-success/12 text-success' : 'bg-primary/10 text-primary',
+            )}
+          >
+            <span className="tabular text-[15px] leading-none font-bold">{hm}</span>
+            <span className="mt-0.5 text-[10px] font-semibold uppercase">{suffix}</span>
+            <span className="mt-1 text-[10px] text-current/70">
+              {formatDuration(toMin(t.endTime) - toMin(t.startTime))}
+            </span>
           </span>
-        </span>
 
-        <span className="min-w-0 flex-1 space-y-1.5">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[15px] font-semibold">{b.name}</span>
-            {status === 'live' && (
-              <Badge variant="success" className="shrink-0">
-                <span className="size-1.5 animate-pulse rounded-full bg-current" /> Live
-              </Badge>
-            )}
-            {status === 'today' && (
-              <Badge variant="muted" className="shrink-0">
-                Today
-              </Badge>
-            )}
-            {!b.isActive && (
-              <Badge variant="muted" className="shrink-0">
-                Inactive
-              </Badge>
-            )}
-            {b.coachFeedback === false && (
-              <Badge
-                variant="muted"
-                className="shrink-0"
-                title="No coach feedback: attendance only"
-              >
-                Attendance only
-              </Badge>
-            )}
-          </span>
-          <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
-            {isAdmin && (
-              <>
-                <Avatar name={b.coach.name} className="size-4 text-[7px]" />
-                <span className="max-w-[45%] truncate">{b.coach.name}</span>
-                <span aria-hidden>·</span>
-              </>
-            )}
-            <MapPin className="size-3 shrink-0" />
-            <span className="truncate">{b.location.name}</span>
-          </span>
-          <DayDots days={b.weekdays} compact />
-          {vary && (
-            <span className="block truncate text-[11px] text-muted-foreground">
-              {/* The time block shows the usual time; list the days that differ. */}
-              {scheduleGroups(b)
-                .filter((g) => g.time !== formatTimeRange(b.startTime, b.endTime))
-                .map((g) => `${g.days.map((d) => WEEKDAYS[d - 1]!.short).join(', ')} ${g.time}`)
-                .join(' · ')}
+          <span className="min-w-0 flex-1 space-y-1.5">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-[15px] font-semibold">{b.name}</span>
+              {b.coachFeedback === false && (
+                <Badge
+                  variant="muted"
+                  className="shrink-0"
+                  title="No coach feedback: attendance only"
+                >
+                  Attendance only
+                </Badge>
+              )}
             </span>
-          )}
-          <span className="flex items-center gap-2 pt-0.5 text-[11px] text-muted-foreground">
-            <span className="inline-flex shrink-0 items-center gap-1">
-              <Users className="size-3" />
-              <b
-                className={cn(
-                  'tabular text-foreground',
-                  full && 'text-warning-foreground dark:text-warning',
-                )}
-              >
-                {b.memberCount}
-                {b.capacity ? `/${b.capacity}` : ''}
-              </b>
-              {b.capacity
-                ? full
-                  ? 'full'
-                  : 'seats'
-                : plural(b.memberCount, 'student').replace(/^\d+ /, '')}
+            <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
+              {isAdmin && (
+                <>
+                  <Avatar name={b.coach.name} className="size-4 text-[7px]" />
+                  <span className="max-w-[45%] truncate">{b.coach.name}</span>
+                  <span aria-hidden>·</span>
+                </>
+              )}
+              <MapPin className="size-3 shrink-0" />
+              <span className="truncate">{b.location.name}</span>
             </span>
-            {fill !== null && (
-              <span
-                className="h-1 min-w-8 flex-1 overflow-hidden rounded-full bg-muted"
-                aria-hidden
-              >
-                <span
-                  className={cn('block h-full rounded-full', full ? 'bg-warning' : 'bg-primary')}
-                  style={{ width: `${fill}%` }}
-                />
+            <DayDots days={b.weekdays} compact />
+            {vary && (
+              <span className="block truncate text-[11px] text-muted-foreground">
+                {/* The time block shows the usual time; list the days that differ. */}
+                {scheduleGroups(b)
+                  .filter((g) => g.time !== formatTimeRange(b.startTime, b.endTime))
+                  .map((g) => `${g.days.map((d) => WEEKDAYS[d - 1]!.short).join(', ')} ${g.time}`)
+                  .join(' · ')}
               </span>
             )}
-            {attendanceRate !== undefined && (
-              <span
-                className="inline-flex shrink-0 items-center gap-1"
-                title="Attendance, last 30 days"
-              >
-                <CalendarCheck2 className="size-3" />
+            <span className="flex items-center gap-2 pt-0.5 text-[11px] text-muted-foreground">
+              <span className="inline-flex shrink-0 items-center gap-1">
+                <Users className="size-3" />
                 <b
                   className={cn(
-                    'tabular',
-                    attendanceRate === null
-                      ? 'text-muted-foreground'
-                      : attendanceRate >= 80
-                        ? 'text-success'
-                        : attendanceRate >= 60
-                          ? 'text-warning-foreground dark:text-warning'
-                          : 'text-destructive',
+                    'tabular text-foreground',
+                    full && 'text-warning-foreground dark:text-warning',
                   )}
                 >
-                  {attendanceRate === null ? '—' : `${attendanceRate}%`}
+                  {b.memberCount}
+                  {b.capacity ? `/${b.capacity}` : ''}
                 </b>
+                {b.capacity
+                  ? full
+                    ? 'full'
+                    : 'seats'
+                  : plural(b.memberCount, 'student').replace(/^\d+ /, '')}
               </span>
-            )}
+              {fill !== null && (
+                <span
+                  className="h-1 min-w-8 flex-1 overflow-hidden rounded-full bg-muted"
+                  aria-hidden
+                >
+                  <span
+                    className={cn('block h-full rounded-full', full ? 'bg-warning' : 'bg-primary')}
+                    style={{ width: `${fill}%` }}
+                  />
+                </span>
+              )}
+              {attendanceRate !== undefined && (
+                <span
+                  className="inline-flex shrink-0 items-center gap-1"
+                  title="Attendance, last 30 days"
+                >
+                  <CalendarCheck2 className="size-3" />
+                  <b
+                    className={cn(
+                      'tabular',
+                      attendanceRate === null
+                        ? 'text-muted-foreground'
+                        : attendanceRate >= 80
+                          ? 'text-success'
+                          : attendanceRate >= 60
+                            ? 'text-warning-foreground dark:text-warning'
+                            : 'text-destructive',
+                    )}
+                  >
+                    {attendanceRate === null ? '—' : `${attendanceRate}%`}
+                  </b>
+                </span>
+              )}
+            </span>
           </span>
-        </span>
-      </Link>
-      {isAdmin && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 size-8 text-muted-foreground"
-          onClick={onEdit}
-          aria-label={`Edit ${b.name}`}
-        >
-          <Pencil className="size-4" />
-        </Button>
-      )}
-    </Card>
+        </Link>
+        {isAdmin && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2 size-8 text-muted-foreground"
+            onClick={onEdit}
+            aria-label={`Edit ${b.name}`}
+          >
+            <Pencil className="size-4" />
+          </Button>
+        )}
+      </Card>
+    </Floating>
   );
 }
 

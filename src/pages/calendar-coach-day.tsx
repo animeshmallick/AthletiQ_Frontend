@@ -4,6 +4,7 @@
  * place). Each session is a compact tile with a status badge, attendance and plan status, and
  * check-in / out for today; tapping it lists who is expected (makeups marked).
  */
+import { FloatBadge, type FloatTone } from '@/components/floating-badge';
 import {
   CalendarDays,
   Car,
@@ -38,15 +39,15 @@ import { CheckInButton } from './today';
 
 type State = 'live' | 'next' | 'upcoming' | 'done' | 'cancelled' | 'past' | 'future';
 
-const STATE: Record<State, { label: string; className: string }> = {
-  // Broadcast-style red for what is happening now; green stays reserved for the check-in action.
-  live: { label: 'Live', className: 'bg-rose-600 text-white' },
-  next: { label: 'Next', className: 'bg-primary text-primary-foreground' },
-  upcoming: { label: 'Later', className: 'border bg-card text-muted-foreground' },
-  done: { label: 'Done', className: 'border bg-card text-muted-foreground' },
-  cancelled: { label: 'Cancelled', className: 'bg-zinc-500 text-white dark:bg-zinc-600' },
-  past: { label: 'Past', className: 'border bg-card text-muted-foreground' },
-  future: { label: 'Scheduled', className: 'border bg-card text-muted-foreground' },
+const STATE: Record<State, { label: string; tone: FloatTone }> = {
+  // Broadcast-style red for what is happening now; green stays reserved for check-ins.
+  live: { label: 'Live', tone: 'on-air' },
+  next: { label: 'Next', tone: 'primary' },
+  upcoming: { label: 'Later', tone: 'neutral' },
+  done: { label: 'Done', tone: 'neutral' },
+  cancelled: { label: 'Cancelled', tone: 'muted' },
+  past: { label: 'Past', tone: 'neutral' },
+  future: { label: 'Scheduled', tone: 'neutral' },
 };
 
 const gapLabel = (mins: number) =>
@@ -312,21 +313,21 @@ function SessionTile({
           {s.batch.coach.name} · {s.batch.location.name}
         </p>
       )}
-      {/* Status floats on the card's top corner. */}
-      <span
-        className={cn(
-          'absolute -top-2 right-2 inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-bold tracking-wide uppercase shadow-e1 ring-2 ring-background',
-          st.className,
+      {/* Status (and check-in times) float on the card's top edge. */}
+      <div className="absolute -top-2.5 right-2 z-10 flex items-center gap-1">
+        {s.coachSession && !s.cancelled && (
+          <FloatBadge
+            tone={
+              s.coachSession.flagged ? 'warning' : s.coachSession.checkOutAt ? 'success' : 'live'
+            }
+            icon={s.coachSession.checkOutAt ? <CheckCircle2 /> : undefined}
+          >
+            {formatClock(s.coachSession.checkInAt)}
+            {s.coachSession.checkOutAt ? ` – ${formatClock(s.coachSession.checkOutAt)}` : ''}
+          </FloatBadge>
         )}
-      >
-        {state === 'live' && (
-          <span className="relative flex size-1.5">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/80" />
-            <span className="relative inline-flex size-1.5 rounded-full bg-white" />
-          </span>
-        )}
-        {st.label}
-      </span>
+        <FloatBadge tone={STATE[state].tone}>{st.label}</FloatBadge>
+      </div>
       {s.cancelled ? (
         <Badge variant="muted" className="mt-1">
           <CloudRain /> {s.cancelled}
@@ -351,20 +352,15 @@ function SessionTile({
               <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'Add plan'}
             </Badge>
           </Link>
-          {s.coachSession ? (
-            <Badge variant={s.coachSession.flagged ? 'warning' : 'success'}>
-              <CheckCircle2 /> {formatClock(s.coachSession.checkInAt)}
-              {s.coachSession.checkOutAt ? `–${formatClock(s.coachSession.checkOutAt)}` : ''}
-            </Badge>
-          ) : (
-            (!isToday || (isAdmin && state !== 'next' && state !== 'upcoming')) && (
-              <Badge
-                variant={isAdmin && (state === 'live' || state === 'done') ? 'warning' : 'muted'}
-              >
-                No check-in
-              </Badge>
-            )
-          )}
+          {s.coachSession
+            ? null
+            : (!isToday || (isAdmin && state !== 'next' && state !== 'upcoming')) && (
+                <Badge
+                  variant={isAdmin && (state === 'live' || state === 'done') ? 'warning' : 'muted'}
+                >
+                  No check-in
+                </Badge>
+              )}
           {isToday &&
             todayItem &&
             !todayItem.session?.checkOutAt &&

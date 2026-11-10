@@ -10,7 +10,7 @@ import {
   AcceptInvitePage,
   ResetPasswordPage,
   RegisterPage,
-  TodayPage,
+  DashboardPage,
   AttendancePage,
   LessonPlansPage,
   FeedbackPage,
@@ -35,7 +35,6 @@ import {
   SubstitutionsPage,
   PeoplePage,
   PayeesPage,
-  CalendarPage,
   MakeupsPage,
 } from './pages';
 
@@ -51,6 +50,13 @@ function FullScreenLoader() {
  * Old addresses (bookmarks, notifications, links in older app builds) open the matching tab of
  * the Finance screen, keeping filters and the open invoice.
  */
+function ToDashboard({ tab }: { tab: 'calendar' }) {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('tab', tab);
+  return <Navigate to={`/?${params.toString()}`} replace />;
+}
+
 function ToFinance({ tab }: { tab: 'invoices' | 'money' }) {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
@@ -168,8 +174,9 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [
-          { index: true, element: <TodayPage /> },
-          { path: 'calendar', element: <CalendarPage /> },
+          { index: true, element: <DashboardPage /> },
+          // The calendar is a tab of the dashboard now.
+          { path: 'calendar', element: <ToDashboard tab="calendar" /> },
           { path: 'attendance', element: <AttendancePage /> },
           { path: 'lesson-plans', element: <LessonPlansPage /> },
           { path: 'feedback', element: <FeedbackPage /> },

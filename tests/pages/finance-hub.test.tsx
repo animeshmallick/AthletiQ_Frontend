@@ -86,7 +86,7 @@ describe('Finance screen', () => {
 
     await user.click(screen.getByRole('radio', { name: /money/i }));
     await waitFor(() => expect(api.find('GET /funds/overview').length).toBeGreaterThan(0));
-    expect(screen.getByRole('button', { name: /purchase/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pay' })).toBeInTheDocument(); // the coach's Pay menu
 
     await user.click(screen.getByRole('radio', { name: /invoices/i }));
     await waitFor(() => expect(api.find('GET /invoices').length).toBeGreaterThan(0));

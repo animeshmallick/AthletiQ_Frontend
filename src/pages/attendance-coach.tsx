@@ -3,6 +3,7 @@
  * is "everyone's here, tap the exceptions": every tap saves at once with an undo, and each
  * student shows their last few sessions so patterns are easy to spot.
  */
+import { FloatBadge } from '@/components/floating-badge';
 import {
   CalendarDays,
   CheckCheck,
@@ -306,15 +307,9 @@ function SessionCards({
               )}
             >
               {(live || s.cancelled) && (
-                <span
-                  className={cn(
-                    'absolute -top-2 right-2 inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-bold tracking-wide uppercase shadow-e1 ring-2 ring-background',
-                    live ? 'bg-rose-600 text-white' : 'bg-zinc-500 text-white',
-                  )}
-                >
-                  {live && <span className="size-1.5 animate-pulse rounded-full bg-white" />}
+                <FloatBadge tone={live ? 'on-air' : 'muted'} className="absolute -top-2.5 right-2">
                   {live ? 'Live' : 'Cancelled'}
-                </span>
+                </FloatBadge>
               )}
               <span
                 className={cn(

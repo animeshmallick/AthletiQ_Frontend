@@ -25,28 +25,15 @@ import {
   addDays,
   coachTimes,
   formatLongDate,
-  formatShortDate,
   formatTimeRange,
   plural,
   relativeDay,
   weekdaysLabel,
 } from '@/lib/format';
-import {
-  useAttendanceSheet,
-  useBatch,
-  useLessonInsights,
-  usePlanDay,
-  useRegister,
-} from '@/lib/queries';
+import { useAttendanceSheet, useBatch, useSessionPlan, useRegister } from '@/lib/queries';
 import type { AttendanceStatus, DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { batchTone, liveStatus } from './calendar-meta';
-
-/** "today" / "tomorrow" / "yesterday", else "12 Nov". */
-const nearLabel = (d: string, now: string) => {
-  const r = relativeDay(d, now);
-  return ['Today', 'Tomorrow', 'Yesterday'].includes(r) ? r.toLowerCase() : formatShortDate(d);
-};
 
 const STATUSES: AttendanceStatus[] = ['present', 'late', 'absent', 'excused'];
 const BAR: Record<AttendanceStatus, string> = {
@@ -155,16 +142,13 @@ function Body({
   const past = date <= todayDate;
   const batch = useBatch(id);
   const sheet = useAttendanceSheet(past && !s.cancelled ? id : undefined, date);
-  const day = usePlanDay(id, date);
+  const day = useSessionPlan(id, date);
   const trend = useAttendanceTrend(id, date);
-  const plans = useLessonInsights({ batchId: id, from: addDays(date, -27), to: date });
   const live = liveStatus(s.batch.startTime, s.batch.endTime, now, date === todayDate);
 
   const sum = sheet.data?.summary;
-  const plan = day.data?.plan;
-  const filled = plan?.cells.length ?? 0;
-  const grid = plan ? plan.stages.length * plan.events.length : 0;
-  const pb = plans.data?.batches[0];
+  const plan = day.data && day.data.source !== 'none' ? day.data : undefined;
+  const fits = plan ? plan.totalMinutes === plan.minutes : false;
   const rel = relativeDay(date, todayDate);
 
   return (
@@ -223,13 +207,9 @@ function Body({
             <Tile
               icon={<ClipboardList />}
               label="Lesson plan"
-              value={day.isPending ? '…' : plan ? `${filled}/${grid}` : 'None'}
-              hint={
-                plan
-                  ? plan.stages.map((st) => st.name).join(' · ') || 'Empty grid'
-                  : 'Not planned yet'
-              }
-              tone={plan ? (grid && filled >= grid ? 'success' : 'warning') : 'muted'}
+              value={day.isPending ? '…' : plan ? `${plan.totalMinutes} min` : 'None'}
+              hint={plan ? plan.blocks.map((b) => b.name).join(' · ') : 'Not planned yet'}
+              tone={plan ? (fits ? 'success' : 'warning') : 'muted'}
             />
           </div>
           {sum && sum.total > 0 && (
@@ -266,9 +246,9 @@ function Body({
               </ul>
             </div>
           )}
-          {plan?.notes && (
+          {plan?.note && (
             <p className="rounded-lg bg-muted/50 px-2.5 py-1.5 text-[12px] text-muted-foreground">
-              <b className="font-medium text-foreground">Plan notes:</b> {plan.notes}
+              <b className="font-medium text-foreground">Session note:</b> {plan.note}
             </p>
           )}
         </section>
@@ -276,7 +256,7 @@ function Body({
 
       <section aria-label="Last 4 weeks" className="space-y-1.5">
         <SectionDivider as="h3">Last 4 weeks</SectionDivider>
-        {trend.loading || plans.isPending ? (
+        {trend.loading ? (
           <Skeleton className="h-16 rounded-xl" />
         ) : (
           <div className="grid grid-cols-3 gap-1">
@@ -296,23 +276,6 @@ function Body({
                     ? 'success'
                     : 'warning'
               }
-            />
-            <Tile
-              icon={<ClipboardList />}
-              label="Planned"
-              value={pb ? `${pb.planned}/${pb.sessions}` : '—'}
-              hint={pb ? `${pb.missed} missed · streak ${pb.streak}` : undefined}
-              tone={pb && pb.sessions ? (pb.missed ? 'warning' : 'success') : 'muted'}
-            />
-            <Tile
-              icon={<LayoutGrid />}
-              label="Grid filled"
-              value={
-                pb?.fillRate === null || pb?.fillRate === undefined
-                  ? '—'
-                  : `${Math.round(pb.fillRate * 100)}%`
-              }
-              hint={pb?.next ? `Next ${nearLabel(pb.next.date, todayDate)}` : undefined}
             />
           </div>
         )}
