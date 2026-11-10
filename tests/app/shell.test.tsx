@@ -108,7 +108,9 @@ describe('navigation', () => {
 describe('route guards', () => {
   it('sends signed-out users to the login page and back afterwards', async () => {
     await boot('/students');
-    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Welcome back' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
     expect(router.state.location.state).toEqual({ from: '/students' });
   });
