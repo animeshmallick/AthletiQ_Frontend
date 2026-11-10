@@ -1,7 +1,20 @@
-import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Copy, Plus } from 'lucide-react';
+/**
+ * The coach's planning library, shared by all their batches: blocks (timed parts of a session),
+ * drills, and whole plans saved under a name.
+ */
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowDown,
+  ArrowUp,
+  BookmarkPlus,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { ListSkeleton } from '@/components/common';
+import { ConfirmDialog, ListSkeleton } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/controls';
 import {
@@ -15,88 +28,121 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/overlays';
-import { Input, Select } from '@/components/ui/primitives';
+import { Input } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { useCopyTemplate, useLibrary, useReorderLibrary, useSaveLibraryItem } from '@/lib/queries';
-import type { Batch } from '@/lib/types';
+import {
+  useDeleteSavedPlan,
+  useEditSavedPlan,
+  useLibrary,
+  useReorderLibrary,
+  useSaveLibraryItem,
+  useSavedPlans,
+} from '@/lib/queries';
+import type { LibraryItem, SavedPlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { STAGE_COLORS } from './meta';
-import { timeLabel } from '@/lib/batch-times';
 
-function LibraryList({ kind, batchId }: { kind: 'stages' | 'events'; batchId: string }) {
-  const list = useLibrary(kind, { batchId, includeArchived: 'true' });
+function ColorPick({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Block colour"
+          className="size-8 shrink-0 cursor-pointer rounded-lg border"
+          style={{ background: value }}
+        />
+      </PopoverTrigger>
+      <PopoverContent className="flex w-auto gap-1.5 p-2">
+        {STAGE_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            aria-label={c}
+            onClick={() => onChange(c)}
+            className={cn(
+              'size-7 cursor-pointer rounded-md',
+              c === value && 'ring-2 ring-ring ring-offset-2',
+            )}
+            style={{ background: c }}
+          />
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function LibraryList({ kind }: { kind: 'stages' | 'events' }) {
+  const list = useLibrary(kind, { includeArchived: 'true' });
   const saveItem = useSaveLibraryItem(kind);
   const reorder = useReorderLibrary(kind);
+  const isStage = kind === 'stages';
   const [name, setName] = useState('');
+  const [minutes, setMinutes] = useState('10');
   const [color, setColor] = useState(STAGE_COLORS[0]!);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
+  const [editing, setEditing] = useState<LibraryItem | null>(null);
 
   const active = list.data?.filter((i) => !i.isArchived) ?? [];
   const archived = list.data?.filter((i) => i.isArchived) ?? [];
+  const fail = (e: unknown) => toast.error(errorMessage(e));
 
-  async function add() {
+  function add() {
     if (!name.trim()) return;
-    try {
-      await saveItem.mutateAsync(
-        kind === 'stages' ? { batchId, name: name.trim(), color } : { batchId, name: name.trim() },
-      );
-      setName('');
-      setColor(STAGE_COLORS[(active.length + 1) % STAGE_COLORS.length]!);
-    } catch (err) {
-      toast.error(errorMessage(err));
-    }
+    saveItem.mutate(
+      isStage
+        ? { name: name.trim(), color, durationMin: Number(minutes) || null }
+        : { name: name.trim() },
+      {
+        onSuccess: () => {
+          setName('');
+          setColor(STAGE_COLORS[(active.length + 1) % STAGE_COLORS.length]!);
+        },
+        onError: fail,
+      },
+    );
   }
-
   function move(index: number, delta: number) {
     const ids = active.map((i) => i.id);
     const [moved] = ids.splice(index, 1);
     ids.splice(index + delta, 0, moved!);
-    reorder.mutate({ batchId, ids }, { onError: (e) => toast.error(errorMessage(e)) });
+    reorder.mutate({ ids }, { onError: fail });
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <form
-        className="flex gap-2"
+        className="flex gap-1.5"
         onSubmit={(e) => {
           e.preventDefault();
-          void add();
+          add();
         }}
       >
-        {kind === 'stages' && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-label="Stage colour"
-                className="size-10 shrink-0 cursor-pointer rounded-lg border"
-                style={{ background: color }}
-              />
-            </PopoverTrigger>
-            <PopoverContent className="flex w-auto gap-1.5 p-2">
-              {STAGE_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={c}
-                  onClick={() => setColor(c)}
-                  className={cn(
-                    'size-7 cursor-pointer rounded-md',
-                    c === color && 'ring-2 ring-ring ring-offset-2',
-                  )}
-                  style={{ background: c }}
-                />
-              ))}
-            </PopoverContent>
-          </Popover>
-        )}
+        {isStage && <ColorPick value={color} onChange={setColor} />}
         <Input
+          aria-label={isStage ? 'New block' : 'New drill'}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={kind === 'stages' ? 'e.g. Warm-up' : 'e.g. Footwork ladder'}
+          placeholder={isStage ? 'e.g. Warm-up' : 'e.g. Footwork ladder'}
+          className="h-8"
         />
-        <Button type="submit" loading={saveItem.isPending} disabled={!name.trim()}>
+        {isStage && (
+          <Input
+            aria-label="Minutes"
+            type="number"
+            min={1}
+            max={240}
+            value={minutes}
+            onChange={(e) => setMinutes(e.target.value)}
+            className="tabular h-8 w-16"
+          />
+        )}
+        <Button
+          type="submit"
+          size="sm"
+          className="h-8"
+          loading={saveItem.isPending}
+          disabled={!name.trim()}
+        >
           <Plus /> Add
         </Button>
       </form>
@@ -106,49 +152,36 @@ function LibraryList({ kind, batchId }: { kind: 'stages' | 'events'; batchId: st
       ) : (
         <ul className="divide-y rounded-xl border">
           {active.length === 0 && (
-            <li className="p-4 text-sm text-muted-foreground">Nothing here yet.</li>
+            <li className="p-3 text-[13px] text-muted-foreground">Nothing here yet.</li>
           )}
           {active.map((i, idx) => (
-            <li key={i.id} className="flex items-center gap-2 px-3 py-2">
-              {i.color && (
-                <span className="size-3 shrink-0 rounded-full" style={{ background: i.color }} />
+            <li key={i.id} className="flex items-center gap-1.5 px-2 py-1.5">
+              {isStage && (
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ background: i.color ?? STAGE_COLORS[0] }}
+                />
               )}
-              {editing === i.id ? (
-                <form
-                  className="flex flex-1 gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    saveItem.mutate(
-                      { id: i.id, name: editName },
-                      {
-                        onSuccess: () => setEditing(null),
-                        onError: (err) => toast.error(errorMessage(err)),
-                      },
-                    );
-                  }}
-                >
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    autoFocus
-                    className="h-8"
-                  />
-                  <Button size="sm" type="submit">
-                    Save
-                  </Button>
-                </form>
-              ) : (
-                <button
-                  className="flex-1 cursor-text text-left text-sm"
-                  onClick={() => (setEditing(i.id), setEditName(i.name))}
-                >
-                  {i.name}
-                </button>
-              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium">{i.name}</span>
+                {(i.description || (isStage && i.durationMin)) && (
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {isStage ? `${i.durationMin} min` : i.description}
+                  </span>
+                )}
+              </span>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Move up"
+                aria-label={`Edit ${i.name}`}
+                onClick={() => setEditing(i)}
+              >
+                <Pencil />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Move ${i.name} up`}
                 disabled={idx === 0}
                 onClick={() => move(idx, -1)}
               >
@@ -157,7 +190,7 @@ function LibraryList({ kind, batchId }: { kind: 'stages' | 'events'; batchId: st
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Move down"
+                aria-label={`Move ${i.name} down`}
                 disabled={idx === active.length - 1}
                 onClick={() => move(idx, 1)}
               >
@@ -165,32 +198,34 @@ function LibraryList({ kind, batchId }: { kind: 'stages' | 'events'; batchId: st
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={() => saveItem.mutate({ id: i.id, isArchived: true })}
+                size="icon-sm"
+                aria-label={`Archive ${i.name}`}
+                onClick={() => saveItem.mutate({ id: i.id, isArchived: true }, { onError: fail })}
               >
-                <Archive /> Archive
+                <Archive />
               </Button>
             </li>
           ))}
         </ul>
       )}
       {archived.length > 0 && (
-        <details className="text-sm">
+        <details className="text-[13px]">
           <summary className="cursor-pointer text-muted-foreground">
             Archived ({archived.length})
           </summary>
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-1 space-y-0.5">
             {archived.map((i) => (
               <li
                 key={i.id}
-                className="flex items-center justify-between rounded-lg px-3 py-1.5 text-muted-foreground hover:bg-muted"
+                className="flex items-center justify-between rounded-lg px-2 py-1 text-muted-foreground hover:bg-muted"
               >
                 {i.name}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => saveItem.mutate({ id: i.id, isArchived: false })}
+                  onClick={() =>
+                    saveItem.mutate({ id: i.id, isArchived: false }, { onError: fail })
+                  }
                 >
                   <ArchiveRestore /> Restore
                 </Button>
@@ -199,143 +234,246 @@ function LibraryList({ kind, batchId }: { kind: 'stages' | 'events'; batchId: st
           </ul>
         </details>
       )}
+      <EditItem kind={kind} item={editing} onClose={() => setEditing(null)} />
     </div>
   );
 }
 
-/** Offers to fill an empty template from another batch the coach runs. */
-function CopyFrom({ batchId, others }: { batchId: string; others: Batch[] }) {
-  const copy = useCopyTemplate();
-  const [from, setFrom] = useState(others[0]?.id ?? '');
-  if (!others.length) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed bg-muted/40 p-2">
-      <Copy aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-      <span className="text-[13px]">Start from</span>
-      <Select
-        aria-label="Copy template from"
-        className="h-8 min-w-0 flex-1 text-[13px]"
-        value={from}
-        onChange={(e) => setFrom(e.target.value)}
-      >
-        {others.map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.name}
-          </option>
-        ))}
-      </Select>
-      <Button
-        size="sm"
-        loading={copy.isPending}
-        disabled={!from}
-        onClick={() =>
-          copy.mutate(
-            { fromBatchId: from, toBatchId: batchId },
-            {
-              onSuccess: (r) =>
-                toast.success(
-                  r.stages + r.events
-                    ? `Copied ${r.stages} stage${r.stages === 1 ? '' : 's'} and ${r.events} event${r.events === 1 ? '' : 's'}`
-                    : 'Nothing new to copy',
-                ),
-              onError: (e) => toast.error(errorMessage(e)),
-            },
-          )
-        }
-      >
-        Copy template
-      </Button>
-    </div>
-  );
-}
-
-/**
- * Each batch's plan template: the stages (grid columns) and events (grid rows) its daily plans
- * are built from. The batch's coach edits it; switch batch to edit another one's template.
- */
-export function TemplateDialog({
-  trigger,
-  batchId,
-  batches,
+function EditItem({
+  kind,
+  item,
+  onClose,
 }: {
-  trigger: ReactNode;
-  batchId: string;
-  batches: Batch[];
+  kind: 'stages' | 'events';
+  item: LibraryItem | null;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(batchId);
-  const current = selected || batches[0]?.id || '';
-  const batch = batches.find((b) => b.id === current);
-  const stages = useLibrary('stages', { batchId: current || undefined });
-  const events = useLibrary('events', { batchId: current || undefined });
-  const empty = stages.data?.length === 0 && events.data?.length === 0;
+  const saveItem = useSaveLibraryItem(kind);
+  const isStage = kind === 'stages';
+  const [form, setForm] = useState({ name: '', description: '', minutes: '', color: '' });
+  const [for_, setFor] = useState<string | null>(null);
+  if (item && for_ !== item.id) {
+    setFor(item.id);
+    setForm({
+      name: item.name,
+      description: item.description ?? '',
+      minutes: item.durationMin ? String(item.durationMin) : '',
+      color: item.color ?? STAGE_COLORS[0]!,
+    });
+  }
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (o) setSelected(batchId); // Open on the batch being planned.
-      }}
-    >
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="gap-3 sm:max-w-xl">
+    <Dialog open={!!item} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>Batch plan template</DialogTitle>
+          <DialogTitle>{isStage ? 'Edit block' : 'Edit drill'}</DialogTitle>
           <DialogDescription>
-            Stages are the columns of each day’s grid; events are the rows. Every batch has its own
-            template, kept by its coach.
+            Changes show in new and edited plans. Saved sessions keep their own minutes.
           </DialogDescription>
         </DialogHeader>
-        {batches.length > 1 && (
-          <Select
-            aria-label="Template for batch"
-            className="h-9"
-            value={current}
-            onChange={(e) => setSelected(e.target.value)}
-          >
-            {batches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} · {timeLabel(b)}
-              </option>
-            ))}
-          </Select>
-        )}
-        {!current ? (
-          <p className="text-sm text-muted-foreground">You have no batches to plan for.</p>
-        ) : (
-          <>
-            {empty && (
-              <CopyFrom
-                key={current}
-                batchId={current}
-                others={batches.filter((b) => b.id !== current)}
+        <form
+          className="space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!item) return;
+            saveItem.mutate(
+              isStage
+                ? {
+                    id: item.id,
+                    name: form.name.trim(),
+                    color: form.color,
+                    durationMin: form.minutes ? Number(form.minutes) : null,
+                  }
+                : {
+                    id: item.id,
+                    name: form.name.trim(),
+                    description: form.description.trim() || null,
+                  },
+              { onSuccess: onClose, onError: (err) => toast.error(errorMessage(err)) },
+            );
+          }}
+        >
+          <div className="flex gap-1.5">
+            {isStage && (
+              <ColorPick
+                value={form.color}
+                onChange={(c) => setForm((f) => ({ ...f, color: c }))}
               />
             )}
-            <Tabs defaultValue="stages" key={current}>
-              <TabsList>
-                <TabsTrigger value="stages">
-                  Stages{' '}
-                  <span className="tabular text-muted-foreground">{stages.data?.length ?? ''}</span>
-                </TabsTrigger>
-                <TabsTrigger value="events">
-                  Events{' '}
-                  <span className="tabular text-muted-foreground">{events.data?.length ?? ''}</span>
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="stages" className="mt-3">
-                <LibraryList kind="stages" batchId={current} />
-              </TabsContent>
-              <TabsContent value="events" className="mt-3">
-                <LibraryList kind="events" batchId={current} />
-              </TabsContent>
-            </Tabs>
-            {batch && (
-              <p className="text-[11px] text-muted-foreground">
-                Changes apply to {batch.name}’s new and edited plans. Saved plans keep their grid.
-              </p>
+            <Input
+              aria-label="Name"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              className="h-8"
+            />
+            {isStage && (
+              <Input
+                aria-label="Default minutes"
+                type="number"
+                min={1}
+                max={240}
+                placeholder="min"
+                value={form.minutes}
+                onChange={(e) => setForm((f) => ({ ...f, minutes: e.target.value }))}
+                className="tabular h-8 w-16"
+              />
             )}
-          </>
-        )}
+          </div>
+          {!isStage && (
+            <Input
+              aria-label="Description"
+              placeholder="How it’s run, equipment… (optional)"
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="h-8"
+            />
+          )}
+          <div className="flex justify-end gap-1.5">
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              loading={saveItem.isPending}
+              disabled={!form.name.trim()}
+            >
+              Save
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SavedPlansList() {
+  const list = useSavedPlans();
+  const rename = useEditSavedPlan();
+  const remove = useDeleteSavedPlan();
+  const [editing, setEditing] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [deleting, setDeleting] = useState<SavedPlan | null>(null);
+  if (list.isPending) return <ListSkeleton rows={3} />;
+  if (!list.data?.length)
+    return (
+      <p className="rounded-xl border border-dashed p-3 text-[13px] text-muted-foreground">
+        <BookmarkPlus className="mb-1 size-4" />
+        No saved plans yet. Open any session’s plan and choose “Save as a reusable plan” from its ⋯
+        menu.
+      </p>
+    );
+  return (
+    <>
+      <ul className="divide-y rounded-xl border">
+        {list.data.map((p) => (
+          <li key={p.id} className="flex items-center gap-1.5 px-2 py-1.5">
+            {editing === p.id ? (
+              <form
+                className="flex flex-1 gap-1.5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  rename.mutate(
+                    { id: p.id, name: name.trim() },
+                    {
+                      onSuccess: () => setEditing(null),
+                      onError: (err) => toast.error(errorMessage(err)),
+                    },
+                  );
+                }}
+              >
+                <Input
+                  autoFocus
+                  aria-label="Plan name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-8"
+                />
+                <Button size="sm" type="submit" className="h-8" disabled={!name.trim()}>
+                  Save
+                </Button>
+              </form>
+            ) : (
+              <>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold">{p.name}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {p.stages.map((s) => s.name).join(' · ') || 'No blocks'}
+                    {p.totalMinutes ? ` · ${p.totalMinutes} min` : ''}
+                  </span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Rename ${p.name}`}
+                  onClick={() => (setEditing(p.id), setName(p.name))}
+                >
+                  <Pencil />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Delete ${p.name}`}
+                  onClick={() => setDeleting(p)}
+                >
+                  <Trash2 />
+                </Button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete “${deleting?.name}”?`}
+        description="Sessions already planned from it keep their plans."
+        confirmLabel="Delete"
+        destructive
+        loading={remove.isPending}
+        onConfirm={() =>
+          deleting &&
+          remove.mutate(deleting.id, {
+            onSuccess: () => setDeleting(null),
+            onError: (err) => toast.error(errorMessage(err)),
+          })
+        }
+      />
+    </>
+  );
+}
+
+/** The coach's library: blocks, drills and saved plans, used across all their batches. */
+export function LibraryDialog({ trigger }: { trigger: ReactNode }) {
+  const stages = useLibrary('stages');
+  const events = useLibrary('events');
+  const saved = useSavedPlans();
+  const count = (n?: number) => <span className="tabular text-muted-foreground">{n ?? ''}</span>;
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[92dvh] gap-3 overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Planning library</DialogTitle>
+          <DialogDescription>
+            Your blocks, drills and saved plans — shared by all your batches.
+          </DialogDescription>
+        </DialogHeader>
+        <Tabs defaultValue="stages">
+          <TabsList>
+            <TabsTrigger value="stages">Blocks {count(stages.data?.length)}</TabsTrigger>
+            <TabsTrigger value="events">Drills {count(events.data?.length)}</TabsTrigger>
+            <TabsTrigger value="saved">Saved plans {count(saved.data?.length)}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="stages" className="mt-2.5">
+            <LibraryList kind="stages" />
+          </TabsContent>
+          <TabsContent value="events" className="mt-2.5">
+            <LibraryList kind="events" />
+          </TabsContent>
+          <TabsContent value="saved" className="mt-2.5">
+            <SavedPlansList />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

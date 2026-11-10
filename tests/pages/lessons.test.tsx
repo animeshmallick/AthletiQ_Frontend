@@ -1,7 +1,7 @@
 import { LessonPlansPage } from '@/pages/lessons';
 import { batch } from '../fixtures';
 import { within } from '@testing-library/react';
-import { adminUser, chooseOption, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
+import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
 const stages = [
   {
@@ -9,6 +9,7 @@ const stages = [
     coachId: 'coach-1',
     name: 'Warm-up',
     color: '#22c55e',
+    durationMin: 10,
     sortOrder: 0,
     isArchived: false,
   },
@@ -17,6 +18,7 @@ const stages = [
     coachId: 'coach-1',
     name: 'Main',
     color: '#4f46e5',
+    durationMin: 40,
     sortOrder: 1,
     isArchived: false,
   },
@@ -58,8 +60,11 @@ const plan = {
   coachId: 'coach-1',
   date: '2026-03-10',
   notes: 'Bring cones',
+  focus: 'Quick feet',
+  durations: { st2: 45 },
+  totalMinutes: 55,
   updatedAt: 'x',
-  stages,
+  stages: stages.map((s) => ({ ...s, minutes: s.id === 'st2' ? 45 : s.durationMin })),
   events,
   cells: [
     { eventId: 'ev1', stageId: 'st1', content: 'Ladder x3' },
@@ -133,6 +138,7 @@ function routes(day: Record<string, unknown>) {
     'GET /lessons/events': () => events,
     'GET /lessons/plans': () => calendar,
     'GET /lessons/insights': () => insights,
+    'GET /lessons/saved': () => [],
     'GET /lessons/plans/day': () => ({
       batch: { id: 'b1', name: 'Morning U-12' },
       date: '2026-03-10',
@@ -146,22 +152,52 @@ function routes(day: Record<string, unknown>) {
 }
 
 describe('Lesson plans (coach)', () => {
-  it('offers to start a new day from the previous plan', async () => {
+  it('starts a new plan from the last session or a saved plan', async () => {
     const api = mockApi({
       ...routes({ previousPlanDate: '2026-03-09' }),
-      'POST /lessons/plans/copy': () => ({ copied: ['2026-03-10'], skipped: [] }),
+      'GET /lessons/plans/day': (c) => ({
+        batch: { id: 'b1', name: 'Morning U-12' },
+        date: c.query.get('date'),
+        isSessionDay: true,
+        lockedReason: null,
+        previousPlanDate: '2026-03-09',
+        plan: c.query.get('date') === '2026-03-09' ? { ...plan, date: '2026-03-09' } : null,
+      }),
+      'GET /lessons/saved': () => [
+        {
+          id: 't1',
+          name: 'Match day',
+          updatedAt: 'x',
+          focus: 'Games',
+          notes: null,
+          durations: {},
+          totalMinutes: 40,
+          stages: [{ ...stages[1], minutes: 40 }],
+          events: [],
+          cells: [],
+        },
+      ],
+      'PUT /lessons/plans/day': (c) => ({ ...plan, ...(c.body as object) }),
     });
     const { user } = await renderPage(<LessonPlansPage />, {
       path: '/lesson-plans',
       route: '/lesson-plans?batch=b1&date=2026-03-10',
       user: coachUser,
     });
-    await user.click(await screen.findByRole('button', { name: /copy 9 mar/i }));
-    await waitFor(() => expect(api.find('POST /lessons/plans/copy')).toHaveLength(1));
-    expect(api.find('POST /lessons/plans/copy')[0]!.body).toEqual({
-      batchId: 'b1',
-      fromDate: '2026-03-09',
-      toDates: ['2026-03-10'],
+    // Loading only fills the editor; nothing is saved until the coach saves.
+    await user.click(await screen.findByRole('button', { name: /repeat last session/i }));
+    expect(screen.getByLabelText('Session focus')).toHaveValue('Quick feet');
+    expect(screen.getByText('Shadow court')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /saved plan match day/i }));
+    expect(screen.getByLabelText('Session focus')).toHaveValue('Games');
+    expect(api.find('PUT /lessons/plans/day')).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(api.find('PUT /lessons/plans/day')).toHaveLength(1));
+    expect(api.find('PUT /lessons/plans/day')[0]!.body).toMatchObject({
+      date: '2026-03-10',
+      stageIds: ['st2'],
+      durations: { st2: 40 },
+      focus: 'Games',
     });
   });
 
@@ -180,18 +216,24 @@ describe('Lesson plans (coach)', () => {
     await waitFor(() => expect(chips[1]).toHaveAttribute('aria-current', 'true'));
   });
 
-  it('shows a saved plan as a run sheet', async () => {
+  it('runs a saved plan from the run sheet, block by block', async () => {
     mockApi(routes({ plan }));
     const { user } = await renderPage(<LessonPlansPage />, {
       path: '/lesson-plans',
       route: '/lesson-plans?batch=b1&date=2026-03-10',
       user: coachUser,
     });
-    expect(await screen.findByText('2/2 filled')).toBeInTheDocument();
-    await user.click(screen.getByRole('radio', { name: /run sheet/i }));
-    expect(await screen.findByText('Shadow court')).toBeInTheDocument();
-    expect(screen.getByText('Bring cones')).toBeInTheDocument();
-    expect(screen.queryAllByRole('textbox')).toHaveLength(0);
+    expect(await screen.findByText(/planned of 120 min/)).toHaveTextContent('55 min');
+    await user.click(screen.getByRole('button', { name: /^run$/i }));
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).getByText('Shadow court')).toBeInTheDocument();
+    expect(within(sheet).getByText('Bring cones')).toBeInTheDocument();
+    await user.click(within(sheet).getByRole('button', { name: /start/i }));
+    expect(within(sheet).getByText('Block 1 of 2')).toBeInTheDocument();
+    expect(within(sheet).getByLabelText('Time left in this block')).toHaveTextContent('10:00');
+    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
+    expect(within(sheet).getByText('Block 2 of 2')).toBeInTheDocument();
+    expect(within(sheet).getByLabelText('Time left in this block')).toHaveTextContent('45:00');
   });
 
   it('asks before leaving a day with unsaved changes', async () => {
@@ -201,13 +243,56 @@ describe('Lesson plans (coach)', () => {
       route: '/lesson-plans?batch=b1&date=2026-03-10',
       user: coachUser,
     });
-    const cell = (await screen.findAllByLabelText('Footwork – Warm-up'))[0]!;
-    await user.type(cell, ' more');
-    expect(screen.getByRole('button', { name: /discard/i })).toBeInTheDocument();
+    const focus = await screen.findByLabelText('Session focus');
+    await user.type(focus, '!');
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Next week' }));
     expect(await screen.findByText('Discard unsaved changes?')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getAllByDisplayValue('Ladder x3 more').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Session focus')).toHaveValue('Quick feet!');
+    // Discarding goes back to the saved plan.
+    await user.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(screen.getByLabelText('Session focus')).toHaveValue('Quick feet');
+  });
+
+  it('saves the plan under a name and uses it for other sessions', async () => {
+    const api = mockApi({
+      ...routes({ plan }),
+      'POST /lessons/saved': (c) => ({ id: 't9', ...(c.body as object) }),
+      'POST /lessons/plans/copy': (c) => ({
+        copied: (c.body as { toDates: string[] }).toDates,
+        skipped: [],
+      }),
+    });
+    const { user } = await renderPage(<LessonPlansPage />, {
+      path: '/lesson-plans',
+      route: '/lesson-plans?batch=b1&date=2026-03-10',
+      user: coachUser,
+    });
+    await user.click(await screen.findByRole('button', { name: 'More plan actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: /save as a reusable plan/i }));
+    await user.type(await screen.findByLabelText('Plan name'), 'Footwork day');
+    await user.click(screen.getByRole('button', { name: /save plan/i }));
+    await waitFor(() => expect(api.find('POST /lessons/saved')).toHaveLength(1));
+    expect(api.find('POST /lessons/saved')[0]!.body).toMatchObject({
+      name: 'Footwork day',
+      stageIds: ['st1', 'st2'],
+      durations: { st1: 10, st2: 45 },
+      focus: 'Quick feet',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'More plan actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: /use for other sessions/i }));
+    await user.click(await screen.findByRole('button', { name: /rest of this week/i }));
+    await user.click(screen.getByRole('button', { name: /use for 5 sessions/i }));
+    await waitFor(() => expect(api.find('POST /lessons/plans/copy')).toHaveLength(1));
+    expect(api.find('POST /lessons/plans/copy')[0]!.body).toEqual({
+      batchId: 'b1',
+      fromDate: '2026-03-10',
+      toBatchId: 'b1',
+      toDates: ['2026-03-09', '2026-03-11', '2026-03-12', '2026-03-13', '2026-03-14'],
+      overwrite: false,
+    });
   });
 
   it('renders planning insights', async () => {
@@ -320,35 +405,67 @@ describe('Lesson plans (all batches)', () => {
   });
 });
 
-describe('Batch plan template', () => {
-  it('switches batch and starts an empty template from another batch', async () => {
+describe('Planning library', () => {
+  it('manages blocks with minutes, drills and saved plans in one place', async () => {
     const api = mockApi({
       ...routes({}),
-      'GET /batches': () => [batch, { ...batch, id: 'b2', name: 'Evening' }],
-      'GET /lessons/stages': (c) => (c.query.get('batchId') === 'b2' ? [] : stages),
-      'GET /lessons/events': (c) => (c.query.get('batchId') === 'b2' ? [] : events),
-      'POST /lessons/template/copy': () => ({ stages: 2, events: 1 }),
+      'GET /lessons/saved': () => [
+        {
+          id: 't1',
+          name: 'Match day',
+          updatedAt: 'x',
+          focus: null,
+          notes: null,
+          durations: {},
+          totalMinutes: 40,
+          stages: [{ ...stages[1], minutes: 40 }],
+          events: [],
+          cells: [],
+        },
+      ],
+      'POST /lessons/stages': (c) => ({
+        id: 'st9',
+        sortOrder: 2,
+        isArchived: false,
+        ...(c.body as object),
+      }),
+      'PATCH /lessons/stages/st1': (c) => ({ ...stages[0], ...(c.body as object) }),
+      'DELETE /lessons/saved/t1': () => ({ status: 204 }),
     });
     const { user } = await renderPage(<LessonPlansPage />, {
       path: '/lesson-plans',
       route: '/lesson-plans?batch=b1&date=2026-03-10',
       user: coachUser,
     });
-    await user.click(await screen.findByRole('button', { name: /template/i }));
+    await user.click(await screen.findByRole('button', { name: /library/i }));
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByText('Warm-up')).toBeInTheDocument();
-    expect(api.find('GET /lessons/stages').every((c) => c.query.get('batchId'))).toBe(true);
-    await chooseOption(
-      user,
-      within(dialog).getByRole('combobox', { name: 'Template for batch' }),
-      'b2',
-    );
-    await user.click(await within(dialog).findByRole('button', { name: 'Copy template' }));
-    await waitFor(() => expect(api.find('POST /lessons/template/copy')).toHaveLength(1));
-    expect(api.find('POST /lessons/template/copy')[0]!.body).toEqual({
-      fromBatchId: 'b1',
-      toBatchId: 'b2',
+    expect(await within(dialog).findByText('10 min')).toBeInTheDocument();
+    // One library for every batch: no batch in the request.
+    expect(api.find('GET /lessons/stages').every((c) => !c.query.get('batchId'))).toBe(true);
+
+    await user.type(within(dialog).getByLabelText('New block'), 'Match play');
+    await user.clear(within(dialog).getByLabelText('Minutes'));
+    await user.type(within(dialog).getByLabelText('Minutes'), '25');
+    await user.click(within(dialog).getByRole('button', { name: /^add$/i }));
+    await waitFor(() => expect(api.find('POST /lessons/stages')).toHaveLength(1));
+    expect(api.find('POST /lessons/stages')[0]!.body).toMatchObject({
+      name: 'Match play',
+      durationMin: 25,
     });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Edit Warm-up' }));
+    const edit = await screen.findByRole('dialog', { name: 'Edit block' });
+    await user.clear(within(edit).getByLabelText('Default minutes'));
+    await user.type(within(edit).getByLabelText('Default minutes'), '15');
+    await user.click(within(edit).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.find('PATCH /lessons/stages/st1')).toHaveLength(1));
+    expect(api.find('PATCH /lessons/stages/st1')[0]!.body).toMatchObject({ durationMin: 15 });
+
+    await user.click(within(dialog).getByRole('tab', { name: /saved plans/i }));
+    expect(await within(dialog).findByText('Match day')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Match day' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(api.find('DELETE /lessons/saved/t1')).toHaveLength(1));
   });
 });
 

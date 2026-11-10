@@ -102,7 +102,12 @@ describe('api client', () => {
     tokenStore.set(sessionFor(coachUser));
     const listener = jest.fn();
     const unsubscribe = tokenStore.subscribe(listener);
-    mockApi({});
+    mockApi({
+      'POST /auth/refresh': () => ({
+        status: 401,
+        body: { error: { code: 'UNAUTHENTICATED', message: 'Session expired' } },
+      }),
+    });
     await expect(refreshSession()).resolves.toBeNull();
     expect(tokenStore.get()).toBeNull();
     expect(listener).toHaveBeenCalledWith(null);
@@ -112,6 +117,45 @@ describe('api client', () => {
       throw new Error('offline');
     }) as unknown as typeof fetch;
     await expect(refreshSession()).resolves.toBeNull();
+  });
+
+  it('keeps the session when a refresh fails for another reason', async () => {
+    tokenStore.set(sessionFor(coachUser));
+    mockApi({
+      'POST /auth/refresh': () => ({
+        status: 503,
+        body: { error: { code: 'UNAVAILABLE', message: 'Try again' } },
+      }),
+    });
+    await expect(refreshSession()).resolves.toBeNull();
+    expect(tokenStore.get()).toBe('token-coach-1');
+  });
+
+  it('refreshes before a request when the access token has expired', async () => {
+    const realNow = Date.now;
+    const start = realNow();
+    Date.now = () => start;
+    tokenStore.set(sessionFor(coachUser)); // valid for 15 minutes
+    const m = mockApi({
+      'POST /auth/refresh': () => ({ ...sessionFor(coachUser), accessToken: 'fresh-token' }),
+      'GET /auth/me': (c) => ({ authHeader: c.headers.Authorization }),
+    });
+    try {
+      // Still fresh: no refresh.
+      await api.get('/auth/me');
+      expect(m.find('POST /auth/refresh')).toHaveLength(0);
+      // The phone slept past expiry: refresh first, so the request never fails with a 401.
+      Date.now = () => start + 15 * 60_000;
+      const res = await api.get<{ authHeader: string }>('/auth/me');
+      expect(res.authHeader).toBe('Bearer fresh-token');
+      expect(m.calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+        'GET /auth/me',
+        'POST /auth/refresh',
+        'GET /auth/me',
+      ]);
+    } finally {
+      Date.now = realNow;
+    }
   });
 
   it('supports DELETE (204) and binary downloads', async () => {

@@ -52,13 +52,18 @@ export interface Session {
 type Listener = (session: Session | null) => void;
 
 let accessToken: string | null = null;
+/** When the access token stops working (ms since epoch); refreshed a little before that. */
+let accessTokenExpiresAt = 0;
 const listeners = new Set<Listener>();
 let refreshInFlight: Promise<Session | null> | null = null;
+/** Refresh this long before the access token expires, so requests never go out with a stale one. */
+const REFRESH_EARLY_MS = 60_000;
 
 export const tokenStore = {
   get: () => accessToken,
   set(session: Session | null) {
     accessToken = session?.accessToken ?? null;
+    accessTokenExpiresAt = session ? Date.now() + session.accessTokenExpiresIn * 1000 : 0;
     listeners.forEach((l) => l(session));
   },
   subscribe(listener: Listener) {
@@ -99,9 +104,22 @@ async function toApiError(res: Response): Promise<ApiError> {
   }
 }
 
-/** Exchanges the refresh cookie for a new access token. Resolves null when signed out. */
+/**
+ * Runs `fn` while holding a lock shared by every tab of the app, so two tabs never present the
+ * same refresh cookie at once (the server would take that for a stolen token and sign out).
+ */
+function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  return locks ? locks.request('atq-auth-refresh', fn) : fn();
+}
+
+/**
+ * Exchanges the refresh cookie for a new access token. Resolves null when it can't; only a
+ * definite "not signed in" (401/403) signs the user out — a dropped connection or a server
+ * hiccup keeps the session so the next request can try again.
+ */
 export function refreshSession(): Promise<Session | null> {
-  refreshInFlight ??= (async () => {
+  refreshInFlight ??= withRefreshLock(async () => {
     try {
       const res = await fetch(url('/auth/refresh'), {
         method: 'POST',
@@ -109,7 +127,7 @@ export function refreshSession(): Promise<Session | null> {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
       if (!res.ok) {
-        tokenStore.set(null);
+        if (res.status === 401 || res.status === 403) tokenStore.set(null);
         return null;
       }
       const { data } = (await res.json()) as Envelope<Session>;
@@ -117,11 +135,16 @@ export function refreshSession(): Promise<Session | null> {
       return data;
     } catch {
       return null;
-    } finally {
-      refreshInFlight = null;
     }
-  })();
+  }).finally(() => {
+    refreshInFlight = null;
+  });
   return refreshInFlight;
+}
+
+/** Refreshes first when the access token has expired or is about to (e.g. after the phone slept). */
+async function ensureFreshToken() {
+  if (accessToken && Date.now() >= accessTokenExpiresAt - REFRESH_EARLY_MS) await refreshSession();
 }
 
 export interface RequestOptions {
@@ -164,6 +187,7 @@ export async function requestEnvelope<T, M = Record<string, unknown>>(
   path: string,
   opts: RequestOptions = {},
 ): Promise<Envelope<T, M>> {
+  if (!opts.noRetry) await ensureFreshToken();
   let res = await rawRequest(path, opts);
 
   if (res.status === 401 && !opts.noRetry) {
@@ -182,6 +206,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 
 /** Fetches a binary resource (e.g. invoice PDF) with auth, returning a Blob. */
 export async function requestBlob(path: string): Promise<Blob> {
+  await ensureFreshToken();
   let res = await rawRequest(path, {});
   if (res.status === 401 && (await refreshSession())) res = await rawRequest(path, {});
   if (!res.ok) throw await toApiError(res);

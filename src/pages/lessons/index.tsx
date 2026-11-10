@@ -34,9 +34,9 @@ import {
 } from '@/lib/format';
 import { useLessonInsights, usePlanDay } from '@/lib/queries';
 import { cn } from '@/lib/utils';
-import { PlanEditor } from './editor';
+import { PlanBuilder } from './plan-builder';
 import { LessonInsightsView } from './insights';
-import { TemplateDialog } from './library';
+import { LibraryDialog } from './library';
 import { snapToSession } from './meta';
 import { AllBatchesDay } from './all-batches';
 import { UpNext, WeekStrip } from './week';
@@ -129,17 +129,15 @@ export function LessonPlansPage() {
         title="Lesson plans"
         description={
           isCoach
-            ? 'Plan each session as events × stages, then run it from your phone.'
+            ? 'Plan each session in timed blocks, then run it from your phone.'
             : 'See what coaches have planned and how well each batch is covered.'
         }
         actions={
           isCoach && (
-            <TemplateDialog
-              batchId={isAll ? '' : batchId}
-              batches={batches.data ?? []}
+            <LibraryDialog
               trigger={
-                <Button variant="outline" size="sm" disabled={!batches.data?.length}>
-                  <Library /> Template
+                <Button variant="outline" size="sm">
+                  <Library /> Library
                 </Button>
               }
             />
@@ -302,13 +300,14 @@ export function LessonPlansPage() {
                     <ListSkeleton rows={4} />
                   ) : day.isError ? (
                     <ErrorState error={day.error} onRetry={() => void day.refetch()} />
-                  ) : isCoach && day.data.lockedReason && !day.data.plan ? null : (
-                    <PlanEditor
+                  ) : (isCoach && day.data.lockedReason && !day.data.plan) || !batch ? null : (
+                    <PlanBuilder
                       key={`${batchId}:${date}`}
-                      batchId={batchId}
+                      batch={batch}
                       date={date}
                       plan={day.data.plan}
                       readOnly={!isCoach || !!day.data.lockedReason}
+                      isAdmin={!isCoach}
                       batches={batches.data ?? []}
                       previousPlanDate={day.data.previousPlanDate}
                       onDirtyChange={onDirtyChange}

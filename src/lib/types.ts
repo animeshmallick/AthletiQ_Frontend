@@ -460,27 +460,57 @@ export interface SubstitutionInsights {
   byBatch: { id: string; name: string; sessions: number; substitutions: number }[];
 }
 
+/** A coach's library item: a stage (timed block) or an event (drill). */
 export interface LibraryItem {
   id: string;
-  batchId: string;
+  batchId: string | null;
   coachId: string;
   name: string;
   description?: string | null;
   color?: string | null;
+  /** Stages: default minutes. */
+  durationMin?: number | null;
   sortOrder: number;
   isArchived: boolean;
 }
 
-export interface LessonPlan {
+export interface PlanCell {
+  eventId: string;
+  stageId: string;
+  content: string;
+}
+
+/** A plan's content: blocks in order (with minutes), drills, focus and notes. */
+export interface PlanGrid {
+  focus: string | null;
+  notes: string | null;
+  durations: Record<string, number>;
+  totalMinutes: number;
+  stages: {
+    id: string;
+    name: string;
+    color: string | null;
+    durationMin: number | null;
+    /** Minutes for this session (falls back to the stage default). */
+    minutes: number | null;
+  }[];
+  events: { id: string; name: string; description: string | null }[];
+  cells: PlanCell[];
+}
+
+export interface LessonPlan extends PlanGrid {
   id: string;
   batchId: string;
   coachId: string;
   date: string;
-  notes: string | null;
   updatedAt: string;
-  stages: { id: string; name: string; color: string | null }[];
-  events: { id: string; name: string; description: string | null }[];
-  cells: { eventId: string; stageId: string; content: string }[];
+}
+
+/** A whole plan saved under a name, to apply to any session. */
+export interface SavedPlan extends PlanGrid {
+  id: string;
+  name: string;
+  updatedAt: string;
 }
 
 export type PlanStatus = 'complete' | 'partial' | 'empty' | 'unplanned';

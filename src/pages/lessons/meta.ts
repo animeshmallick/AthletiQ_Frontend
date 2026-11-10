@@ -47,14 +47,15 @@ export const STATUS_META: Record<
   },
 };
 
+/** Anything filled in (a drill, the focus or notes) counts as planned; an empty plan is pending. */
 export function planStatus(info?: {
   planId: string | null;
+  hasContent?: boolean;
   filledCells: number;
   totalCells: number;
 }): PlanStatus {
   if (!info?.planId) return 'unplanned';
-  if (info.filledCells === 0) return 'empty';
-  return info.filledCells >= info.totalCells ? 'complete' : 'partial';
+  return (info.hasContent ?? info.filledCells > 0) ? 'complete' : 'unplanned';
 }
 
 export const pct = (n: number | null | undefined) =>

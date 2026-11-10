@@ -3,6 +3,7 @@ import { CoachSessionsPage } from '@/pages/coach-sessions';
 import { FinancePage } from '@/pages/finance';
 import { LessonPlansPage } from '@/pages/lessons';
 import { batch } from '../fixtures';
+import { within } from '@testing-library/react';
 import { adminUser, chooseOption, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
 const stages = [
@@ -11,6 +12,7 @@ const stages = [
     coachId: 'coach-1',
     name: 'Warm-up',
     color: '#22c55e',
+    durationMin: 10,
     sortOrder: 0,
     isArchived: false,
   },
@@ -19,6 +21,7 @@ const stages = [
     coachId: 'coach-1',
     name: 'Main',
     color: '#4f46e5',
+    durationMin: 40,
     sortOrder: 1,
     isArchived: false,
   },
@@ -39,11 +42,12 @@ const calendar = {
 };
 
 describe('LessonPlansPage', () => {
-  it('builds a new plan from the library and saves it', async () => {
+  it('builds a plan from timed blocks, drills and a focus, and saves it', async () => {
     const api = mockApi({
       'GET /batches': () => [batch],
       'GET /lessons/stages': () => stages,
       'GET /lessons/events': () => events,
+      'GET /lessons/saved': () => [],
       'GET /lessons/plans': () => calendar,
       'GET /lessons/plans/day': () => ({
         batch: { id: 'b1', name: 'Morning U-12' },
@@ -54,10 +58,9 @@ describe('LessonPlansPage', () => {
       'PUT /lessons/plans/day': (c) => ({
         id: 'p1',
         ...(c.body as object),
-        stages,
+        stages: stages.map((s) => ({ ...s, minutes: s.durationMin })),
         events,
-        cells: [],
-        notes: null,
+        totalMinutes: 50,
         updatedAt: 'x',
         coachId: 'coach-1',
       }),
@@ -68,12 +71,21 @@ describe('LessonPlansPage', () => {
       user: coachUser,
     });
 
-    const cell = (await screen.findAllByLabelText('Footwork – Warm-up'))[0]!;
-    expect(screen.getByText('0/2 filled')).toBeInTheDocument();
-    await user.type(cell, 'Ladder drills x3');
-    expect(screen.getByText('1/2 filled')).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Session notes'), 'Bring cones');
-    await user.click(screen.getByRole('button', { name: /save plan/i }));
+    // A new plan starts with the library's blocks and their default minutes.
+    const blocks = await screen.findByRole('list', { name: 'Session blocks' });
+    expect(within(blocks).getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByText(/planned of 120 min/)).toHaveTextContent(/50 mins*planned of 120 min/);
+
+    await user.type(screen.getByLabelText('Session focus'), 'Quick feet');
+    await user.click(screen.getByRole('button', { name: 'More time for Main' }));
+    expect(screen.getByText(/planned of 120 min/)).toHaveTextContent(/^55 min/);
+
+    // Add a drill to the warm-up, with a coaching note.
+    await user.click(within(blocks).getAllByRole('button', { name: /add drill/i })[0]!);
+    await user.click(await screen.findByRole('button', { name: /Footwork/ }));
+    await user.click(screen.getByRole('button', { name: 'Note for Footwork' }));
+    await user.type(screen.getByLabelText('Coaching note for Footwork'), 'Ladder x3');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => expect(api.find('PUT /lessons/plans/day')).toHaveLength(1));
     expect(api.find('PUT /lessons/plans/day')[0]!.body).toEqual({
@@ -81,16 +93,19 @@ describe('LessonPlansPage', () => {
       date: '2026-03-09',
       stageIds: ['st1', 'st2'],
       eventIds: ['ev1'],
-      notes: 'Bring cones',
-      cells: [{ eventId: 'ev1', stageId: 'st1', content: 'Ladder drills x3' }],
+      durations: { st1: 10, st2: 45 },
+      focus: 'Quick feet',
+      notes: null,
+      cells: [{ eventId: 'ev1', stageId: 'st1', content: 'Ladder x3' }],
     });
   });
 
-  it('prompts coaches to set up the batch template first', async () => {
-    mockApi({
+  it('creates a drill by typing its name', async () => {
+    const api = mockApi({
       'GET /batches': () => [batch],
-      'GET /lessons/stages': () => [],
+      'GET /lessons/stages': () => stages,
       'GET /lessons/events': () => [],
+      'GET /lessons/saved': () => [],
       'GET /lessons/plans': () => calendar,
       'GET /lessons/plans/day': () => ({
         batch: { id: 'b1', name: 'M' },
@@ -98,13 +113,28 @@ describe('LessonPlansPage', () => {
         isSessionDay: true,
         plan: null,
       }),
+      'POST /lessons/events': (c) => ({
+        id: 'ev7',
+        coachId: 'coach-1',
+        sortOrder: 0,
+        isArchived: false,
+        ...(c.body as object),
+      }),
     });
-    await renderPage(<LessonPlansPage />, {
+    const { user } = await renderPage(<LessonPlansPage />, {
       path: '/lesson-plans',
       route: '/lesson-plans?batch=b1&date=2026-03-09',
       user: coachUser,
     });
-    expect(await screen.findByText('Set up this batch’s plan template')).toBeInTheDocument();
+    await user.click((await screen.findAllByRole('button', { name: /add drill/i }))[1]!);
+    await user.type(await screen.findByLabelText('Find or create a drill'), 'Shadow play');
+    await user.click(screen.getByRole('button', { name: 'Create “Shadow play”' }));
+    await waitFor(() => expect(api.find('POST /lessons/events')).toHaveLength(1));
+    expect(api.find('POST /lessons/events')[0]!.body).toEqual({
+      name: 'Shadow play',
+      batchId: 'b1',
+    });
+    expect(await screen.findByRole('button', { name: 'Remove Removed drill' })).toBeInTheDocument();
   });
 
   it('shows plans read-only to admins', async () => {
@@ -123,8 +153,11 @@ describe('LessonPlansPage', () => {
           coachId: 'coach-1',
           date: '2026-03-09',
           notes: 'Cones',
+          focus: 'Footwork',
+          durations: {},
+          totalMinutes: 50,
           updatedAt: 'x',
-          stages,
+          stages: stages.map((s) => ({ ...s, minutes: s.durationMin })),
           events,
           cells: [{ eventId: 'ev1', stageId: 'st2', content: 'Shadow footwork' }],
         },

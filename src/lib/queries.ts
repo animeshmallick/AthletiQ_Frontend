@@ -30,6 +30,7 @@ import type {
   SubstitutionInsights,
   LessonPlan,
   LibraryItem,
+  SavedPlan,
   Location,
   Registration,
   RosterEntry,
@@ -571,15 +572,16 @@ export function useAdminCheckOut() {
 
 // ─── Lessons ─────────────────────────────────────────────────────────────────
 
-/** A batch's plan template: its stages (columns) or events (rows). */
+/** The coach's library: stages (timed blocks) or events (drills). Admins pass a batch. */
 export const useLibrary = (
   kind: 'stages' | 'events',
-  q: { batchId?: string; includeArchived?: 'true' },
+  q: { batchId?: string; includeArchived?: 'true' } = {},
+  enabled = true,
 ) =>
   useQuery({
     queryKey: keys.library(kind, q),
     queryFn: () => api.get<LibraryItem[]>(`/lessons/${kind}`, q),
-    enabled: Boolean(q.batchId),
+    enabled,
   });
 
 export function useSaveLibraryItem(kind: 'stages' | 'events') {
@@ -594,6 +596,7 @@ export function useSaveLibraryItem(kind: 'stages' | 'events') {
       name?: string;
       description?: string | null;
       color?: string | null;
+      durationMin?: number | null;
       isArchived?: boolean;
     }) =>
       id
@@ -606,18 +609,70 @@ export function useSaveLibraryItem(kind: 'stages' | 'events') {
 export function useReorderLibrary(kind: 'stages' | 'events') {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (body: { batchId: string; ids: string[] }) =>
-      api.put(`/lessons/${kind}/order`, body),
+    mutationFn: (body: { ids: string[] }) => api.put(`/lessons/${kind}/order`, body),
     onSuccess: () => invalidate(['lessons', kind]),
   });
 }
 
-export function useCopyTemplate() {
+export type GridBody = {
+  stageIds: string[];
+  eventIds: string[];
+  durations: Record<string, number>;
+  focus: string | null;
+  notes: string | null;
+  cells: { eventId: string; stageId: string; content: string }[];
+};
+
+export const useSavedPlans = (q: { batchId?: string } = {}, enabled = true) =>
+  useQuery({
+    queryKey: ['lessons', 'saved', q] as const,
+    queryFn: () => api.get<SavedPlan[]>('/lessons/saved', q),
+    enabled,
+  });
+
+export function useSaveSavedPlan() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (body: { fromBatchId: string; toBatchId: string }) =>
-      api.post<{ stages: number; events: number }>('/lessons/template/copy', body),
-    onSuccess: () => invalidate(['lessons', 'stages'], ['lessons', 'events']),
+    mutationFn: (
+      body: { name: string } & ({ from: { batchId: string; date: string } } | GridBody),
+    ) => api.post<SavedPlan>('/lessons/saved', body),
+    onSuccess: () => invalidate(['lessons', 'saved']),
+  });
+}
+
+export function useEditSavedPlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      api.patch(`/lessons/saved/${id}`, { name }),
+    onSuccess: () => invalidate(['lessons', 'saved']),
+  });
+}
+
+export function useDeleteSavedPlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/lessons/saved/${id}`),
+    onSuccess: () => invalidate(['lessons', 'saved']),
+  });
+}
+
+export function useApplySavedPlan() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      targets: { batchId: string; dates: string[] }[];
+      overwrite?: boolean;
+    }) =>
+      api.post<{
+        copied: { batchId: string; date: string }[];
+        skipped: { batchId: string; date: string }[];
+      }>(`/lessons/saved/${id}/apply`, body),
+    onSuccess: () => invalidate(['lessons']),
   });
 }
 
@@ -628,7 +683,12 @@ export interface PlanCalendar {
     isSessionDay: boolean;
     cancelled: string | null;
     planId: string | null;
+    /** Anything filled in: the session counts as planned. */
+    hasContent?: boolean;
+    focus?: string | null;
+    /** Blocks with at least one drill. */
     filledCells: number;
+    /** Blocks in the plan. */
     totalCells: number;
   }[];
 }
@@ -661,7 +721,7 @@ export const usePlanDay = (batchId: string | undefined, date: string) =>
     queryKey: keys.planDay(batchId ?? '', date),
     queryFn: () =>
       api.get<{
-        batch: { id: string; name: string };
+        batch: { id: string; name: string; startTime?: string; endTime?: string };
         date: string;
         isSessionDay: boolean;
         cancelled?: string | null;
@@ -675,14 +735,8 @@ export const usePlanDay = (batchId: string | undefined, date: string) =>
 export function useSavePlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: {
-      batchId: string;
-      date: string;
-      stageIds: string[];
-      eventIds: string[];
-      notes: string | null;
-      cells: { eventId: string; stageId: string; content: string }[];
-    }) => api.put<LessonPlan>('/lessons/plans/day', body),
+    mutationFn: (body: { batchId: string; date: string } & GridBody) =>
+      api.put<LessonPlan>('/lessons/plans/day', body),
     onSuccess: (plan, v) => {
       qc.setQueryData(
         keys.planDay(v.batchId, v.date),
