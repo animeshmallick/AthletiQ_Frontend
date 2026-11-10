@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils';
 import { useUser } from './auth';
 import { RoleBadge } from './role-switch';
 import { parentPath, useGoBack } from './go-back';
-import { navFor } from './nav';
+import { activeItem, navFor, tabsFor } from './nav';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/primitives';
 
@@ -54,7 +54,7 @@ function useScrolled(threshold = 8) {
 function useScreenTitle(): string {
   const { pathname } = useLocation();
   const user = useUser();
-  if (pathname === '/') return 'Today';
+  if (pathname === '/') return 'Home';
   const match = navFor(user.role)
     .filter((n) => n.to !== '/' && (pathname === n.to || pathname.startsWith(n.to + '/')))
     .sort((a, b) => b.to.length - a.to.length)[0];
@@ -63,16 +63,28 @@ function useScreenTitle(): string {
   return 'AthletiQ';
 }
 
-/** Detail screens (e.g. /students/123) get a back arrow on phones instead of the brand. */
-function HeaderBack({ title }: { title: string }) {
-  const { pathname } = useLocation();
-  const goBack = useGoBack(parentPath(pathname));
+/**
+ * Where the phone header shows a back arrow (instead of the brand), and where it goes when there's
+ * no history: detail screens (e.g. /students/123 → /students) and screens that aren't a bottom
+ * tab (opened from More, e.g. /settings → Home).
+ */
+function useBackTarget(): string | null {
+  const { pathname, search } = useLocation();
+  const user = useUser();
+  if (pathname === '/') return null;
+  if (pathname.split('/').filter(Boolean).length > 1) return parentPath(pathname);
+  return activeItem(tabsFor(user.role), pathname, search) ? null : '/';
+}
+
+/** The back arrow and the screen's name, on phones. */
+function HeaderBack({ title, to }: { title: string; to: string }) {
+  const goBack = useGoBack(to);
   return (
     <div className="-ml-1.5 flex min-w-0 items-center gap-1 lg:hidden">
       <button
         type="button"
         onClick={goBack}
-        aria-label={`Back to ${title}`}
+        aria-label={to === '/' ? 'Back' : `Back to ${title}`}
         className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-muted active:scale-95"
       >
         <ChevronLeft className="size-6" />
@@ -85,8 +97,8 @@ function HeaderBack({ title }: { title: string }) {
 export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
   const scrolled = useScrolled();
   const title = useScreenTitle();
-  const { pathname } = useLocation();
-  const deep = pathname.split('/').filter(Boolean).length > 1;
+  const back = useBackTarget();
+  const deep = back !== null;
   return (
     <header
       className={cn(
@@ -97,7 +109,7 @@ export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
       )}
     >
       <div className="flex h-[3.25rem] items-center gap-2 px-3.5 sm:h-14 sm:px-6">
-        {deep && <HeaderBack title={title} />}
+        {back !== null && <HeaderBack title={title} to={back} />}
         {/* Phones / tablets: brand (→ Today), turning into the screen name while scrolled. */}
         <Link
           to="/"
@@ -112,7 +124,7 @@ export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
             <span
               className={cn(
                 'col-start-1 row-start-1 truncate text-[17px] font-bold tracking-tight transition-all duration-200',
-                scrolled && title !== 'Today' ? '-translate-y-2 opacity-0' : 'opacity-100',
+                scrolled && title !== 'Home' ? '-translate-y-2 opacity-0' : 'opacity-100',
               )}
             >
               AthletiQ
@@ -121,7 +133,7 @@ export function AppHeader({ userMenu }: { userMenu: ReactNode }) {
               aria-hidden={!scrolled}
               className={cn(
                 'col-start-1 row-start-1 truncate text-[17px] font-bold tracking-tight transition-all duration-200',
-                scrolled && title !== 'Today' ? 'opacity-100' : 'translate-y-2 opacity-0',
+                scrolled && title !== 'Home' ? 'opacity-100' : 'translate-y-2 opacity-0',
               )}
             >
               {title}

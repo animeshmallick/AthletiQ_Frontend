@@ -2,12 +2,12 @@ import { Accordion } from 'radix-ui';
 import { Floating, FloatBadge } from '@/components/floating-badge';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  Clock,
   CalendarCheck2,
   ChevronDown,
   FileText,
   LayoutGrid,
   MapPin,
-  Pencil,
   Plus,
   Trophy,
   Users,
@@ -41,7 +41,6 @@ import {
 import { Badge, Card, Input, Select } from '@/components/ui/primitives';
 import {
   formatDuration,
-  formatTime,
   formatTimeRange,
   isoWeekday,
   money,
@@ -528,17 +527,14 @@ function BatchCard({
   isAdmin,
   attendanceRate,
   status,
-  onEdit,
 }: {
   b: Batch;
   isAdmin: boolean;
   attendanceRate: number | null | undefined;
   status: 'live' | 'today' | null;
-  onEdit: () => void;
 }) {
   // Today's time when it runs today (days can differ), otherwise the usual one.
   const t = status ? timesOn(b, today()) : b;
-  const [hm, suffix] = formatTime(t.startTime).split(' ');
   const vary = timesVary(b);
   const fill = b.capacity ? Math.min(100, (b.memberCount / b.capacity) * 100) : null;
   const full = b.capacity !== null && b.memberCount >= b.capacity;
@@ -568,21 +564,7 @@ function BatchCard({
           !b.isActive && 'opacity-60',
         )}
       >
-        <Link to={`/batches/${b.id}`} className="flex gap-3 p-3 pr-11">
-          {/* Start time block */}
-          <span
-            className={cn(
-              'flex w-14 shrink-0 flex-col items-center justify-center rounded-xl py-1.5 text-center',
-              status === 'live' ? 'bg-success/12 text-success' : 'bg-primary/10 text-primary',
-            )}
-          >
-            <span className="tabular text-[15px] leading-none font-bold">{hm}</span>
-            <span className="mt-0.5 text-[10px] font-semibold uppercase">{suffix}</span>
-            <span className="mt-1 text-[10px] text-current/70">
-              {formatDuration(toMin(t.endTime) - toMin(t.startTime))}
-            </span>
-          </span>
-
+        <Link to={`/batches/${b.id}`} className="flex gap-3 p-2.5">
           <span className="min-w-0 flex-1 space-y-1.5">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate text-[15px] font-semibold">{b.name}</span>
@@ -607,7 +589,25 @@ function BatchCard({
               <MapPin className="size-3 shrink-0" />
               <span className="truncate">{b.location.name}</span>
             </span>
-            <DayDots days={b.weekdays} compact />
+            {/* When: time and length, with the training days alongside. */}
+            <span className="flex min-w-0 items-center justify-between gap-2">
+              <span
+                className={cn(
+                  'tabular inline-flex min-w-0 items-center gap-1 text-[12px] font-semibold',
+                  status === 'live' ? 'text-success' : 'text-foreground/80',
+                )}
+              >
+                <Clock className="size-3.5 shrink-0" />
+                <span className="truncate">
+                  {formatTimeRange(t.startTime, t.endTime)}
+                  <span className="font-normal text-muted-foreground">
+                    {' '}
+                    · {formatDuration(toMin(t.endTime) - toMin(t.startTime))}
+                  </span>
+                </span>
+              </span>
+              <DayDots days={b.weekdays} compact />
+            </span>
             {vary && (
               <span className="block truncate text-[11px] text-muted-foreground">
                 {/* The time block shows the usual time; list the days that differ. */}
@@ -671,17 +671,6 @@ function BatchCard({
             </span>
           </span>
         </Link>
-        {isAdmin && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 size-8 text-muted-foreground"
-            onClick={onEdit}
-            aria-label={`Edit ${b.name}`}
-          >
-            <Pencil className="size-4" />
-          </Button>
-        )}
       </Card>
     </Floating>
   );
@@ -814,7 +803,6 @@ export function BatchesPage() {
           isAdmin={isAdmin}
           attendanceRate={dash.data ? (rates.get(b.id) ?? null) : undefined}
           status={todayStatus(b, now)}
-          onEdit={() => setEditing(b)}
         />
       ))}
     </div>
