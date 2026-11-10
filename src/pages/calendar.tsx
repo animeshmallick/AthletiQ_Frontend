@@ -2,11 +2,10 @@
  * My calendar: a week grid (time down the side, days across — like Outlook / Teams) and a day view
  * with every session's details and quick actions. Coaches see their batches, admins see all.
  */
+import { PeriodStepper, WeekStrip } from '@/components/date-nav';
 import {
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   ClipboardList,
   CloudRain,
   MapPin,
@@ -36,6 +35,7 @@ import { useCalendar } from '@/lib/queries';
 import type { DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { batchTone, liveStatus, minutes } from './calendar-meta';
+import { CoachDayView } from './calendar-coach-day';
 import { SessionDialog } from './calendar-session';
 
 type View = 'week' | 'day';
@@ -163,96 +163,37 @@ export function CalendarPage() {
         }
       />
 
-      {/* Week navigation + day strip */}
-      <Card className="mb-2.5 p-1.5 sm:p-2">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Previous week"
-            onClick={() => set({ date: addDays(date, -7) })}
-          >
-            <ChevronLeft />
-          </Button>
-          {view === 'week' ? (
-            <p className="flex-1 text-center text-sm font-semibold">
-              {formatShortDate(weekStart)} – {formatShortDate(weekEnd)}
-            </p>
-          ) : (
-            <div className="grid flex-1 grid-cols-7 gap-1" role="tablist" aria-label="Days">
-              {WEEKDAYS.map((w, i) => {
-                const d = addDays(weekStart, i);
-                const info = days.find((x) => x.date === d);
-                const count = info?.sessions.filter((s) => !s.cancelled).length ?? 0;
-                const isSel = d === date;
-                const isToday = d === (q.data?.today ?? today());
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    role="tab"
-                    aria-selected={isSel}
-                    aria-label={`${formatLongDate(d)}, ${count} session${count === 1 ? '' : 's'}`}
-                    onClick={() => set({ date: d, view: 'day' })}
-                    className={cn(
-                      'flex cursor-pointer flex-col items-center gap-0.5 rounded-xl py-1.5 transition-colors active:scale-95',
-                      isSel ? 'bg-primary text-primary-foreground shadow-e1' : 'hover:bg-muted',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'text-[10px] font-semibold tracking-wide uppercase',
-                        !isSel && 'text-muted-foreground',
-                      )}
-                    >
-                      {w.short}
-                    </span>
-                    <span
-                      className={cn(
-                        'tabular flex size-7 items-center justify-center rounded-full text-sm font-bold',
-                        isToday && !isSel && 'ring-2 ring-primary',
-                      )}
-                    >
-                      {Number(d.slice(8))}
-                    </span>
-                    <span className="flex h-1.5 items-center gap-0.5" aria-hidden>
-                      {Array.from({ length: Math.min(3, count) }, (_, k) => (
-                        <span
-                          key={k}
-                          className={cn(
-                            'size-1 rounded-full',
-                            isSel ? 'bg-primary-foreground' : 'bg-primary',
-                          )}
-                        />
-                      ))}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Next week"
-            onClick={() => set({ date: addDays(date, 7) })}
-          >
-            <ChevronRight />
-          </Button>
-        </div>
-        {date !== today() && (
-          <div className="mt-1 flex justify-center">
-            <Button
-              variant="tonal"
-              size="sm"
-              className="h-7 px-2.5 text-[12px] pointer-coarse:h-7"
-              onClick={() => set({ date: today() })}
-            >
-              <CalendarDays /> Back to today
-            </Button>
-          </div>
+      {/* Week navigation + day strip (compact) */}
+      <div className="mb-2 space-y-1">
+        <PeriodStepper
+          label={`${formatShortDate(weekStart)} – ${formatShortDate(weekEnd)}`}
+          sublabel={
+            weekStart === startOfWeek(q.data?.today ?? today())
+              ? 'This week'
+              : view === 'day'
+                ? formatLongDate(date)
+                : undefined
+          }
+          prevLabel="Previous week"
+          nextLabel="Next week"
+          onPrev={() => set({ date: addDays(date, -7) })}
+          onNext={() => set({ date: addDays(date, 7) })}
+          onToday={date !== today() ? () => set({ date: today() }) : undefined}
+          pick={{ value: date, onChange: (d) => set({ date: d }) }}
+        />
+        {view === 'day' && (
+          <WeekStrip
+            className="rounded-xl border bg-card p-0.5 shadow-e1"
+            days={Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))}
+            value={date}
+            todayDate={q.data?.today ?? today()}
+            count={(d) =>
+              days.find((x) => x.date === d)?.sessions.filter((x) => !x.cancelled).length ?? 0
+            }
+            onSelect={(d) => set({ date: d, view: 'day' })}
+          />
         )}
-      </Card>
+      </div>
 
       {q.isError ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
@@ -268,12 +209,21 @@ export function CalendarPage() {
           onOpenDay={(d) => set({ date: d, view: 'day' })}
           onOpenSession={(s, d) => setOpenSession({ s, date: d })}
         />
-      ) : (
+      ) : user.role === 'admin' ? (
         <DayView
           date={date}
           sessions={selected?.sessions ?? []}
           isToday={date === q.data.today}
-          isAdmin={user.role === 'admin'}
+          isAdmin
+        />
+      ) : (
+        // Coaches: the day grouped by where they need to be.
+        <CoachDayView
+          date={date}
+          sessions={selected?.sessions ?? []}
+          isToday={date === q.data.today}
+          isPast={date < q.data.today}
+          now={now}
         />
       )}
       <SessionDialog

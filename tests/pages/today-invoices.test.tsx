@@ -1,6 +1,6 @@
 import { InvoicesPage } from '@/pages/invoices';
 import { TodayPage } from '@/pages/today';
-import { invoiceDetail } from '../fixtures';
+import { invoiceDetail, studentListItem } from '../fixtures';
 import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
 const todaySession = (session: unknown = null) => ({
@@ -115,9 +115,11 @@ describe('TodayPage (coach)', () => {
       'GET /attendance/overview': () => overview,
     });
     await renderPage(<TodayPage />, { user: coachUser });
-    expect(
-      await screen.findByRole('button', { name: /check out · in since 6:01 am/i }),
-    ).toBeInTheDocument();
+    // Compact button; the check-in time is on its tooltip.
+    expect(await screen.findByRole('button', { name: /^check out$/i })).toHaveAttribute(
+      'title',
+      'In since 6:01 am',
+    );
     expect(screen.getByText('Flagged')).toBeInTheDocument();
   });
 
@@ -191,11 +193,22 @@ describe('TodayPage (admin)', () => {
       }),
     });
     await renderPage(<TodayPage />, { user: adminUser });
-    expect(await screen.findByText('₹2,500')).toBeInTheDocument();
+    // KPI strip.
+    const collected = await screen.findByRole('link', { name: /Collected · month/ });
+    await waitFor(() => expect(collected).toHaveTextContent('₹2,500'));
     expect(screen.getByText('25% collected this month')).toBeInTheDocument();
-    expect(await screen.findByText('3 registrations to review')).toBeInTheDocument();
-    expect(screen.getByText('1 check-in flagged')).toBeInTheDocument();
-    expect(screen.getByText('Anya Rao')).toBeInTheDocument();
+    expect(screen.getByText('2 overdue invoices')).toBeInTheDocument(); // header chip
+    // Follow-ups.
+    expect(await screen.findByRole('link', { name: /Registrations to review/ })).toHaveTextContent(
+      '3',
+    );
+    expect(screen.getByRole('link', { name: /Flagged check-ins to review/ })).toHaveTextContent(
+      '1',
+    );
+    expect(screen.getByRole('link', { name: /Anya Rao/ })).toHaveTextContent('₹5,000');
+    // Compact sections.
+    for (const title of ['Today’s plan', 'Follow-ups', 'Money', 'Overview'])
+      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
   });
 });
 
@@ -377,32 +390,105 @@ describe('Today insights', () => {
     birthdays: [{ studentId: 's3', fullName: 'Riya Shah', inDays: 0, turning: 12 }],
   };
 
-  it('shows academy insights to admins', async () => {
+  it('lists follow-ups for admins: low attendance and today’s birthdays', async () => {
     mockApi({ 'GET /dashboard': () => dashboard });
     await renderPage(<TodayPage />, { user: adminUser });
-    expect(await screen.findByText('Active students')).toBeInTheDocument();
-    expect(screen.getByText('42')).toBeInTheDocument();
-    expect(screen.getByText('+3 joined · 1 left this month')).toBeInTheDocument();
-    expect(screen.getByText('Kavya Iyer')).toBeInTheDocument();
-    expect(screen.getByText('Morning U-12')).toBeInTheDocument();
-    expect(screen.getByText('Arjun Mehta')).toBeInTheDocument();
-    expect(screen.getByText('Riya Shah')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('link', { name: /Low attendance · Arjun Mehta/ }),
+    ).toHaveTextContent('17%');
+    expect(
+      screen.getByRole('link', { name: /Riya Shah · birthday today \(12\)/ }),
+    ).toBeInTheDocument();
   });
 
-  it('shows a coach their month', async () => {
+  it('groups to-dos by urgency and pins session to-dos on the timeline', async () => {
     mockApi({
-      'GET /dashboard': () => ({
-        ...dashboard,
-        coaches: [],
-        myMonth: { sessions: 9, hours: 13.5, onTimeRate: 89, flagged: 0 },
-        feedback: { total: 12, submitted: 10, draft: 1, pending: 1 },
+      'GET /me/tasks': () => ({
+        generatedAt: '',
+        total: 2,
+        counts: {},
+        items: [
+          {
+            id: 'missed-check-in:b1:2026-03-09',
+            kind: 'missed-check-in',
+            severity: 'critical',
+            title: 'Kavya hasn’t checked in',
+            detail: 'Morning U-12 started at 6:00 am',
+            link: '/calendar',
+            screen: '/calendar',
+          },
+          {
+            id: 'feedback:2026-03-02',
+            kind: 'feedback',
+            severity: 'info',
+            title: '3 weekly reports to send',
+            detail: 'For the week of 2026-03-02',
+            link: '/feedback',
+            screen: '/feedback',
+          },
+        ],
+      }),
+      // Echo the requested day, so the plan shows it as today.
+      'GET /attendance/calendar': (c) => ({
+        from: c.query.get('from'),
+        to: c.query.get('to'),
+        today: c.query.get('from'),
+        days: [{ date: c.query.get('from'), sessions: overview.sessions }],
+      }),
+    });
+    await renderPage(<TodayPage />, { user: adminUser });
+    expect(await screen.findByText('Do now')).toBeInTheDocument();
+    expect(screen.getByText('Later')).toBeInTheDocument();
+    // The session's to-do also sits on its timeline card.
+    expect(await screen.findAllByText('Kavya hasn’t checked in')).toHaveLength(2);
+  });
+
+  it('moves the day plan between days', async () => {
+    const api = mockApi({});
+    const { user } = await renderPage(<TodayPage />, { user: adminUser });
+    await user.click(await screen.findByRole('button', { name: 'Next day' }));
+    // One-day requests: today first, then tomorrow.
+    const days = () =>
+      api
+        .find('GET /attendance/calendar')
+        .filter((r) => r.query.get('from') === r.query.get('to'))
+        .map((r) => r.query.get('from'));
+    await waitFor(() => expect(new Set(days()).size).toBe(2));
+    await user.click(screen.getByRole('button', { name: 'Today' }));
+    expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument();
+  });
+
+  it('shows a coach only their own money and their overdue students, without amounts', async () => {
+    mockApi({
+      'GET /funds/overview': () => ({
+        scope: 'self',
+        from: '',
+        to: '',
+        cash: 120_000,
+        due: 30_000,
+        period: {
+          collected: 450_000,
+          earned: 0,
+          earnedBy: [],
+          kept: 0,
+          handedOver: 0,
+          spent: 0,
+          paidToMe: 0,
+        },
+      }),
+      'GET /students': () => ({
+        data: [{ ...studentListItem, outstanding: 250_000, overdue: 250_000 }],
+        meta: { page: 1, pageSize: 6, total: 1, totalPages: 1 },
       }),
     });
     await renderPage(<TodayPage />, { user: coachUser });
-    expect(await screen.findByText('My month')).toBeInTheDocument();
-    expect(screen.getByText('10/12')).toBeInTheDocument();
-    expect(screen.getByText('2 still to send')).toBeInTheDocument();
-    expect(screen.getByText('89%')).toBeInTheDocument();
+    expect(await screen.findByText('Cash with me')).toBeInTheDocument();
+    expect(screen.getByText('₹1,200')).toBeInTheDocument();
+    expect(screen.getByText('₹4,500')).toBeInTheDocument();
+    const row = await screen.findByRole('link', { name: /Anya Rao/ });
+    expect(row).toHaveTextContent('Overdue');
+    expect(row).not.toHaveTextContent('₹2,500');
+    expect(screen.getByRole('heading', { name: 'My money' })).toBeInTheDocument();
   });
 
   it('nudges a coach about upcoming sessions without a plan', async () => {

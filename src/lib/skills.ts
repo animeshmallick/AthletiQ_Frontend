@@ -1,9 +1,9 @@
 /**
  * Skill tracking: sports and their frameworks, monthly assessments, progress, insights,
- * student photos and private report links.
+ * and private report links.
  */
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, requestBlob } from './api';
+import { api } from './api';
 
 export const RATING_LABELS = ['Beginner', 'Developing', 'Competent', 'Advanced', 'Excellent'];
 /** 345 → "3.45"; 300 → "3.0". */
@@ -65,7 +65,6 @@ export interface SkillSheet {
     id: string;
     fullName: string;
     code: string;
-    hasPhoto: boolean;
     current: AssessmentLite | null;
     previous: AssessmentLite | null;
   }[];
@@ -252,47 +251,6 @@ export const useSkillInsights = (month: string, batchId?: string) =>
       ),
     placeholderData: keepPreviousData,
   });
-
-// ─── Photos ──────────────────────────────────────────────────────────────────
-
-/** Object URL of a student's photo, or null when there is none. */
-export function useStudentPhoto(id: string, enabled = true) {
-  return useQuery({
-    queryKey: ['students', id, 'photo'],
-    queryFn: async () => {
-      try {
-        return URL.createObjectURL(await requestBlob(`/students/${id}/photo`));
-      } catch {
-        return null;
-      }
-    },
-    enabled,
-    staleTime: 5 * 60_000,
-  });
-}
-
-export function useSetStudentPhoto(id: string) {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: (data: string | null) =>
-      data === null
-        ? api.delete(`/students/${id}/photo`)
-        : api.put(`/students/${id}/photo`, { data }),
-    onSuccess: () => invalidate(['students', id, 'photo'], ['skills']),
-  });
-}
-
-/** Resizes an image file on the device to a square-ish JPEG (≤ 512 px) as base64. */
-export async function resizePhoto(file: File, max = 512): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-  return dataUrl.slice(dataUrl.indexOf(',') + 1);
-}
 
 // ─── Report links ────────────────────────────────────────────────────────────
 

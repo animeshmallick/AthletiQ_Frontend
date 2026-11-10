@@ -1,9 +1,8 @@
-import { CheckCircle2, ChevronRight, Plus, Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
 import {
-  Avatar,
   EmptyState,
   ErrorState,
   ListSkeleton,
@@ -13,11 +12,10 @@ import {
 } from '@/components/common';
 import { FilterBar, FilterField, FilterMenu } from '@/components/filters';
 import { Button } from '@/components/ui/button';
-import { Badge, Card, Select } from '@/components/ui/primitives';
-import { money } from '@/lib/format';
+import { Select } from '@/components/ui/primitives';
 import { useBatches, usePrefetchStudent, useStudents } from '@/lib/queries';
-import { cn } from '@/lib/utils';
 import { StudentFormDialog } from './forms';
+import { StudentCard } from './student-card';
 
 export function StudentsPage() {
   const user = useUser();
@@ -32,7 +30,7 @@ export function StudentsPage() {
     search: params.get('q') ?? '',
     status: (params.get('status') ?? 'active') as 'active' | 'left' | 'all',
     batchId: params.get('batch') ?? '',
-    dues: (params.get('dues') ?? '') as '' | 'outstanding' | 'overdue',
+    dues: (params.get('dues') ?? '') as '' | 'outstanding' | 'overdue' | 'paying',
     page: Number(params.get('page') ?? 1),
   };
   const students = useStudents({
@@ -40,7 +38,8 @@ export function StudentsPage() {
     status: q.status === 'all' ? undefined : q.status,
     batchId: q.batchId || undefined,
     dues: q.dues || undefined,
-    sort: q.dues ? 'dues' : undefined,
+    // Unpaid filters list the biggest dues first.
+    sort: q.dues === 'outstanding' || q.dues === 'overdue' ? 'dues' : undefined,
     page: q.page,
     pageSize: 25,
   });
@@ -107,6 +106,7 @@ export function StudentsPage() {
               <option value="">Any fee status</option>
               <option value="outstanding">With unpaid fees</option>
               <option value="overdue">Overdue fees</option>
+              <option value="paying">Exclude free students</option>
             </Select>
           </FilterField>
           <FilterField label="Status">
@@ -150,147 +150,11 @@ export function StudentsPage() {
         />
       ) : (
         <>
-          {/* Desktop table */}
-          <Card className="hidden overflow-hidden md:block">
-            <table className="w-full text-sm">
-              <thead className="border-b bg-muted/40 text-left text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2.5 font-medium">Student</th>
-                  <th className="px-4 py-2.5 font-medium">Batches</th>
-                  <th className="px-4 py-2.5 font-medium">Plan</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Fee</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Outstanding</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {students.data.data.map((s) => (
-                  <tr
-                    key={s.id}
-                    onClick={() => navigate(`/students/${s.id}`)}
-                    className="cursor-pointer transition-colors hover:bg-muted/40"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={s.fullName} />
-                        <div className="min-w-0">
-                          <Link
-                            to={`/students/${s.id}`}
-                            onPointerEnter={() => prefetch(s.id)}
-                            onTouchStart={() => prefetch(s.id)}
-                            className="font-medium hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {s.fullName}
-                          </Link>
-                          <p className="text-xs text-muted-foreground">
-                            {s.code} · {s.phone}
-                          </p>
-                        </div>
-                        {s.status === 'left' && <Badge variant="muted">Left</Badge>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {s.batches.length ? (
-                        s.batches.map((b) => (
-                          <p key={b.id} className="leading-snug">
-                            {b.name}
-                            {isAdmin && (
-                              <span className="text-xs text-muted-foreground">
-                                {' '}
-                                · {b.coachName}
-                              </span>
-                            )}
-                          </p>
-                        ))
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {s.batches.length
-                        ? [...new Set(s.batches.map((b) => b.planName))].join(', ')
-                        : '—'}
-                    </td>
-                    <td className="tabular px-4 py-3 text-right">{money(s.effectiveFee)}</td>
-                    <td className="tabular px-4 py-3 text-right">
-                      {s.overdue > 0 ? (
-                        <span className="font-medium text-destructive">{money(s.outstanding)}</span>
-                      ) : s.outstanding > 0 ? (
-                        <span className="text-warning-foreground dark:text-warning">
-                          {money(s.outstanding)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="pr-3">
-                      <ChevronRight className="size-4 text-muted-foreground" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-
-          {/* Mobile cards */}
-          <Card className="divide-y md:hidden">
+          <div className="grid grid-cols-1 gap-2 *:min-w-0 sm:grid-cols-2 xl:grid-cols-3">
             {students.data.data.map((s) => (
-              <Link
-                key={s.id}
-                to={`/students/${s.id}`}
-                onPointerEnter={() => prefetch(s.id)}
-                onTouchStart={() => prefetch(s.id)}
-                className={cn(
-                  'flex items-center gap-2 px-1.5 py-1.5 hover:bg-muted/40 active:bg-muted/60',
-                  s.status === 'left' && 'opacity-60',
-                )}
-              >
-                <Avatar name={s.fullName} />
-                <div className="min-w-0 flex-1">
-                  <p className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate text-[14px] font-semibold">{s.fullName}</span>
-                    <span className="tabular shrink-0 rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">
-                      {s.code}
-                    </span>
-                    {s.status === 'left' && (
-                      <Badge variant="muted" className="shrink-0">
-                        Left
-                      </Badge>
-                    )}
-                  </p>
-                  <p className="truncate text-[12px] text-muted-foreground">
-                    {s.batches.length ? s.batches.map((b) => b.name).join(', ') : 'No batch'}
-                    <span className="tabular"> · {money(s.effectiveFee)}/mo</span>
-                  </p>
-                </div>
-                {s.outstanding > 0 ? (
-                  <span className="flex shrink-0 flex-col items-end">
-                    <span
-                      className={cn(
-                        'tabular text-[13px] font-semibold',
-                        s.overdue > 0
-                          ? 'text-destructive'
-                          : 'text-warning-foreground dark:text-warning',
-                      )}
-                    >
-                      {money(s.outstanding)}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {s.overdue > 0 ? 'overdue' : 'due'}
-                    </span>
-                  </span>
-                ) : (
-                  s.status === 'active' && (
-                    <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] text-success">
-                      <CheckCircle2 className="size-3.5" /> Paid
-                    </span>
-                  )
-                )}
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" />
-              </Link>
+              <StudentCard key={s.id} s={s} isAdmin={isAdmin} onPrefetch={() => prefetch(s.id)} />
             ))}
-          </Card>
+          </div>
 
           {students.data.meta && (
             <Pagination

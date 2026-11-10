@@ -1,12 +1,10 @@
 import {
-  AlertTriangle,
   ArrowRight,
   CalendarCheck2,
   CheckCircle2,
   ClipboardList,
   Clock,
   CloudRain,
-  IndianRupee,
   Lock,
   LogIn,
   LogOut,
@@ -14,11 +12,8 @@ import {
   MessageSquareText,
   Repeat,
   ShieldAlert,
-  UserPlus,
-  Users,
-  Wallet,
 } from 'lucide-react';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
@@ -28,24 +23,14 @@ import {
   ErrorState,
   ListSkeleton,
   Progress,
-  StatCard,
   SectionDivider,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import {
-  Badge,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/primitives';
+import { Badge, Card, Skeleton } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import {
   addDays,
-  coachTimes,
   formatClock,
-  formatDate,
   formatLongDate,
   formatTimeRange,
   money,
@@ -57,16 +42,23 @@ import { getCurrentPosition } from '@/lib/geolocation';
 import {
   useAttendanceOverview,
   useCheck,
-  useCoachSessions,
   useCoachToday,
   useFeedbackWeek,
   useFinance,
   useLessonInsights,
-  useRegistrations,
+  useTasks,
 } from '@/lib/queries';
 import type { DayOverviewSession, TodaySession } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { AdminInsights, CoachInsights } from './today-insights';
+import { CollectedByCard, MoneySnapshot } from './today-insights';
+import {
+  AdminFollowUps,
+  CoachFollowUps,
+  CoachMoney,
+  DayPlan,
+  PeriodOverview,
+  TodoList,
+} from './home/sections';
 
 function greeting() {
   const h = Number(
@@ -81,7 +73,16 @@ function greeting() {
 
 // ─── Coach: check-in card ────────────────────────────────────────────────────
 
-function CheckInButton({ item, overview }: { item: TodaySession; overview?: DayOverviewSession }) {
+export function CheckInButton({
+  item,
+  overview,
+  compact = false,
+}: {
+  item: TodaySession;
+  overview?: DayOverviewSession;
+  /** Small button for dense lists (calendar cards). */
+  compact?: boolean;
+}) {
   const checkIn = useCheck('check-in');
   const checkOut = useCheck('check-out');
   const [locating, setLocating] = useState(false);
@@ -114,7 +115,10 @@ function CheckInButton({ item, overview }: { item: TodaySession; overview?: DayO
 
   if (done) {
     return (
-      <Badge variant={s?.flagged ? 'warning' : 'success'} className="h-8 px-3">
+      <Badge
+        variant={s?.flagged ? 'warning' : 'success'}
+        className={compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3'}
+      >
         <CheckCircle2 /> {formatClock(s!.checkInAt)} – {formatClock(s!.checkOutAt!)}
       </Badge>
     );
@@ -123,7 +127,14 @@ function CheckInButton({ item, overview }: { item: TodaySession; overview?: DayO
     <>
       <Button
         size="sm"
-        variant={mode === 'check-in' ? 'default' : 'outline'}
+        variant={mode === 'check-in' ? 'success' : 'outline'}
+        className={cn(
+          'shrink-0',
+          compact
+            ? 'h-6 gap-1 rounded-md px-2 text-[11px] pointer-coarse:h-6 pointer-coarse:text-[11px] [&_svg:not([class*=size-])]:size-3'
+            : 'h-8 gap-1.5 rounded-lg px-3 text-[12px] pointer-coarse:h-8 [&_svg:not([class*=size-])]:size-3.5',
+        )}
+        title={s ? `In since ${formatClock(s.checkInAt)}` : undefined}
         loading={locating || checkIn.isPending || checkOut.isPending}
         onClick={() => (mode === 'check-out' ? setConfirmOut(true) : void run())}
       >
@@ -132,7 +143,9 @@ function CheckInButton({ item, overview }: { item: TodaySession; overview?: DayO
           ? 'Locating…'
           : mode === 'check-in'
             ? 'Check in'
-            : `Check out · in since ${formatClock(s!.checkInAt)}`}
+            : compact
+              ? 'Check out'
+              : `Check out · in since ${formatClock(s!.checkInAt)}`}
       </Button>
       <ConfirmDialog
         open={confirmOut}
@@ -165,7 +178,7 @@ function CoachSessionCard({
     overview && overview.expectedStudents ? (overview.marked / overview.expectedStudents) * 100 : 0;
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-col gap-1.5 p-1.5 pl-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start justify-between gap-2 p-1.5 pl-2 sm:items-center">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate font-semibold">{item.batch.name}</h3>
@@ -201,7 +214,7 @@ function CoachSessionCard({
             <CloudRain /> Cancelled · {item.cancelled}
           </Badge>
         ) : (
-          <CheckInButton item={item} overview={overview} />
+          <CheckInButton item={item} overview={overview} compact />
         )}
       </div>
       <div className="grid grid-cols-2 border-t text-sm">
@@ -262,9 +275,9 @@ function CoachSessionCard({
 function PlanningNudge() {
   const day = today();
   const q = useLessonInsights({ from: day, to: addDays(day, 13) });
-  const missing = q.data?.totals.upcomingUnplanned ?? 0;
+  const missing = q.data?.totals?.upcomingUnplanned ?? 0;
   if (!missing) return null;
-  const first = q.data!.needsPlan.find((n) => n.status === 'unplanned');
+  const first = q.data?.needsPlan?.find((n) => n.status === 'unplanned');
   return (
     <Link
       to={first ? `/lesson-plans?batch=${first.batchId}&date=${first.date}` : '/lesson-plans'}
@@ -280,66 +293,120 @@ function PlanningNudge() {
   );
 }
 
-function CoachToday() {
+/** Greeting, date and today at a glance. */
+function Hello({ chips }: { chips: { label: string; tone?: 'warn' | 'bad' }[] }) {
   const user = useUser();
+  return (
+    <div>
+      <p className="text-[12px] text-muted-foreground">{formatLongDate(today())}</p>
+      <h1 className="text-[21px] leading-tight font-semibold tracking-tight sm:text-2xl">
+        {greeting()}, {user.name.split(' ')[0]}
+      </h1>
+      {chips.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {chips.map((c) => (
+            <span
+              key={c.label}
+              className={cn(
+                'rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                c.tone === 'bad'
+                  ? 'bg-destructive/10 text-destructive'
+                  : c.tone === 'warn'
+                    ? 'bg-warning/15 text-warning-foreground dark:text-warning'
+                    : 'bg-muted text-muted-foreground',
+              )}
+            >
+              {c.label}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CoachToday() {
   const day = today();
   const todayQ = useCoachToday();
   const overview = useAttendanceOverview(day);
+  const tasks = useTasks();
   const lastWeek = startOfWeek(addDays(day, -7));
   const feedback = useFeedbackWeek({ weekStart: lastWeek });
+  const sessions = todayQ.data?.sessions ?? [];
+  const live = sessions.filter((s) => !s.cancelled).length;
+  const todo = tasks.data?.items.length ?? 0;
+  const fb = feedback.data?.summary;
+  const reportsDue = fb ? fb.pending + fb.draft : 0;
 
   return (
-    <div className="space-y-3 sm:space-y-3.5">
-      <div>
-        <p className="text-[13px] text-muted-foreground">{formatLongDate(day)}</p>
-        <h1 className="text-[22px] font-semibold tracking-tight sm:text-2xl">
-          {greeting()}, {user.name.split(' ')[0]}
-        </h1>
+    <div className="space-y-3">
+      <Hello
+        chips={[
+          { label: live ? plural(live, 'session') + ' today' : 'Rest day' },
+          ...(todo ? [{ label: plural(todo, 'to-do'), tone: 'warn' as const }] : []),
+          ...(reportsDue
+            ? [{ label: plural(reportsDue, 'report') + ' due', tone: 'warn' as const }]
+            : []),
+        ]}
+      />
+
+      <SectionDivider>Today’s plan</SectionDivider>
+      <DayPlan
+        isAdmin={false}
+        renderToday={() =>
+          todayQ.isPending ? (
+            <ListSkeleton rows={2} />
+          ) : todayQ.isError ? (
+            <ErrorState error={todayQ.error} onRetry={() => void todayQ.refetch()} />
+          ) : sessions.length === 0 ? (
+            <EmptyState
+              icon={<CalendarCheck2 />}
+              title="No sessions today"
+              description="Enjoy the rest day. Use the arrows to see what’s coming up."
+            />
+          ) : (
+            <div className="grid gap-2 xl:grid-cols-2">
+              {sessions.map((s) => (
+                <CoachSessionCard
+                  key={s.batch.id}
+                  item={s}
+                  overview={overview.data?.sessions.find((o) => o.batch.id === s.batch.id)}
+                />
+              ))}
+            </div>
+          )
+        }
+      />
+
+      <SectionDivider>To-dos</SectionDivider>
+      <div className="grid gap-2 lg:grid-cols-2">
+        <TodoList />
+        <div className="space-y-2">
+          {reportsDue > 0 && (
+            <Link
+              to="/feedback"
+              className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 p-1 pl-2 text-[13px] leading-tight transition-colors hover:bg-warning/15"
+            >
+              <MessageSquareText className="size-4 shrink-0 text-warning-foreground dark:text-warning" />
+              <span className="flex-1">
+                <span className="font-medium">Weekly feedback due</span> —{' '}
+                {plural(reportsDue, 'student')} still need last week’s report.
+              </span>
+              <ArrowRight className="size-4" />
+            </Link>
+          )}
+          <PlanningNudge />
+        </div>
       </div>
 
-      {feedback.data && feedback.data.summary.pending + feedback.data.summary.draft > 0 && (
-        <Link
-          to="/feedback"
-          className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 p-1 pl-2 text-[13px] leading-tight transition-colors hover:bg-warning/15"
-        >
-          <MessageSquareText className="size-4 shrink-0 text-warning-foreground dark:text-warning" />
-          <span className="flex-1">
-            <span className="font-medium">Weekly feedback due</span> —{' '}
-            {plural(feedback.data.summary.pending + feedback.data.summary.draft, 'student')} still
-            need last week’s report.
-          </span>
-          <ArrowRight className="size-4" />
-        </Link>
-      )}
+      <SectionDivider>Follow-ups</SectionDivider>
+      <CoachFollowUps />
 
-      <PlanningNudge />
+      <SectionDivider>My money</SectionDivider>
+      <CoachMoney />
 
-      <section className="space-y-2.5">
-        <SectionDivider>Today’s sessions</SectionDivider>
-        {todayQ.isPending ? (
-          <ListSkeleton rows={2} />
-        ) : todayQ.isError ? (
-          <ErrorState error={todayQ.error} onRetry={() => void todayQ.refetch()} />
-        ) : todayQ.data.sessions.length === 0 ? (
-          <EmptyState
-            icon={<CalendarCheck2 />}
-            title="No sessions today"
-            description="Enjoy the rest day. Your batches will show up here on training days."
-          />
-        ) : (
-          <div className="grid gap-3 xl:grid-cols-2">
-            {todayQ.data.sessions.map((s) => (
-              <CoachSessionCard
-                key={s.batch.id}
-                item={s}
-                overview={overview.data?.sessions.find((o) => o.batch.id === s.batch.id)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <CoachInsights />
+      <SectionDivider>Overview</SectionDivider>
+      <PeriodOverview isAdmin={false} />
     </div>
   );
 }
@@ -347,217 +414,98 @@ function CoachToday() {
 // ─── Admin dashboard ─────────────────────────────────────────────────────────
 
 function AdminToday() {
-  const user = useUser();
   const day = today();
   const finance = useFinance({});
   const overview = useAttendanceOverview(day);
-  const regs = useRegistrations({ status: 'pending', pageSize: 1 });
-  const flagged = useCoachSessions({ flagged: 'true' });
+  const tasks = useTasks();
   const t = finance.data?.totals;
-  const pendingRegs =
-    (regs.data?.meta?.pending.pendingStudents ?? 0) +
-    (regs.data?.meta?.pending.pendingCoaches ?? 0);
-  const unreviewed = flagged.data?.summary.unreviewedFlagged ?? 0;
+  const sessions = overview.data?.sessions ?? [];
+  const todo = tasks.data?.items.length ?? 0;
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <div>
-        <p className="text-sm text-muted-foreground">{formatLongDate(day)}</p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {greeting()}, {user.name.split(' ')[0]}
-        </h1>
+    <div className="space-y-3">
+      <Hello
+        chips={[
+          {
+            label: sessions.length
+              ? plural(sessions.filter((s) => !s.cancelled).length, 'session') + ' today'
+              : 'No sessions today',
+          },
+          ...(todo ? [{ label: plural(todo, 'to-do'), tone: 'warn' as const }] : []),
+          ...(t?.overdueCount
+            ? [{ label: plural(t.overdueCount, 'overdue invoice'), tone: 'bad' as const }]
+            : []),
+        ]}
+      />
+
+      <div className="grid grid-cols-2 gap-1.5 rounded-2xl border bg-card p-1.5 shadow-e1 sm:grid-cols-4">
+        {[
+          {
+            label: 'Collected · month',
+            value: t ? money(t.collected) : '—',
+            hint: t ? `${plural(t.paymentsReceived, 'payment')}` : '',
+            to: '/finance',
+            tone: 'text-success',
+          },
+          {
+            label: 'Billed · month',
+            value: t ? money(t.billed) : '—',
+            hint:
+              t?.collectionRate !== null && t ? `${t.collectionRate}% collected this month` : '',
+            to: '/finance',
+          },
+          {
+            label: 'Outstanding',
+            value: t ? money(t.outstanding) : '—',
+            hint: t ? plural(t.dueCount + t.overdueCount, 'invoice') : '',
+            to: '/finance?tab=invoices&status=open',
+            tone: 'text-warning-foreground dark:text-warning',
+          },
+          {
+            label: 'Overdue',
+            value: t ? money(t.overdue) : '—',
+            hint: t ? plural(t.overdueCount, 'invoice') : '',
+            to: '/finance?tab=invoices&status=overdue',
+            tone: 'text-destructive',
+          },
+        ].map((x) => (
+          <Link
+            key={x.label}
+            to={x.to}
+            className="min-w-0 rounded-xl bg-muted/40 px-2 py-1.5 transition-colors hover:bg-muted"
+          >
+            <p className="truncate text-[10px] font-medium text-muted-foreground">{x.label}</p>
+            <p className={cn('tabular truncate text-[16px] leading-tight font-bold', x.tone)}>
+              {x.value}
+            </p>
+            <p className="truncate text-[10px] text-muted-foreground">{x.hint}</p>
+          </Link>
+        ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-        <StatCard
-          label="Collected"
-          to="/finance"
-          icon={<Wallet />}
-          tone="success"
-          loading={finance.isPending}
-          value={t ? money(t.collected) : '—'}
-          hint={t ? `${plural(t.paymentsReceived, 'payment')} this month` : undefined}
-        />
-        <StatCard
-          label="Billed"
-          to="/finance"
-          icon={<IndianRupee />}
-          loading={finance.isPending}
-          value={t ? money(t.billed) : '—'}
-          hint={
-            t?.collectionRate !== null && t
-              ? `${t.collectionRate}% collected this month`
-              : undefined
-          }
-        />
-        <StatCard
-          label="Outstanding"
-          to="/finance?tab=invoices&status=open"
-          icon={<Clock />}
-          tone="warning"
-          loading={finance.isPending}
-          value={t ? money(t.outstanding) : '—'}
-          hint={t ? `${plural(t.dueCount + t.overdueCount, 'invoice')}` : undefined}
-        />
-        <StatCard
-          label="Overdue"
-          to="/finance?tab=invoices&status=overdue"
-          icon={<AlertTriangle />}
-          tone="destructive"
-          loading={finance.isPending}
-          value={t ? money(t.overdue) : '—'}
-          hint={t ? `${plural(t.overdueCount, 'invoice')}` : undefined}
-        />
-      </div>
-
-      {(pendingRegs > 0 || unreviewed > 0) && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {pendingRegs > 0 && (
-            <Link
-              to="/registrations"
-              className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/50"
-            >
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <UserPlus className="size-5" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">{plural(pendingRegs, 'registration')} to review</p>
-                <p className="text-sm text-muted-foreground">
-                  New students and coaches waiting for approval
-                </p>
-              </div>
-              <ArrowRight className="size-4 text-muted-foreground" />
-            </Link>
-          )}
-          {unreviewed > 0 && (
-            <Link
-              to="/coach-sessions?flagged=true"
-              className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/50"
-            >
-              <div className="flex size-10 items-center justify-center rounded-lg bg-warning/18 text-warning-foreground dark:text-warning">
-                <ShieldAlert className="size-5" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">{plural(unreviewed, 'check-in')} flagged</p>
-                <p className="text-sm text-muted-foreground">
-                  Coach GPS readings outside the location radius
-                </p>
-              </div>
-              <ArrowRight className="size-4 text-muted-foreground" />
-            </Link>
-          )}
+      <SectionDivider>Today’s plan</SectionDivider>
+      <div className="grid gap-2 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <DayPlan isAdmin />
         </div>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Sessions today</CardTitle>
-            <CardDescription>
-              Attendance, lesson plans and coach check-ins across all batches.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {overview.isPending ? (
-              <ListSkeleton rows={3} />
-            ) : overview.isError ? (
-              <ErrorState error={overview.error} onRetry={() => void overview.refetch()} />
-            ) : overview.data.sessions.length === 0 ? (
-              <EmptyState icon={<CalendarCheck2 />} title="No sessions scheduled today" />
-            ) : (
-              <ul className="divide-y">
-                {overview.data.sessions.map((s) => (
-                  <li key={s.batch.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-                    <div className="min-w-0 flex-[1_1_12rem]">
-                      <Link
-                        to={`/attendance?batch=${s.batch.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {s.batch.name}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">
-                        {formatTimeRange(s.batch.startTime, s.batch.endTime)} · {s.batch.coach.name}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {s.cancelled ? (
-                        <Badge variant="muted">
-                          <CloudRain /> Cancelled · {s.cancelled}
-                        </Badge>
-                      ) : (
-                        <>
-                          <Badge
-                            variant={
-                              s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'
-                            }
-                          >
-                            <Users /> {s.marked}/{s.expectedStudents}
-                          </Badge>
-                          <Badge variant={s.hasLessonPlan ? 'success' : 'muted'}>
-                            <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'No plan'}
-                          </Badge>
-                          <Badge
-                            variant={
-                              s.coachSession
-                                ? s.coachSession.flagged
-                                  ? 'warning'
-                                  : 'success'
-                                : 'muted'
-                            }
-                          >
-                            <MapPin /> {coachTimes(s.coachSession)}
-                          </Badge>
-                        </>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Largest overdue balances</CardTitle>
-            <CardDescription>Follow up on these first.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {finance.isPending ? (
-              <ListSkeleton rows={3} />
-            ) : !finance.data?.topOverdue.length ? (
-              <EmptyState
-                icon={<CheckCircle2 />}
-                title="No overdue fees"
-                description="Every invoice is within its due date."
-              />
-            ) : (
-              <ul className="divide-y">
-                {finance.data.topOverdue.slice(0, 6).map((r) => (
-                  <li key={r.studentId} className="flex items-center justify-between gap-3 py-2.5">
-                    <div className="min-w-0">
-                      <Link
-                        to={`/students/${r.studentId}`}
-                        className="block truncate text-sm font-medium hover:underline"
-                      >
-                        {r.fullName}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">
-                        Since {formatDate(r.oldestDueDate)}
-                      </p>
-                    </div>
-                    <span className={cn('tabular text-sm font-semibold text-destructive')}>
-                      {money(r.overdue)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-2">
+          <TodoList />
+        </div>
       </div>
 
-      <AdminInsights />
+      <SectionDivider>Follow-ups</SectionDivider>
+      <AdminFollowUps />
+
+      <SectionDivider>Money</SectionDivider>
+      <div className="grid gap-2 lg:grid-cols-2">
+        <MoneySnapshot />
+        <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
+          <CollectedByCard admin />
+        </Suspense>
+      </div>
+
+      <SectionDivider>Overview</SectionDivider>
+      <PeriodOverview isAdmin />
     </div>
   );
 }

@@ -1,16 +1,15 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useAuth } from '@/app/auth';
-import { addDays, relativeDay, today } from '@/lib/format';
+import { addDays, formatLongDate, relativeDay, today } from '@/lib/format';
+import { PeriodStepper } from './date-nav';
 import { useBatches } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Button } from './ui/button';
-import { Input, Select, Skeleton } from './ui/primitives';
+import { Select, Skeleton } from './ui/primitives';
 import { timeLabel } from '@/lib/batch-times';
 
-/** Prev / date / next control for day-based screens. */
+/** Prev / date / next control for day-based screens (tap the date to pick one). */
 export function DateStepper({
   value,
   onChange,
@@ -24,49 +23,24 @@ export function DateStepper({
   max?: string;
   className?: string;
 }) {
+  const now = today();
+  const rel = relativeDay(value);
+  const canToday =
+    value !== now && (max === undefined || now <= max) && (min === undefined || now >= min);
   return (
-    <div className={cn('flex items-center gap-1', className)}>
-      <Button
-        variant="outline"
-        size="icon"
-        aria-label="Previous day"
-        disabled={min !== undefined && value <= min}
-        onClick={() => onChange(addDays(value, -1))}
-      >
-        <ChevronLeft />
-      </Button>
-      <div className="relative">
-        <Input
-          type="date"
-          value={value}
-          min={min}
-          max={max}
-          onChange={(e) => e.target.value && onChange(e.target.value)}
-          aria-label="Date"
-          className="w-40 text-center"
-        />
-      </div>
-      <Button
-        variant="outline"
-        size="icon"
-        aria-label="Next day"
-        disabled={max !== undefined && value >= max}
-        onClick={() => onChange(addDays(value, 1))}
-      >
-        <ChevronRight />
-      </Button>
-      {value !== today() &&
-      (max === undefined || today() <= max) &&
-      (min === undefined || today() >= min) ? (
-        <Button variant="ghost" size="sm" className="ml-1" onClick={() => onChange(today())}>
-          Today
-        </Button>
-      ) : (
-        <span className="ml-2 hidden text-sm font-medium text-muted-foreground sm:inline">
-          {relativeDay(value)}
-        </span>
-      )}
-    </div>
+    <PeriodStepper
+      className={cn('w-full sm:w-72', className)}
+      label={rel}
+      sublabel={rel === formatLongDate(value) ? undefined : formatLongDate(value)}
+      prevLabel="Previous day"
+      nextLabel="Next day"
+      prevDisabled={min !== undefined && value <= min}
+      nextDisabled={max !== undefined && value >= max}
+      onPrev={() => onChange(addDays(value, -1))}
+      onNext={() => onChange(addDays(value, 1))}
+      onToday={canToday ? () => onChange(now) : undefined}
+      pick={{ value, min, max, onChange }}
+    />
   );
 }
 

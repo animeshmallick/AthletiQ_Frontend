@@ -9,23 +9,15 @@ import {
   ListSkeleton,
   PageHeader,
   Pagination,
-  SearchInput,
 } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { Segmented } from '@/components/ui/controls';
 import { Card } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { formatDate, formatShortDate, money, plural } from '@/lib/format';
 import { useInvoices, useRunInvoiceJob } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import { InvoiceSheet } from './sheet';
-
-const TABS = [
-  { value: 'open', label: 'Unpaid' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'all', label: 'All' },
-] as const;
+import { defaultSort, filterQuery, InvoiceFilters, INVOICE_FILTERS } from './filters';
 
 export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const user = useUser();
@@ -39,7 +31,8 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
   const q = useInvoices({
     status: status === 'all' ? undefined : status,
     search: search || undefined,
-    sort: status === 'open' || status === 'overdue' ? 'dueDateAsc' : 'issueDateDesc',
+    sort: params.get('sort') ?? defaultSort(status),
+    ...filterQuery(params),
     page,
     pageSize: 25,
   });
@@ -84,33 +77,25 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
         />
       )}
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Segmented
-          ariaLabel="Invoice status"
-          value={status}
-          onChange={(v) => set({ status: v === 'open' ? null : v })}
-          options={TABS}
-          className="w-full sm:w-auto"
-        />
-        <SearchInput
-          value={search}
-          onChange={(v) => set({ q: v || null })}
-          placeholder="Invoice no. or student…"
-          className="sm:w-72"
-        />
-      </div>
-
-      {q.data?.meta && q.data.meta.total > 0 && (
-        <p className="mb-3 text-sm text-muted-foreground">
-          <span className="tabular font-medium text-foreground">
-            {plural(q.data.meta.total, 'invoice')}
-          </span>{' '}
-          ·{' '}
-          <span className="tabular font-medium text-foreground">
-            {money(q.data.meta.totalAmount)}
-          </span>
-        </p>
-      )}
+      <InvoiceFilters
+        params={params}
+        status={status}
+        search={search}
+        set={set}
+        summary={
+          q.data?.meta && q.data.meta.total > 0 ? (
+            <>
+              <span className="tabular font-medium text-foreground">
+                {plural(q.data.meta.total, 'invoice')}
+              </span>{' '}
+              ·{' '}
+              <span className="tabular font-medium text-foreground">
+                {money(q.data.meta.totalAmount)}
+              </span>
+            </>
+          ) : null
+        }
+      />
 
       {q.isPending ? (
         <ListSkeleton rows={8} />
@@ -126,7 +111,11 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
                 ? 'All invoices are paid'
                 : 'No invoices found'
           }
-          description={search ? 'Try another search.' : undefined}
+          description={
+            search || Object.keys(INVOICE_FILTERS).some((k) => params.get(k))
+              ? 'Try another search or clear the filters.'
+              : undefined
+          }
         />
       ) : (
         <>
@@ -135,11 +124,13 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
               <button
                 key={inv.id}
                 onClick={() => set({ invoice: inv.id })}
-                className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/40"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{inv.student.fullName}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-[14px] leading-tight font-medium">
+                    {inv.student.fullName}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">
                     <span className="font-mono">{inv.number}</span> ·{' '}
                     {formatShortDate(inv.periodStart)} – {formatShortDate(inv.periodEnd)}
                     {/* A student in several batches has an invoice per batch. */}
@@ -157,7 +148,7 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
                     {formatDate(inv.dueDate)}
                   </p>
                 </div>
-                <span className="tabular w-24 text-right font-semibold">
+                <span className="tabular w-20 text-right text-[14px] font-semibold">
                   {money(inv.totalAmount)}
                 </span>
                 <InvoiceStatusBadge status={inv.displayStatus} />

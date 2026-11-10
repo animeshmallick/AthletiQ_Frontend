@@ -1,17 +1,20 @@
+import { Accordion } from 'radix-ui';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CalendarCheck2,
-  ClipboardList,
+  ChevronDown,
   FileText,
   LayoutGrid,
   MapPin,
   Pencil,
   Plus,
+  Trophy,
   Users,
+  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { Link, useParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { useUser } from '@/app/auth';
@@ -24,9 +27,8 @@ import {
   PageHeader,
   SearchInput,
 } from '@/components/common';
-import { BackLink } from '@/components/back-link';
 import { Button } from '@/components/ui/button';
-import { Switch, WeekdayPicker } from '@/components/ui/controls';
+import { Segmented, Switch, WeekdayPicker } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -35,18 +37,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/overlays';
+import { Badge, Card, Input, Select } from '@/components/ui/primitives';
 import {
-  Badge,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Input,
-  Select,
-  Skeleton,
-} from '@/components/ui/primitives';
-import {
-  formatDate,
   formatDuration,
   formatTime,
   formatTimeRange,
@@ -59,7 +51,6 @@ import {
 } from '@/lib/format';
 import { applyServerErrors } from '@/lib/forms';
 import {
-  useBatch,
   useBatches,
   useDashboard,
   useFeePlans,
@@ -70,8 +61,9 @@ import {
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { BATCH_REPORT_INCLUDES, ReportDialog, slug } from '@/components/report-dialog';
+import { FilterField, FilterMenu } from '@/components/filters';
 import { useSports } from '@/lib/skills';
-import { scheduleGroups, scheduleLabel, timesOn, timesVary } from '@/lib/batch-times';
+import { scheduleGroups, timesOn, timesVary } from '@/lib/batch-times';
 
 const schema = z
   .object({
@@ -644,12 +636,36 @@ function BatchCard({
   );
 }
 
+const BATCH_FILTERS = [
+  'sport',
+  'location',
+  'coach',
+  'day',
+  'plan',
+  'seats',
+  'today',
+  'inactive',
+] as const;
+type BatchFilter = (typeof BATCH_FILTERS)[number];
+
 export function BatchesPage() {
   const user = useUser();
   const isAdmin = user.role === 'admin';
-  const [showInactive, setShowInactive] = useState(false);
+  // Filters live in the URL (bookmarkable, survive refresh).
+  const [params, setParams] = useSearchParams();
+  const f = (k: BatchFilter) => params.get(k) ?? '';
+  const setF = (patch: Partial<Record<BatchFilter, string | null>>) => {
+    const p = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) p.set(k, v);
+      else p.delete(k);
+    }
+    setParams(p, { replace: true });
+  };
+  const showInactive = f('inactive') === '1';
+  const groupBy = (params.get('group') ?? 'location') as 'location' | 'sport' | 'none';
+  const [openGroupState, setOpenGroup] = useState<string | undefined>(undefined);
   const [search, setSearch] = useState('');
-  const [coachId, setCoachId] = useState('');
   const q = useBatches(showInactive ? {} : { active: 'true' });
   const dash = useDashboard();
   const [editing, setEditing] = useState<Batch | 'new' | null>(null);
@@ -673,12 +689,84 @@ export function BatchesPage() {
       ),
     [all],
   );
+  const uniq = <T,>(rows: [string, T][]) =>
+    [...new Map(rows).entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  const sports = useMemo(() => uniq(all.map((b) => [b.sport.id, b.sport.name])), [all]);
+  const places = useMemo(() => uniq(all.map((b) => [b.location.id, b.location.name])), [all]);
+  const plans = useMemo(() => uniq(all.map((b) => [b.feePlan.id, b.feePlan.name])), [all]);
   const needle = search.trim().toLowerCase();
+  const isFull = (b: Batch) => !!b.capacity && b.memberCount >= b.capacity;
   const shown = all.filter(
     (b) =>
-      (!coachId || b.coach.id === coachId) &&
+      (!f('coach') || b.coach.id === f('coach')) &&
+      (!f('sport') || b.sport.id === f('sport')) &&
+      (!f('location') || b.location.id === f('location')) &&
+      (!f('plan') || b.feePlan.id === f('plan')) &&
+      (!f('day') || b.weekdays.includes(Number(f('day')))) &&
+      (!f('seats') || (f('seats') === 'full' ? isFull(b) : !isFull(b))) &&
+      (f('today') !== '1' || todayStatus(b, now) !== null) &&
       (!needle ||
-        [b.name, b.coach.name, b.location.name].some((v) => v.toLowerCase().includes(needle))),
+        [b.name, b.coach.name, b.location.name, b.sport.name].some((v) =>
+          v.toLowerCase().includes(needle),
+        )),
+  );
+  const label = (list: [string, string][], id: string) => list.find(([i]) => i === id)?.[1] ?? '…';
+  const chips: { key: BatchFilter; label: string }[] = [
+    ...(f('sport') ? [{ key: 'sport' as const, label: label(sports, f('sport')) }] : []),
+    ...(f('location') ? [{ key: 'location' as const, label: label(places, f('location')) }] : []),
+    ...(f('coach')
+      ? [{ key: 'coach' as const, label: `Coach ${label(coaches, f('coach'))}` }]
+      : []),
+    ...(f('day')
+      ? [{ key: 'day' as const, label: `Runs ${WEEKDAYS[Number(f('day')) - 1]?.long ?? ''}` }]
+      : []),
+    ...(f('plan') ? [{ key: 'plan' as const, label: label(plans, f('plan')) }] : []),
+    ...(f('seats')
+      ? [{ key: 'seats' as const, label: f('seats') === 'full' ? 'Full' : 'Has seats' }]
+      : []),
+    ...(f('today') === '1' ? [{ key: 'today' as const, label: 'Still to run today' }] : []),
+    ...(showInactive ? [{ key: 'inactive' as const, label: 'Including inactive' }] : []),
+  ];
+  const clearAll = () => setF(Object.fromEntries(BATCH_FILTERS.map((k) => [k, null])));
+
+  // Groups (by location or sport), biggest first; each lists the other dimension as context.
+  const groups = (() => {
+    const map = new Map<string, { id: string; name: string; batches: Batch[] }>();
+    for (const b of shown) {
+      const key = groupBy === 'sport' ? b.sport : b.location;
+      const g = map.get(key.id) ?? { id: key.id, name: key.name, batches: [] };
+      g.batches.push(b);
+      map.set(key.id, g);
+    }
+    return [...map.values()]
+      .map((g) => ({
+        ...g,
+        sub: [
+          ...new Set(g.batches.map((b) => (groupBy === 'sport' ? b.location.name : b.sport.name))),
+        ].join(', '),
+      }))
+      .sort((a, b) => b.batches.length - a.batches.length || a.name.localeCompare(b.name));
+  })();
+  // One group open at a time; the first opens until the user picks (and follows filters).
+  const openGroup =
+    openGroupState === undefined
+      ? groups[0]?.id
+      : groups.some((g) => g.id === openGroupState)
+        ? openGroupState
+        : '';
+  const grid = (list: Batch[]) => (
+    <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+      {list.map((b) => (
+        <BatchCard
+          key={b.id}
+          b={b}
+          isAdmin={isAdmin}
+          attendanceRate={dash.data ? (rates.get(b.id) ?? null) : undefined}
+          status={todayStatus(b, now)}
+          onEdit={() => setEditing(b)}
+        />
+      ))}
+    </div>
   );
   const rates = new Map(dash.data?.batchHealth.map((h) => [h.id, h.attendanceRate]));
   const active = all.filter((b) => b.isActive);
@@ -771,49 +859,241 @@ export function BatchesPage() {
             ))}
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder={isAdmin ? 'Search batch, coach or location' : 'Search batches'}
-              className="min-w-0 flex-1 basis-56"
-            />
-            {isAdmin && coaches.length > 1 && (
-              <Select
-                value={coachId}
-                onChange={(e) => setCoachId(e.target.value)}
-                aria-label="Filter by coach"
-                className="w-auto min-w-36 flex-1 sm:flex-none"
-              >
-                <option value="">All coaches</option>
-                {coaches.map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
+          {/* Smart filter: search + one filter button + removable chips */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder={isAdmin ? 'Search batch, coach, location, sport' : 'Search batches'}
+                className="min-w-0 flex-1"
+                dense
+              />
+              <Segmented
+                ariaLabel="Group batches by"
+                value={groupBy}
+                onChange={(v) => {
+                  const p = new URLSearchParams(params);
+                  if (v === 'location') p.delete('group');
+                  else p.set('group', v);
+                  setParams(p, { replace: true });
+                  setOpenGroup(undefined);
+                }}
+                options={[
+                  {
+                    value: 'location',
+                    label: <MapPin className="size-4" aria-label="By location" />,
+                  },
+                  { value: 'sport', label: <Trophy className="size-4" aria-label="By sport" /> },
+                  {
+                    value: 'none',
+                    label: <LayoutGrid className="size-4" aria-label="All batches" />,
+                  },
+                ]}
+                className="shrink-0"
+              />
+              <FilterMenu active={chips.length} onReset={clearAll} className="h-9">
+                <div className="grid grid-cols-2 gap-2">
+                  {sports.length > 1 && (
+                    <FilterField label="Sport">
+                      <Select
+                        compact
+                        value={f('sport')}
+                        onChange={(e) => setF({ sport: e.target.value || null })}
+                        aria-label="Filter by sport"
+                      >
+                        <option value="">All</option>
+                        {sports.map(([id, name]) => (
+                          <option key={id} value={id}>
+                            {name}
+                          </option>
+                        ))}
+                      </Select>
+                    </FilterField>
+                  )}
+                  {places.length > 1 && (
+                    <FilterField label="Location">
+                      <Select
+                        compact
+                        value={f('location')}
+                        onChange={(e) => setF({ location: e.target.value || null })}
+                        aria-label="Filter by location"
+                      >
+                        <option value="">All</option>
+                        {places.map(([id, name]) => (
+                          <option key={id} value={id}>
+                            {name}
+                          </option>
+                        ))}
+                      </Select>
+                    </FilterField>
+                  )}
+                  {isAdmin && coaches.length > 1 && (
+                    <FilterField label="Coach">
+                      <Select
+                        compact
+                        value={f('coach')}
+                        onChange={(e) => setF({ coach: e.target.value || null })}
+                        aria-label="Filter by coach"
+                      >
+                        <option value="">All</option>
+                        {coaches.map(([id, name]) => (
+                          <option key={id} value={id}>
+                            {name}
+                          </option>
+                        ))}
+                      </Select>
+                    </FilterField>
+                  )}
+                  <FilterField label="Runs on">
+                    <Select
+                      compact
+                      value={f('day')}
+                      onChange={(e) => setF({ day: e.target.value || null })}
+                      aria-label="Filter by day"
+                    >
+                      <option value="">Any day</option>
+                      {WEEKDAYS.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.long}
+                        </option>
+                      ))}
+                    </Select>
+                  </FilterField>
+                  {plans.length > 1 && (
+                    <FilterField label="Fee plan">
+                      <Select
+                        compact
+                        value={f('plan')}
+                        onChange={(e) => setF({ plan: e.target.value || null })}
+                        aria-label="Filter by fee plan"
+                      >
+                        <option value="">All</option>
+                        {plans.map(([id, name]) => (
+                          <option key={id} value={id}>
+                            {name}
+                          </option>
+                        ))}
+                      </Select>
+                    </FilterField>
+                  )}
+                  <FilterField label="Seats">
+                    <Select
+                      compact
+                      value={f('seats')}
+                      onChange={(e) => setF({ seats: e.target.value || null })}
+                      aria-label="Filter by seats"
+                    >
+                      <option value="">Any</option>
+                      <option value="open">Has seats</option>
+                      <option value="full">Full</option>
+                    </Select>
+                  </FilterField>
+                </div>
+                <label className="flex items-center justify-between gap-2 text-[13px]">
+                  Still to run today
+                  <Switch
+                    checked={f('today') === '1'}
+                    onCheckedChange={(c) => setF({ today: c ? '1' : null })}
+                    aria-label="Only batches still to run today"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-2 text-[13px]">
+                  Include inactive batches
+                  <Switch
+                    checked={showInactive}
+                    onCheckedChange={(c) => setF({ inactive: c ? '1' : null })}
+                    aria-label="Include inactive batches"
+                  />
+                </label>
+              </FilterMenu>
+            </div>
+            {(chips.length > 0 || shown.length !== all.length) && (
+              <div className="flex flex-wrap items-center gap-1" aria-label="Applied filters">
+                {chips.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setF({ [c.key]: null })}
+                    className="inline-flex max-w-full cursor-pointer items-center gap-1 rounded-full bg-primary/10 py-0.5 pr-1 pl-2 text-[12px] font-medium text-primary hover:bg-primary/15"
+                    aria-label={`Remove filter: ${c.label}`}
+                  >
+                    <span className="truncate">{c.label}</span>
+                    <X className="size-3.5 shrink-0" />
+                  </button>
                 ))}
-              </Select>
+                {chips.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="cursor-pointer px-1 text-[12px] font-medium text-primary hover:underline"
+                  >
+                    Clear all
+                  </button>
+                )}
+                <span className="ml-auto text-[12px] text-muted-foreground">
+                  {shown.length} of {plural(all.length, 'batch')}
+                </span>
+              </div>
             )}
-            <label className="flex h-10 items-center gap-2 rounded-xl border bg-card px-3 text-[13px] text-muted-foreground">
-              <Switch checked={showInactive} onCheckedChange={setShowInactive} /> Inactive
-            </label>
           </div>
 
           {shown.length === 0 ? (
             <EmptyState icon={<LayoutGrid />} title="No batches match" />
+          ) : groupBy === 'none' ? (
+            grid(shown)
           ) : (
-            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-              {shown.map((b) => (
-                <BatchCard
-                  key={b.id}
-                  b={b}
-                  isAdmin={isAdmin}
-                  attendanceRate={dash.data ? (rates.get(b.id) ?? null) : undefined}
-                  status={todayStatus(b, now)}
-                  onEdit={() => setEditing(b)}
-                />
-              ))}
-            </div>
+            <Accordion.Root
+              type="single"
+              collapsible
+              value={openGroup}
+              onValueChange={setOpenGroup}
+              className="space-y-2"
+            >
+              {groups.map((g) => {
+                const members = g.batches.reduce((n, b) => n + b.memberCount, 0);
+                const seats = g.batches.reduce((n, b) => n + (b.capacity ?? 0), 0);
+                const live = g.batches.filter((b) => todayStatus(b, now) === 'live').length;
+                const todayCount = g.batches.filter((b) => todayStatus(b, now) !== null).length;
+                return (
+                  <Accordion.Item
+                    key={g.id}
+                    value={g.id}
+                    className="overflow-hidden rounded-2xl border bg-card shadow-e1"
+                  >
+                    <Accordion.Header>
+                      <Accordion.Trigger className="group flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/40">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary [&_svg]:size-4">
+                          {groupBy === 'location' ? <MapPin /> : <Trophy />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-semibold">{g.name}</span>
+                          <span className="block truncate text-[12px] text-muted-foreground">
+                            {plural(g.batches.length, 'batch')} · {members}
+                            {seats ? `/${seats}` : ''} students
+                            {groupBy === 'location' ? ` · ${g.sub}` : ` · ${g.sub}`}
+                          </span>
+                        </span>
+                        {live > 0 ? (
+                          <Badge variant="success" className="shrink-0">
+                            <span className="size-1.5 animate-pulse rounded-full bg-current" />{' '}
+                            {live} live
+                          </Badge>
+                        ) : todayCount > 0 ? (
+                          <Badge variant="muted" className="shrink-0">
+                            {todayCount} today
+                          </Badge>
+                        ) : null}
+                        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                      </Accordion.Trigger>
+                    </Accordion.Header>
+                    <Accordion.Content className="border-t bg-muted/20 p-2.5">
+                      {grid(g.batches)}
+                    </Accordion.Content>
+                  </Accordion.Item>
+                );
+              })}
+            </Accordion.Root>
           )}
         </div>
       )}
@@ -828,106 +1108,5 @@ export function BatchesPage() {
   );
 }
 
-export function BatchDetailPage() {
-  const { id = '' } = useParams();
-  const user = useUser();
-  const q = useBatch(id);
-  const [editing, setEditing] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
-
-  if (q.isPending) return <Skeleton className="h-64 w-full rounded-xl" />;
-  if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
-  const b = q.data;
-
-  return (
-    <div>
-      <PageHeader
-        back={<BackLink to="/batches">Batches</BackLink>}
-        title={b.name}
-        description={`${scheduleLabel(b)} · ${b.location.name} · Coach ${b.coach.name}`}
-        actions={
-          // One compact row: two quick links, then icon buttons.
-          <div className="flex items-center gap-1">
-            <Button asChild variant="outline" size="sm" className="gap-1 px-2.5">
-              <Link to={`/attendance?batch=${b.id}`}>
-                <CalendarCheck2 /> Attendance
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="gap-1 px-2.5">
-              <Link to={`/lesson-plans?batch=${b.id}`}>
-                <ClipboardList /> Plans
-              </Link>
-            </Button>
-            {user.role === 'admin' && (
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Batch report"
-                title="Batch report"
-                onClick={() => setReportOpen(true)}
-              >
-                <FileText />
-              </Button>
-            )}
-            {user.role === 'admin' && (
-              <Button
-                size="icon-sm"
-                aria-label="Edit batch"
-                title="Edit batch"
-                onClick={() => setEditing(true)}
-              >
-                <Pencil />
-              </Button>
-            )}
-          </div>
-        }
-      />
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Students ({b.members.length}
-            {b.capacity ? ` / ${b.capacity}` : ''})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {b.members.length === 0 ? (
-            <EmptyState icon={<Users />} title="No students in this batch yet" />
-          ) : (
-            <ul className="divide-y">
-              {b.members.map((m) => (
-                <li key={m.studentId}>
-                  <Link
-                    to={`/students/${m.studentId}`}
-                    className="flex items-center gap-3 py-3 hover:bg-muted/30"
-                  >
-                    <Avatar name={m.fullName} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{m.fullName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {m.code} · since {formatDate(m.effectiveFrom)}
-                      </p>
-                    </div>
-                    <DayDots days={m.trainingDays} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-      {editing && <BatchDialog open onOpenChange={setEditing} batch={b} />}
-      {reportOpen && (
-        <ReportDialog
-          open
-          onOpenChange={setReportOpen}
-          title={`${b.name} - report`}
-          description="Every student in this batch with attendance, skills, fees and history since they joined it."
-          options={[{ value: b.id, label: b.name }]}
-          path={(v) => `/reports/batches/pdf?batchId=${v}`}
-          filename={() => `${slug(b.name)}-report-${today()}.pdf`}
-          includes={BATCH_REPORT_INCLUDES}
-        />
-      )}
-    </div>
-  );
-}
+/** Batch details live in their own module; re-exported for the lazy page map. */
+export { BatchDetailPage } from './batch-detail';

@@ -1,5 +1,6 @@
 import { Pencil, Plus, Tags } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import {
   EmptyState,
@@ -208,6 +209,22 @@ export function FeePlansPage() {
   const q = useFeePlans();
   const [editing, setEditing] = useState<FeePlan | 'new' | null>(null);
   const [splitting, setSplitting] = useState<FeePlan | null>(null);
+  // Deep link from elsewhere (e.g. a payee): /fee-plans?split=<planId> opens that plan's split.
+  const [params, setParams] = useSearchParams();
+  const splitId = params.get('split');
+  const linked = (splitId && q.data?.find((p) => p.id === splitId)) || null;
+  const openSplit = splitting ?? linked;
+  const closeSplit = () => {
+    setSplitting(null);
+    if (splitId)
+      setParams(
+        (p) => {
+          p.delete('split');
+          return p;
+        },
+        { replace: true },
+      );
+  };
   const [showRetired, setShowRetired] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const all = useMemo(
@@ -350,7 +367,7 @@ export function FeePlansPage() {
           )}
         </Dialog>
       )}
-      {splitting && <SplitDialog plan={splitting} onClose={() => setSplitting(null)} />}
+      {openSplit && <SplitDialog plan={openSplit} onClose={closeSplit} />}
       {editing && (
         <PlanDialog
           plan={editing === 'new' ? undefined : editing}

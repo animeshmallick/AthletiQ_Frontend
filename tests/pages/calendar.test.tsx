@@ -1,7 +1,7 @@
 import { within } from '@testing-library/react';
 import { CalendarPage } from '@/pages/calendar';
 import { batch } from '../fixtures';
-import { coachUser, mockApi, renderPage, screen } from '../utils';
+import { adminUser, coachUser, mockApi, renderPage, screen } from '../utils';
 
 const session = {
   batch: {
@@ -120,20 +120,106 @@ describe('CalendarPage', () => {
     expect(screen.getByRole('radio', { name: 'Week', hidden: true })).toBeChecked();
   });
 
-  it('links day-view cards to the batch, with small action buttons', async () => {
+  it('keeps the admin day view linking cards to the batch', async () => {
     mockApi(routes());
     await renderPage(<CalendarPage />, {
       path: '/calendar',
       route: '/calendar?view=day&date=2026-03-10',
-      user: coachUser,
+      user: adminUser,
     });
     expect(await screen.findByRole('link', { name: 'Morning U-12' })).toHaveAttribute(
       'href',
       '/batches/b1',
     );
-    expect(screen.getByRole('link', { name: /lesson plan/i })).toHaveAttribute(
+  });
+
+  it('groups a coach’s day by location, with travel gaps and the students on tap', async () => {
+    const at = (id: string, name: string, loc: string, start: string, end: string) => ({
+      ...session,
+      batch: {
+        ...session.batch,
+        id,
+        name,
+        startTime: start,
+        endTime: end,
+        location: {
+          id: loc,
+          name: loc === 'l1' ? 'Main ground' : 'Lake Club',
+          latitude: 12.9,
+          longitude: 77.6,
+        },
+      },
+    });
+    // Main ground 5–6, 6–7; Lake Club 7:30–8:30; back to Main ground 9–10 pm.
+    const day = [
+      at('b1', 'Juniors', 'l1', '17:00:00', '18:00:00'),
+      at('b2', 'Seniors', 'l1', '18:00:00', '19:00:00'),
+      at('b3', 'Lake Squad', 'l2', '19:30:00', '20:30:00'),
+      { ...at('b4', 'Late Batch', 'l1', '21:00:00', '22:00:00'), cancelled: 'Rain' },
+    ];
+    mockApi({
+      ...routes(),
+      'GET /attendance/calendar': () => ({
+        from: '2026-03-11',
+        to: '2026-03-11',
+        today: '2026-03-10',
+        days: [{ date: '2026-03-11', sessions: day }],
+      }),
+      'GET /batches/b2/roster': () => ({
+        date: '2026-03-11',
+        students: [
+          {
+            studentId: 's1',
+            code: 'A',
+            fullName: 'Anya Rao',
+            phone: '+919876543210',
+            isMakeup: false,
+            makeupReason: null,
+          },
+          {
+            studentId: 's2',
+            code: 'B',
+            fullName: 'Kabir Shah',
+            phone: '',
+            isMakeup: true,
+            makeupReason: 'Missed Monday',
+          },
+        ],
+      }),
+    });
+    const { user } = await renderPage(<CalendarPage />, {
+      path: '/calendar',
+      route: '/calendar?view=day&date=2026-03-11',
+      user: coachUser,
+    });
+    // Three stops: Main ground, Lake Club, then Main ground again.
+    await screen.findByText('Juniors');
+    const stops = screen
+      .getAllByRole('region')
+      .filter((r) => ['Main ground', 'Lake Club'].includes(r.getAttribute('aria-label') ?? ''));
+    expect(stops.map((r) => r.getAttribute('aria-label'))).toEqual([
+      'Main ground',
+      'Lake Club',
+      'Main ground',
+    ]);
+    expect(stops[0]).toHaveTextContent('5:00 pm – 7:00 pm · 2 sessions');
+    expect(stops[1]).toHaveTextContent('30 min travel');
+    expect(
+      within(stops[1]!).getByRole('link', { name: 'Directions to Lake Club' }),
+    ).toHaveAttribute('href', expect.stringContaining('destination=12.9,77.6'));
+    expect(stops[2]).toHaveTextContent('Cancelled');
+    // A future day: scheduled, with a link to plan it.
+    expect(within(stops[0]!).getAllByText('Scheduled')).toHaveLength(2);
+    expect(within(stops[0]!).getAllByRole('link', { name: /Plan/ })[0]).toHaveAttribute(
       'href',
-      '/lesson-plans?batch=b1&date=2026-03-10',
+      '/lesson-plans?batch=b1&date=2026-03-11',
     );
+
+    // Tap a session: who's expected, makeups marked.
+    await user.click(screen.getByRole('button', { name: 'Seniors students' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('Anya Rao')).toBeInTheDocument();
+    expect(within(dialog).getByText('Makeup')).toBeInTheDocument();
+    expect(within(dialog).getByText('Expected · 2')).toBeInTheDocument();
   });
 });

@@ -39,13 +39,11 @@ export function PageHeader({
   title,
   description,
   actions,
-  back,
   className,
 }: {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
-  back?: ReactNode;
   className?: string;
 }) {
   return (
@@ -56,7 +54,6 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 flex-[1_1_13rem]">
-        {back}
         <h1 className="truncate text-[19px] leading-tight font-bold tracking-tight sm:text-[22px]">
           {title}
         </h1>
@@ -384,11 +381,14 @@ export function SearchInput({
   onChange,
   placeholder = 'Search…',
   className,
+  dense = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   className?: string;
+  /** Shorter field for busy toolbars. */
+  dense?: boolean;
 }) {
   const [local, setLocal] = useState(value);
   // Follow external changes (e.g. URL navigation) without an effect.
@@ -411,7 +411,7 @@ export function SearchInput({
         value={local}
         onChange={(e) => setLocal(e.target.value)}
         placeholder={placeholder}
-        className="pr-8 pl-9"
+        className={cn('pr-8 pl-9', dense && 'h-9')}
         aria-label={placeholder}
       />
       {local && (

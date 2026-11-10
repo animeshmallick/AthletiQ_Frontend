@@ -18,6 +18,14 @@ export interface User {
   lastLoginAt: string | null;
   createdAt: string;
   activeBatches?: number;
+  /** Team cards (admins): students in their active batches. */
+  students?: number;
+  /** Check-ins in the last 30 days, and the share that were on time (%). */
+  checkIns30?: number;
+  onTimeRate?: number | null;
+  /** Cash they hold, and what the academy owes them (paise). */
+  cashHeld?: number;
+  owed?: number;
 }
 
 export interface Location {
@@ -230,6 +238,10 @@ export interface StudentListItem {
   outstanding: number;
   overdue: number;
   effectiveFee: number;
+  /** Last 30 days, in the batches you can see (null when nothing was marked). */
+  attendanceRate?: number | null;
+  /** Latest assessed level. */
+  level?: { code: string | null; name: string | null } | null;
 }
 
 export interface Enrollment {
@@ -371,7 +383,7 @@ export interface DayOverviewSession {
     startTime: string;
     endTime: string;
     coach: { id: string; name: string };
-    location: { id: string; name: string };
+    location: { id: string; name: string; latitude?: number; longitude?: number };
   };
   expectedStudents: number;
   marked: number;

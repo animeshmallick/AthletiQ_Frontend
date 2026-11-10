@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   ArrowRightLeft,
   CalendarPlus,
   ChevronDown,
@@ -30,6 +29,7 @@ import {
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import {
+  Avatar,
   ATTENDANCE_META,
   AttendanceBadge,
   ConfirmDialog,
@@ -86,7 +86,7 @@ import {
   AddBatchDialog,
 } from './forms';
 import { ReportDialog, slug, STUDENT_REPORT_INCLUDES } from '@/components/report-dialog';
-import { ProgressTab, StudentPhoto } from './progress';
+import { ProgressTab } from './progress';
 import { BatchCards } from './batch-cards';
 
 const CHART_COLORS = [
@@ -561,14 +561,8 @@ export function StudentDetailPage() {
         includes={STUDENT_REPORT_INCLUDES}
         studentId={s.id}
       />
-      <Link
-        to="/students"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Students
-      </Link>
       <div className="mb-4 flex flex-wrap items-center gap-3 sm:mb-4 sm:gap-3">
-        <StudentPhoto id={s.id} name={s.fullName} />
+        <Avatar name={s.fullName} className="size-12 shrink-0 text-base sm:size-14 sm:text-lg" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <h1 className="text-xl leading-tight font-bold tracking-tight sm:text-2xl">

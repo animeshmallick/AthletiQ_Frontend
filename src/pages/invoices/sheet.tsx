@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Undo2,
   Wallet,
+  UserRound,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -487,6 +488,11 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
               <MessageCircle className="text-success" /> WhatsApp
             </Button>
           )}
+          <Button asChild variant="outline" className="flex-1">
+            <Link to={`/students/${inv.student.id}`}>
+              <UserRound /> Student
+            </Link>
+          </Button>
         </div>
         <PdfViewer file={viewing} onClose={() => setViewing(null)} />
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">

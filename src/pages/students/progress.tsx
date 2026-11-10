@@ -1,98 +1,19 @@
 /**
  * A student's skills: current level and score, each area now vs last time, the score over
- * months, and every assessment with the coach's remarks. Plus the profile photo control.
+ * months, and every assessment with the coach's remarks.
  */
-import { Camera, Trash2 } from 'lucide-react';
-import { useRef } from 'react';
-import { toast } from 'sonner';
-import { Avatar, EmptyState, ErrorState, ListSkeleton, SectionDivider } from '@/components/common';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/overlays';
+import { EmptyState, ErrorState, ListSkeleton, SectionDivider } from '@/components/common';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/primitives';
-import { errorMessage } from '@/lib/api';
 import {
   RATING_LABELS,
   ratingLabel,
-  resizePhoto,
   score,
-  useSetStudentPhoto,
-  useStudentPhoto,
   useStudentSkills,
   type StudentSkills,
 } from '@/lib/skills';
 import { cn } from '@/lib/utils';
 import { heat, monthName, monthShort } from '../skills/meta';
 import { Change, LevelBadge } from '../skills/ui';
-
-/** Photo (or initials) with a menu to change or remove it. */
-export function StudentPhoto({ id, name }: { id: string; name: string }) {
-  const photo = useStudentPhoto(id);
-  const set = useSetStudentPhoto(id);
-  const input = useRef<HTMLInputElement>(null);
-
-  async function pick(file: File | undefined) {
-    if (!file) return;
-    try {
-      await set.mutateAsync(await resizePhoto(file));
-      toast.success('Photo updated');
-    } catch (err) {
-      toast.error('Could not update the photo', { description: errorMessage(err) });
-    }
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Change photo"
-          className="group relative size-12 shrink-0 cursor-pointer rounded-full sm:size-14"
-        >
-          {photo.data ? (
-            <img src={photo.data} alt="" className="size-full rounded-full object-cover" />
-          ) : (
-            <Avatar name={name} className="size-full text-base sm:text-lg" />
-          )}
-          <span className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground">
-            <Camera className="size-3" />
-          </span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuItem onSelect={() => input.current?.click()}>
-          <Camera /> {photo.data ? 'Change photo' : 'Add photo'}
-        </DropdownMenuItem>
-        {photo.data && (
-          <DropdownMenuItem
-            destructive
-            onSelect={() =>
-              set.mutate(null, {
-                onSuccess: () => toast.success('Photo removed'),
-                onError: (e) => toast.error('Could not remove', { description: errorMessage(e) }),
-              })
-            }
-          >
-            <Trash2 /> Remove photo
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-      <input
-        ref={input}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          void pick(e.target.files?.[0]);
-          e.target.value = '';
-        }}
-      />
-    </DropdownMenu>
-  );
-}
 
 export function ProgressTab({ id }: { id: string }) {
   const q = useStudentSkills(id);

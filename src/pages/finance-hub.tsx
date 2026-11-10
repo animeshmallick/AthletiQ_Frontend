@@ -46,10 +46,14 @@ export function FinanceHubPage() {
 
   return (
     <div>
-      <PageHeader className="mb-2 sm:mb-3" title="Finance" description={DESCRIPTIONS[tab][role]} />
+      <PageHeader
+        className="mb-1.5 sm:mb-3"
+        title="Finance"
+        description={DESCRIPTIONS[tab][role]}
+      />
       <Segmented
         ariaLabel="Finance view"
-        className="mb-2.5 w-full sm:w-auto"
+        className="mb-2 w-full sm:w-auto"
         value={tab}
         // Each tab keeps its own filters, so switching starts clean.
         onChange={(v) => setParams(v === 'overview' ? {} : { tab: v }, { replace: true })}

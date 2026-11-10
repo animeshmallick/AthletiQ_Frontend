@@ -1,5 +1,5 @@
+import { PeriodStepper } from '@/components/date-nav';
 import {
-  ChevronLeft,
   ChevronRight,
   CircleCheck,
   CircleDashed,
@@ -18,7 +18,6 @@ import {
   Progress,
   SectionDivider,
 } from '@/components/common';
-import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
 import { Badge, Card } from '@/components/ui/primitives';
 import { addDays, formatShortDate, startOfWeek, today } from '@/lib/format';
@@ -64,40 +63,23 @@ export function FeedbackPage() {
         }
       />
 
-      <Card className="mb-3 p-4">
+      <Card className="mb-3 p-2 sm:p-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label="Previous week"
-              onClick={() => setWeek(addDays(weekStart, -7))}
-            >
-              <ChevronLeft />
-            </Button>
-            <div className="min-w-44 text-center">
-              <p className="text-sm font-semibold">
-                {formatShortDate(weekStart)} – {formatShortDate(addDays(weekStart, 6))}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {weekStart === lastWeek
-                  ? 'Last week'
-                  : weekStart === thisWeek
-                    ? 'This week'
-                    : 'Week'}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label="Next week"
-              // Feedback is written once a week is over, so the newest week is last week.
-              disabled={weekStart >= lastWeek}
-              onClick={() => setWeek(addDays(weekStart, 7))}
-            >
-              <ChevronRight />
-            </Button>
-          </div>
+          <PeriodStepper
+            className="sm:w-72"
+            label={`${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`}
+            sublabel={
+              weekStart === lastWeek ? 'Last week' : weekStart === thisWeek ? 'This week' : 'Week'
+            }
+            prevLabel="Previous week"
+            nextLabel="Next week"
+            onPrev={() => setWeek(addDays(weekStart, -7))}
+            onNext={() => setWeek(addDays(weekStart, 7))}
+            // Feedback is written once a week is over, so the newest week is last week.
+            nextDisabled={weekStart >= lastWeek}
+            onToday={weekStart !== lastWeek ? () => setWeek(lastWeek) : undefined}
+            todayLabel="Last week"
+          />
           {sum && (
             <div className="flex-1 sm:max-w-xs">
               <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">

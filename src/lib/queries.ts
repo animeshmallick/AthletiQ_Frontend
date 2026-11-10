@@ -94,11 +94,12 @@ function useInvalidate() {
 
 // ─── Users / coaches ─────────────────────────────────────────────────────────
 
-export const useUsers = (q: Query) =>
+export const useUsers = (q: Query, opts: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: keys.users(q),
     queryFn: ({ signal }) => api.page<User[]>('/users', q, signal),
     placeholderData: keepPreviousData,
+    enabled: opts.enabled ?? true,
   });
 
 export function useCreateUser() {
@@ -226,6 +227,7 @@ export const useRoster = (id: string, date: string) =>
     queryKey: keys.roster(id, date),
     queryFn: () =>
       api.get<{ date: string; students: RosterEntry[] }>(`/batches/${id}/roster`, { date }),
+    enabled: Boolean(id),
   });
 
 export function useSaveBatch() {
@@ -1378,3 +1380,176 @@ export function useReviewSubstitution() {
     onSuccess: () => invalidate(...SUB_KEYS),
   });
 }
+
+// ─── Payee insights ──────────────────────────────────────────────────────────
+
+export interface PayeeSummary extends Payee {
+  owedNow: number;
+  unpaidDays: number;
+  earned: number;
+  paid: number;
+  lastPayout: { date: string; amount: number } | null;
+  expectedMonthly: number;
+  plans: number;
+  students: number;
+}
+
+export interface PayeeHistoryItem {
+  id: string;
+  kind: 'share' | 'payout';
+  date: string;
+  amount: number;
+  title: string;
+  detail: string | null;
+  reversed: boolean;
+  reversalReason: string | null;
+  balance: number;
+  invoice?: { id: string; number: string } | null;
+  student?: { id: string; name: string } | null;
+}
+
+export interface PayeeSource {
+  id: string;
+  name: string;
+  amount: number;
+  count: number;
+}
+
+export interface PayeeInsights {
+  payee: Payee & { createdAt: string };
+  period: { from: string | null; to: string | null };
+  summary: {
+    owedNow: number;
+    unpaidSince: string | null;
+    unpaidDays: number;
+    earned: number;
+    paid: number;
+    opening: number;
+    closing: number;
+    avgMonthly: number;
+    lifetimeEarned: number;
+    lifetimePaid: number;
+    payouts: number;
+    shares: number;
+    students: number;
+    lastPayout: { date: string; amount: number } | null;
+    expectedMonthly: number;
+    payoutRate: number | null;
+  };
+  monthly: { month: string; earned: number; paid: number }[];
+  sources: { byBatch: PayeeSource[]; byPlan: PayeeSource[]; byStudent: PayeeSource[] };
+  plans: {
+    id: string;
+    name: string;
+    monthlyFee: number;
+    isActive: boolean;
+    perStudent: number;
+    students: number;
+    expectedMonthly: number;
+    batches: { id: string; name: string; students: number; expected: number }[];
+  }[];
+  history: PayeeHistoryItem[];
+}
+
+export const usePayeeSummaries = (range: { from: string; to: string }) =>
+  useQuery({
+    queryKey: ['funds', 'payees', 'summary', range],
+    queryFn: ({ signal }) => api.get<PayeeSummary[]>('/funds/payees/summary', range, signal),
+    placeholderData: keepPreviousData,
+  });
+
+export const usePayeeInsights = (id: string | null, range: { from: string; to: string }) =>
+  useQuery({
+    queryKey: ['funds', 'payees', id, 'insights', range],
+    queryFn: ({ signal }) => api.get<PayeeInsights>(`/funds/payees/${id}/insights`, range, signal),
+    enabled: !!id,
+    placeholderData: keepPreviousData,
+  });
+
+// ─── Batch insights (details page) ───────────────────────────────────────────
+
+export interface BatchSessionInfo {
+  date: string;
+  startTime: string;
+  endTime: string;
+  cancelled: string | null;
+  substitute: string | null;
+  marked: number;
+  present: number;
+  checkedIn: boolean;
+  onTime: boolean | null;
+  hasPlan: boolean;
+}
+
+export interface BatchRosterEntry {
+  studentId: string;
+  enrollmentId: string;
+  code: string;
+  registrationNo: number | null;
+  fullName: string;
+  phone: string;
+  guardianName: string | null;
+  gender: 'male' | 'female' | 'other' | null;
+  dateOfBirth: string | null;
+  joinedBatch: string;
+  joinedAcademy: string;
+  daysInBatch: number;
+  attendance: { marked: number; present: number; rate: number | null };
+  lastAttended: string | null;
+  fees: {
+    /** Amounts are null for coaches. */
+    monthly: number | null;
+    due: number | null;
+    overdue: number | null;
+    status: 'overdue' | 'due' | 'paid' | 'free';
+    unpaidInvoiceId: string | null;
+    lastPaidAt: string | null;
+  };
+  level: { name: string | null; code: string | null; month: string; average: number } | null;
+  assessedThisMonth: boolean;
+}
+
+export interface BatchInsights {
+  summary: {
+    students: number;
+    capacity: number;
+    seatsLeft: number;
+    attendanceRate: number | null;
+    sessions30: {
+      scheduled: number;
+      held: number;
+      cancelled: number;
+      missed: number;
+      covered: number;
+      withPlan: number;
+    };
+    checkIns30: { total: number; onTime: number; rate: number | null };
+    skills: {
+      assessedThisMonth: number;
+      levels: { code: string | null; name: string | null; students: number }[];
+    };
+    movement90: { joined: number; left: number };
+    fees: {
+      studentsOverdue: number;
+      studentsDue: number;
+      money: {
+        expectedMonthly: number;
+        monthIssued: number;
+        monthCollected: number;
+        outstanding: number;
+        overdue: number;
+      } | null;
+    };
+  };
+  trend: { week: string; sessions: number; marked: number; present: number; rate: number | null }[];
+  upcoming: BatchSessionInfo[];
+  recent: BatchSessionInfo[];
+  roster: BatchRosterEntry[];
+}
+
+export const useBatchInsights = (id: string | undefined) =>
+  useQuery({
+    queryKey: [...keys.batch(id ?? ''), 'insights'],
+    queryFn: ({ signal }) => api.get<BatchInsights>(`/batches/${id}/insights`, undefined, signal),
+    enabled: Boolean(id),
+  });

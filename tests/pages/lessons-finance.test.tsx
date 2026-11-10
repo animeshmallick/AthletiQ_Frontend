@@ -237,30 +237,143 @@ describe('Batches', () => {
     expect(await screen.findByText('Pick a coach')).toBeInTheDocument();
   });
 
-  it('shows a batch roster', async () => {
-    mockApi({
-      'GET /batches/b1': () => ({
-        ...batch,
-        members: [
-          {
-            studentId: 's1',
-            code: 'ATQ-0001',
-            fullName: 'Anya Rao',
-            phone: '',
-            trainingDays: [1, 3, 5],
-            effectiveFrom: '2026-01-10',
-            status: 'active',
+  it('shows a batch’s details, insights and students as cards', async () => {
+    const insights = {
+      summary: {
+        students: 2,
+        capacity: 20,
+        seatsLeft: 18,
+        attendanceRate: 75,
+        sessions30: { scheduled: 10, held: 8, cancelled: 1, missed: 1, covered: 0, withPlan: 6 },
+        checkIns30: { total: 8, onTime: 7, rate: 88 },
+        skills: {
+          assessedThisMonth: 1,
+          levels: [{ code: 'B1', name: 'Lower Intermediate', students: 1 }],
+        },
+        movement90: { joined: 2, left: 0 },
+        fees: { studentsOverdue: 1, studentsDue: 0, money: null },
+      },
+      trend: [{ week: '2026-03-02', sessions: 4, marked: 8, present: 6, rate: 75 }],
+      upcoming: [
+        {
+          date: '2026-03-20',
+          startTime: '06:00:00',
+          endTime: '08:00:00',
+          cancelled: null,
+          substitute: 'Neha',
+          marked: 0,
+          present: 0,
+          checkedIn: false,
+          onTime: null,
+          hasPlan: true,
+        },
+      ],
+      recent: [
+        {
+          date: '2026-03-19',
+          startTime: '06:00:00',
+          endTime: '08:00:00',
+          cancelled: 'Rain',
+          substitute: null,
+          marked: 0,
+          present: 0,
+          checkedIn: false,
+          onTime: null,
+          hasPlan: false,
+        },
+      ],
+      roster: [
+        {
+          studentId: 's1',
+          enrollmentId: 'e1',
+          code: 'ATQ-0001',
+          registrationNo: 1001,
+          fullName: 'Anya Rao',
+          phone: '+919876543210',
+          guardianName: 'Ravi Rao',
+          gender: 'female',
+          dateOfBirth: '2014-05-02',
+          joinedBatch: '2026-01-10',
+          joinedAcademy: '2026-01-10',
+          daysInBatch: 69,
+          attendance: { marked: 8, present: 6, rate: 75 },
+          lastAttended: '2026-03-17',
+          fees: {
+            monthly: null,
+            due: null,
+            overdue: null,
+            status: 'overdue',
+            unpaidInvoiceId: 'i9',
+            lastPaidAt: null,
           },
-        ],
-      }),
+          level: { name: 'Lower Intermediate', code: 'B1', month: '2026-03-01', average: 260 },
+          assessedThisMonth: true,
+        },
+        {
+          studentId: 's2',
+          enrollmentId: 'e2',
+          code: 'ATQ-0002',
+          registrationNo: 1002,
+          fullName: 'Kabir Shah',
+          phone: '+919876543211',
+          guardianName: null,
+          gender: 'male',
+          dateOfBirth: null,
+          joinedBatch: '2026-03-10',
+          joinedAcademy: '2026-03-10',
+          daysInBatch: 9,
+          attendance: { marked: 0, present: 0, rate: null },
+          lastAttended: null,
+          fees: {
+            monthly: null,
+            due: null,
+            overdue: null,
+            status: 'paid',
+            unpaidInvoiceId: null,
+            lastPaidAt: '2026-03-10T00:00:00Z',
+          },
+          level: null,
+          assessedThisMonth: false,
+        },
+      ],
+    };
+    mockApi({
+      'GET /batches/b1': () => ({ ...batch, members: [] }),
+      'GET /batches/b1/insights': () => insights,
     });
-    await renderPage(<BatchDetailPage />, {
+    const { user } = await renderPage(<BatchDetailPage />, {
       path: '/batches/:id',
       route: '/batches/b1',
       user: coachUser,
     });
+    // Details and insights.
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
-    expect(screen.getByText('Students (1 / 20)')).toBeInTheDocument();
+    expect(screen.getByText(/2 \/ 20 students · 18 seats left/)).toBeInTheDocument();
+    expect(screen.getByText('88%')).toBeInTheDocument(); // coach on time
+    expect(screen.queryByText('Expected / month')).not.toBeInTheDocument(); // coaches: no revenue
+    expect(screen.queryByText(/Students \(1/)).not.toBeInTheDocument(); // old training-days view gone
+
+    // Filter the cards, then open one.
+    await user.click(screen.getByRole('radio', { name: /Overdue · 1/ }));
+    expect(screen.queryByText('Kabir Shah')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Anya Rao details' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Ravi Rao');
+    expect(dialog).toHaveTextContent('6 of 8 · 75%');
+    expect(screen.getByRole('link', { name: 'Invoice' })).toHaveAttribute(
+      'href',
+      '/finance?tab=invoices&invoice=i9',
+    );
+    expect(screen.getByRole('link', { name: 'Open profile' })).toHaveAttribute(
+      'href',
+      '/students/s1',
+    );
+
+    // Sessions: upcoming shows the substitute; recent shows the cancellation.
+    await user.keyboard('{Escape}');
+    expect(await screen.findByText(/Substitute: Neha · plan ready/)).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'Recent' }));
+    expect(screen.getByText('Cancelled · Rain')).toBeInTheDocument();
   });
 });
 

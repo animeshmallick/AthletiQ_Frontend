@@ -1,5 +1,5 @@
-import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardPen } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { PeriodStepper } from '@/components/date-nav';
+import { CheckCircle2, ClipboardPen } from 'lucide-react';
 import { Skeleton } from '@/components/ui/primitives';
 import {
   addDays,
@@ -62,51 +62,17 @@ export function WeekStrip({
 
   return (
     <section aria-label="Week" className="mb-2">
-      <div className="mb-1 flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Previous week"
-          onClick={() => onPick(addDays(date, -7))}
-        >
-          <ChevronLeft />
-        </Button>
-        {/* The label doubles as a date picker on phones, where the date stepper is hidden. */}
-        <label className="relative min-w-0 flex-1 cursor-pointer truncate rounded-md px-1 py-0.5 text-center text-[12px] font-medium text-muted-foreground hover:bg-muted sm:flex-none sm:cursor-default sm:hover:bg-transparent">
-          {formatShortDate(from)} – {formatShortDate(addDays(from, 6))}
-          {sessions > 0 && (
-            <span className="tabular">
-              {' '}
-              · {planned}/{sessions} planned
-            </span>
-          )}
-          <input
-            type="date"
-            aria-label="Jump to date"
-            value={date}
-            onChange={(e) => e.target.value && onPick(e.target.value)}
-            className="absolute inset-0 cursor-pointer opacity-0 sm:hidden"
-          />
-        </label>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Next week"
-          onClick={() => onPick(addDays(date, 7))}
-        >
-          <ChevronRight />
-        </Button>
-        {from !== startOfWeek(today()) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => onPick(today())}
-          >
-            Today
-          </Button>
-        )}
-      </div>
+      <PeriodStepper
+        className="mb-1"
+        label={`${formatShortDate(from)} – ${formatShortDate(addDays(from, 6))}`}
+        sublabel={sessions > 0 ? `${planned}/${sessions} sessions planned` : 'No sessions'}
+        prevLabel="Previous week"
+        nextLabel="Next week"
+        onPrev={() => onPick(addDays(date, -7))}
+        onNext={() => onPick(addDays(date, 7))}
+        onToday={from !== startOfWeek(today()) ? () => onPick(today()) : undefined}
+        pick={{ value: date, onChange: onPick }}
+      />
       <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
         {Array.from({ length: 7 }, (_, i) => {
           const d = addDays(from, i);

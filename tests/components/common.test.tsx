@@ -59,7 +59,7 @@ describe('DateStepper', () => {
     const user = userEvent.setup();
     render(<Harness start={addDays(today(), -3)} />);
     await user.click(screen.getByRole('button', { name: 'Today' }));
-    expect(screen.getByLabelText('Date')).toHaveValue(today());
+    expect(screen.getByLabelText('Pick a date')).toHaveValue(today());
     expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled();
   });

@@ -13,7 +13,22 @@ describe('Users hub (admins)', () => {
       'GET /batches': () => [],
       'GET /users': () => page([]),
       'GET /settings': () => ({}),
-      'GET /funds/payees': () => [{ id: 'py1', name: 'Society', note: null, isActive: true }],
+      'GET /funds/payees/summary': () => [
+        {
+          id: 'py1',
+          name: 'Society',
+          note: null,
+          isActive: true,
+          owedNow: 0,
+          unpaidDays: 0,
+          earned: 0,
+          paid: 0,
+          lastPayout: null,
+          expectedMonthly: 0,
+          plans: 0,
+          students: 0,
+        },
+      ],
     });
     const { user } = await renderPage(<PeoplePage />, {
       path: '/people',
@@ -25,6 +40,7 @@ describe('Users hub (admins)', () => {
     await waitFor(() => expect(api.find('GET /users').length).toBeGreaterThan(0));
     await user.click(screen.getByRole('radio', { name: /payees/i }));
     expect(await screen.findByText('Society')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retire' })).toBeInTheDocument();
+    // Each payee opens its details and insights.
+    expect(screen.getByRole('button', { name: 'Society details' })).toBeInTheDocument();
   });
 });

@@ -55,7 +55,8 @@ describe('CoachesPage', () => {
       user: adminUser,
     });
     expect(await screen.findByText('Ravi Kumar')).toBeInTheDocument();
-    expect(screen.getByText('2 batches')).toBeInTheDocument();
+    // Coach cards show their batches, students and punctuality.
+    expect(screen.getByText('Batches').nextElementSibling).toHaveTextContent('2');
 
     await user.click(screen.getByRole('button', { name: /invite/i }));
     await user.type(await screen.findByLabelText(/full name/i), 'Neha Patel');

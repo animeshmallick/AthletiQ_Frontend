@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Clock3,
   KeyRound,
-  LayoutGrid,
+  MessageCircle,
   MoreHorizontal,
   Pencil,
   Phone,
@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/overlays';
 import { Badge, Card, Input, Select } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatInstant, formatPhone, plural } from '@/lib/format';
+import { formatInstant, formatPhone, formatShortDate, money } from '@/lib/format';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema } from '@/lib/forms';
 import {
   useAccessLink,
@@ -249,110 +249,164 @@ export function CoachesPage() {
           }
         />
       ) : (
-        <Card className="divide-y">
+        <div className="grid grid-cols-1 gap-2 *:min-w-0 sm:grid-cols-2 xl:grid-cols-3">
           {q.data.data.map((u) => (
-            <div
+            <Card
               key={u.id}
-              className={cn(
-                'flex items-center gap-2.5 px-2 py-1.5 sm:px-3',
-                u.status === 'disabled' && 'opacity-70',
-              )}
+              className={cn('flex flex-col gap-2.5 p-3', u.status === 'disabled' && 'opacity-70')}
             >
-              <span className="relative shrink-0">
-                <Avatar name={u.name} />
-                <span
-                  aria-hidden
-                  className={cn(
-                    'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-card',
-                    u.status === 'active'
-                      ? 'bg-success'
-                      : u.status === 'invited'
-                        ? 'bg-warning'
-                        : 'bg-muted-foreground/50',
-                  )}
-                />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate text-[14px] font-semibold">{u.name}</span>
-                  {u.id === me.id && (
-                    <span className="shrink-0 text-[11px] text-muted-foreground">(you)</span>
-                  )}
-                  {u.status !== 'active' && (
-                    <Badge
-                      variant={u.status === 'invited' ? 'warning' : 'muted'}
-                      className="shrink-0 capitalize"
-                    >
-                      {u.status}
+              <div className="flex items-start gap-2.5">
+                <span className="relative shrink-0">
+                  <Avatar name={u.name} className="size-11" />
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-card',
+                      u.status === 'active'
+                        ? 'bg-success'
+                        : u.status === 'invited'
+                          ? 'bg-warning'
+                          : 'bg-muted-foreground/50',
+                    )}
+                  />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate text-[15px] font-semibold">{u.name}</span>
+                    {u.id === me.id && (
+                      <span className="shrink-0 text-[11px] text-muted-foreground">(you)</span>
+                    )}
+                  </p>
+                  <p className="truncate text-[12px] text-muted-foreground">{u.email}</p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Badge variant="muted" className="capitalize">
+                      {u.role}
                     </Badge>
-                  )}
-                </p>
-                <p className="truncate text-[12px] text-muted-foreground">
-                  {u.email}
-                  {u.phone && ` · ${formatPhone(u.phone)}`}
-                </p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
-                  {role === 'coach' && (
-                    <span className="inline-flex items-center gap-1">
-                      <LayoutGrid className="size-3" />
-                      {plural(u.activeBatches ?? 0, 'batch', 'batches')}
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1">
-                    <Clock3 className="size-3" />
-                    {u.lastLoginAt ? `Seen ${formatInstant(u.lastLoginAt)}` : 'Never signed in'}
-                  </span>
-                </p>
-              </div>
-              {u.phone && (
-                <Button variant="ghost" size="icon-sm" asChild className="text-muted-foreground">
-                  <a href={`tel:${u.phone}`} aria-label={`Call ${u.name}`}>
-                    <Phone />
-                  </a>
-                </Button>
-              )}
-              {u.id !== me.id && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label={`Manage ${u.name}`}>
-                      <MoreHorizontal />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onSelect={() => setEditing(u)}>
-                      <Pencil /> Edit details
-                    </DropdownMenuItem>
-                    {u.status !== 'disabled' && (
-                      <DropdownMenuItem onSelect={() => void sendLink(u)}>
-                        <KeyRound />{' '}
-                        {u.status === 'invited' ? 'New invite link' : 'Password reset link'}
-                      </DropdownMenuItem>
-                    )}
-                    {u.status === 'disabled' ? (
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          setStatus.mutate(
-                            { id: u.id, status: 'active' },
-                            {
-                              onSuccess: () => toast.success(`${u.name} re-enabled`),
-                              onError: (e) => toast.error(errorMessage(e)),
-                            },
-                          )
-                        }
+                    {u.status !== 'active' && (
+                      <Badge
+                        variant={u.status === 'invited' ? 'warning' : 'muted'}
+                        className="capitalize"
                       >
-                        <UserCheck /> Enable account
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem destructive onSelect={() => setDisabling(u)}>
-                        <UserX /> Disable account
-                      </DropdownMenuItem>
+                        {u.status}
+                      </Badge>
                     )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </div>
+                </div>
+                {u.id !== me.id && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-sm" aria-label={`Manage ${u.name}`}>
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => setEditing(u)}>
+                        <Pencil /> Edit details
+                      </DropdownMenuItem>
+                      {u.status !== 'disabled' && (
+                        <DropdownMenuItem onSelect={() => void sendLink(u)}>
+                          <KeyRound />{' '}
+                          {u.status === 'invited' ? 'New invite link' : 'Password reset link'}
+                        </DropdownMenuItem>
+                      )}
+                      {u.status === 'disabled' ? (
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            setStatus.mutate(
+                              { id: u.id, status: 'active' },
+                              {
+                                onSuccess: () => toast.success(`${u.name} re-enabled`),
+                                onError: (e) => toast.error(errorMessage(e)),
+                              },
+                            )
+                          }
+                        >
+                          <UserCheck /> Enable account
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem destructive onSelect={() => setDisabling(u)}>
+                          <UserX /> Disable account
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+
+              {role === 'coach' && (
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { label: 'Batches', value: String(u.activeBatches ?? 0) },
+                    { label: 'Students', value: String(u.students ?? 0) },
+                    {
+                      label: 'On time · 30d',
+                      value:
+                        u.onTimeRate === null || u.onTimeRate === undefined
+                          ? '—'
+                          : `${u.onTimeRate}%`,
+                      hint: `${u.checkIns30 ?? 0} check-ins`,
+                    },
+                    {
+                      label: 'Cash held',
+                      value: money(u.cashHeld ?? 0),
+                      warn: (u.cashHeld ?? 0) > 0,
+                    },
+                    { label: 'Owed to them', value: money(u.owed ?? 0) },
+                    {
+                      label: 'Last seen',
+                      value: u.lastLoginAt ? formatShortDate(u.lastLoginAt.slice(0, 10)) : 'Never',
+                    },
+                  ].map((x) => (
+                    <div
+                      key={x.label}
+                      className="min-w-0 rounded-lg bg-muted/40 px-2 py-1"
+                      title={x.hint}
+                    >
+                      <p className="truncate text-[10px] font-medium text-muted-foreground">
+                        {x.label}
+                      </p>
+                      <p
+                        className={cn(
+                          'tabular truncate text-[13px] font-bold',
+                          x.warn && 'text-warning-foreground dark:text-warning',
+                        )}
+                      >
+                        {x.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
+              {role === 'admin' && (
+                <p className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                  <Clock3 className="size-3.5" />
+                  {u.lastLoginAt
+                    ? `Last signed in ${formatInstant(u.lastLoginAt)}`
+                    : 'Never signed in'}
+                </p>
+              )}
+
+              {u.phone && (
+                <div className="mt-auto flex gap-1.5">
+                  <Button asChild size="sm" variant="outline" className="flex-1">
+                    <a href={`tel:${u.phone}`} aria-label={`Call ${u.name}`}>
+                      <Phone /> {formatPhone(u.phone)}
+                    </a>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" aria-label={`WhatsApp ${u.name}`}>
+                    <a
+                      href={`https://wa.me/${u.phone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <MessageCircle className="text-success" />
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </Card>
           ))}
-        </Card>
+        </div>
       )}
 
       {editing && (

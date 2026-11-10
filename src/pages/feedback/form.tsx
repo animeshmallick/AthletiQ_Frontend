@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import { ErrorState, ListSkeleton, PageHeader, Progress } from '@/components/common';
-import { BackLink } from '@/components/back-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Switch } from '@/components/ui/controls';
 import {
@@ -264,7 +263,6 @@ export function FeedbackFormPage() {
   return (
     <div className="mx-auto max-w-3xl pb-24">
       <PageHeader
-        back={<BackLink to={`/feedback?week=${weekStart}`}>Weekly feedback</BackLink>}
         title={student.fullName}
         description={`${template.title} · ${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`}
         actions={
