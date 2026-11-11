@@ -58,7 +58,7 @@ export function FloatBadge({
       title={title}
       data-slot="float-badge"
       className={cn(
-        'tabular inline-flex h-5 items-center gap-1 rounded-full px-2 text-[10.5px] leading-none font-semibold tracking-[0.01em] whitespace-nowrap',
+        'tabular inline-flex h-4 items-center gap-1 rounded-full px-2 text-[10.5px] leading-none font-semibold tracking-[0.01em] whitespace-nowrap',
         'shadow-sm ring-2 ring-card [&_svg]:size-3 [&_svg]:shrink-0',
         TONE[tone],
         className,
@@ -91,7 +91,7 @@ export function Floating({
 }) {
   const has = Array.isArray(badges) ? badges.some(Boolean) : Boolean(badges);
   return (
-    <div className={cn('relative min-w-0', has && 'pt-2.5', className)}>
+    <div className={cn('relative min-w-0', has && 'pt-2', className)}>
       {has && (
         <div className="pointer-events-none absolute top-0 right-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center justify-end gap-1 [&>*]:pointer-events-auto">
           {badges}

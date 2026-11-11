@@ -4,25 +4,16 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardList,
-  Clock,
   CloudRain,
   LogIn,
   MapPin,
-  MessageSquareText,
   Repeat,
-  ShieldAlert,
 } from 'lucide-react';
 import { Suspense, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
-import {
-  EmptyState,
-  ErrorState,
-  ListSkeleton,
-  Progress,
-  SectionDivider,
-} from '@/components/common';
+import { EmptyState, ErrorState, ListSkeleton, SectionDivider } from '@/components/common';
 import { Floating, FloatBadge } from '@/components/floating-badge';
 import { Button } from '@/components/ui/button';
 import { Badge, Card, Skeleton } from '@/components/ui/primitives';
@@ -31,7 +22,7 @@ import {
   addDays,
   formatClock,
   formatLongDate,
-  formatTimeRange,
+  formatTime,
   money,
   plural,
   startOfWeek,
@@ -137,8 +128,6 @@ function CoachSessionCard({
   item: TodaySession;
   overview?: DayOverviewSession;
 }) {
-  const pct =
-    overview && overview.expectedStudents ? (overview.marked / overview.expectedStudents) * 100 : 0;
   const statusIn = {
     startTime: item.batch.startTime,
     endTime: item.batch.endTime,
@@ -175,106 +164,104 @@ function CoachSessionCard({
             Covered by {item.substitute.name.split(' ')[0]}
           </FloatBadge>
         ) : null,
-        item.session ? (
-          <FloatBadge
-            key="t"
-            tone={item.session.flagged || late ? 'warning' : 'success'}
-            icon={item.session.flagged ? <ShieldAlert /> : <MapPin />}
-            className="bg-card"
-            title={item.session.flagged ? 'Checked in away from the venue' : undefined}
-          >
-            In {formatClock(item.session.checkInAt)}
-            {late ? ' · ' + lateLabel(late) : ''}
-          </FloatBadge>
-        ) : null,
       ]}
     >
-      <Card className="overflow-hidden">
-        <div
-          className={cn(
-            'space-y-0.5 p-1',
-            (item.session || item.cancelled || item.asSubstitute || item.substitute) && 'pt-1.5',
-          )}
-        >
-          {/* Time and place first (like the other days); the check-in button on the right. */}
-          <div className="flex items-start justify-between gap-1.5">
-            <p className="flex min-w-0 items-center gap-x-2 pt-0.5 pl-1 text-[12px] text-muted-foreground">
-              <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-foreground/80">
-                <Clock className="size-3.5" />
-                {formatTimeRange(item.batch.startTime, item.batch.endTime)}
-              </span>
-              <span className="inline-flex min-w-0 items-center gap-1">
-                <MapPin className="size-3.5 shrink-0" />
-                <span className="truncate">{item.location.name}</span>
-              </span>
+      <Card className={cn('px-2 pt-1.5 pb-1.5', item.cancelled && 'opacity-75')}>
+        {/* Two columns like the calendar: when (scheduled, checked in, how late) | what. */}
+        <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2">
+          <div className="tabular leading-tight">
+            <p className="text-[12.5px] font-bold">{formatTime(item.batch.startTime)}</p>
+            <p className="text-[10px] text-muted-foreground">to {formatTime(item.batch.endTime)}</p>
+            {item.session && !item.cancelled && (
+              <>
+                <hr aria-hidden className="my-1 mr-2 border-current opacity-15" />
+                <p
+                  className={cn(
+                    'text-[10px] font-medium',
+                    item.session.flagged ? 'text-destructive' : 'text-foreground/70',
+                  )}
+                  title={item.session.flagged ? 'Checked in away from the venue' : 'Checked in'}
+                >
+                  In {formatClock(item.session.checkInAt)}
+                </p>
+                {late && (
+                  <p className="text-[10px] font-semibold text-warning-foreground dark:text-warning">
+                    {lateLabel(late)}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+          <div className="min-w-0">
+            <Link
+              to={`/batches/${item.batch.id}`}
+              className={cn(
+                'group flex min-w-0 items-center gap-0.5 text-[13.5px] leading-snug font-semibold hover:text-primary',
+                item.cancelled && 'line-through',
+              )}
+            >
+              <span className="truncate">{item.batch.name}</span>
+              <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </Link>
+            <p className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+              <MapPin className="size-3 shrink-0" />
+              <span className="truncate">{item.location.name}</span>
             </p>
-            {!item.cancelled && !item.session && (
-              <div className="shrink-0">
-                <CheckInButton item={item} overview={overview} compact />
+            {item.cancelled ? (
+              <Badge variant="muted" className="mt-1">
+                <CloudRain /> {item.cancelled}
+              </Badge>
+            ) : (
+              // One row of actions: attendance progress, the lesson plan, and check-in.
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1 [&_[data-slot=badge]]:h-6 [&_[data-slot=badge]]:px-2 [&_[data-slot=badge]]:text-[11px]">
+                <Link to={`/attendance?batch=${item.batch.id}`} aria-label="Attendance">
+                  <Badge
+                    variant={
+                      overview?.attendanceComplete
+                        ? 'success'
+                        : overview?.marked
+                          ? 'default'
+                          : 'muted'
+                    }
+                  >
+                    <CalendarCheck2 />
+                    {overview
+                      ? `${overview.present}/${overview.expectedStudents} present`
+                      : 'No students'}
+                    {overview && !overview.attendanceComplete && overview.expectedStudents > 0 && (
+                      <ArrowRight />
+                    )}
+                  </Badge>
+                </Link>
+                {(() => {
+                  const p =
+                    overview?.batch.coachFeedback === false
+                      ? null
+                      : overview?.hasLessonPlan && overview.lessonPlanFilled
+                        ? { label: 'Plan filled', variant: 'success' as const }
+                        : overview?.hasLessonPlan && overview.lessonPlanFits !== false
+                          ? { label: 'Fill plan', variant: 'default' as const }
+                          : overview?.hasLessonPlan
+                            ? { label: 'Plan needs update', variant: 'warning' as const }
+                            : { label: 'No plan yet', variant: 'warning' as const };
+                  return p ? (
+                    <Link to={`/lesson-plans?batch=${item.batch.id}`} aria-label="Lesson plan">
+                      <Badge variant={p.variant}>
+                        {p.variant === 'success' ? <CheckCircle2 /> : <ClipboardList />}
+                        {p.label}
+                        {p.variant !== 'success' && <ArrowRight />}
+                      </Badge>
+                    </Link>
+                  ) : null;
+                })()}
+                {!item.session && (
+                  <span className="ml-auto">
+                    <CheckInButton item={item} overview={overview} compact />
+                  </span>
+                )}
               </div>
             )}
           </div>
-          <Link
-            to={`/batches/${item.batch.id}`}
-            className="group flex min-w-0 items-center gap-1 pl-1 text-[15px] leading-tight font-semibold hover:text-primary"
-          >
-            <span className="truncate">{item.batch.name}</span>
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-          </Link>
-          {item.cancelled && (
-            <p className="pl-1 text-[12px] text-muted-foreground">{item.cancelled}</p>
-          )}
-        </div>
-        <div className="grid grid-cols-2 border-t text-sm">
-          <Link
-            to={`/attendance?batch=${item.batch.id}`}
-            className="group flex flex-col gap-1 border-r p-1 pl-1.5 transition-colors hover:bg-muted/50"
-          >
-            <span className="flex items-center justify-between font-medium">
-              <span className="inline-flex items-center gap-2">
-                <CalendarCheck2 className="size-4 text-primary" /> Attendance
-              </span>
-              <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-            </span>
-            {overview ? (
-              <>
-                <Progress
-                  label="Attendance marked"
-                  value={pct}
-                  tone={overview.attendanceComplete ? 'success' : 'primary'}
-                />
-                <span className="tabular text-xs text-muted-foreground">
-                  {overview.marked}/{overview.expectedStudents} marked · {overview.present} present
-                </span>
-              </>
-            ) : (
-              <span className="text-xs text-muted-foreground">No students today</span>
-            )}
-          </Link>
-          <Link
-            to={`/lesson-plans?batch=${item.batch.id}`}
-            className="group flex flex-col gap-1 p-1 pl-1.5 transition-colors hover:bg-muted/50"
-          >
-            <span className="flex items-center justify-between font-medium">
-              <span className="inline-flex items-center gap-2">
-                <ClipboardList className="size-4 text-primary" /> Lesson plan
-              </span>
-              <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-            </span>
-            {overview?.batch.coachFeedback === false ? (
-              <Badge variant="muted">Attendance only</Badge>
-            ) : overview?.hasLessonPlan && overview.lessonPlanFilled ? (
-              <Badge variant="success">
-                <CheckCircle2 /> Filled in
-              </Badge>
-            ) : overview?.hasLessonPlan && overview.lessonPlanFits !== false ? (
-              <Badge variant="default">Fill now</Badge>
-            ) : overview?.hasLessonPlan ? (
-              <Badge variant="warning">Needs update</Badge>
-            ) : (
-              <Badge variant="warning">No plan yet</Badge>
-            )}
-          </Link>
         </div>
       </Card>
     </Floating>
@@ -398,19 +385,6 @@ function CoachToday() {
       <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
         <TodoList />
         <div className="space-y-2">
-          {reportsDue > 0 && (
-            <Link
-              to="/feedback"
-              className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 p-1 pl-2 text-[13px] leading-tight transition-colors hover:bg-warning/15"
-            >
-              <MessageSquareText className="size-4 shrink-0 text-warning-foreground dark:text-warning" />
-              <span className="flex-1">
-                <span className="font-medium">Weekly feedback due</span> —{' '}
-                {plural(reportsDue, 'student')} still need last week’s report.
-              </span>
-              <ArrowRight className="size-4" />
-            </Link>
-          )}
           <PlanningNudge />
         </div>
       </div>

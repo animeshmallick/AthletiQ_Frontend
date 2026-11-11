@@ -77,9 +77,9 @@ describe('TodayPage (coach)', () => {
     const { user } = await renderPage(<TodayPage />, { user: coachUser });
 
     expect(await screen.findByText('Morning U-12')).toBeInTheDocument();
-    expect(await screen.findByText('4/10 marked · 3 present')).toBeInTheDocument();
-    expect(screen.getByText('Fill now')).toBeInTheDocument(); // a plan, not filled in for today yet
-    expect(screen.getByText(/2 students still need last week’s report/)).toBeInTheDocument();
+    expect(await screen.findByText('3/10 present')).toBeInTheDocument();
+    expect(screen.getByText('Fill plan')).toBeInTheDocument(); // a plan, not filled in for today yet
+    expect(screen.getByText('2 reports due')).toBeInTheDocument(); // feedback lives in the to-dos
 
     await user.click(screen.getByRole('button', { name: /check in/i }));
     await waitFor(() => expect(api.find('POST /coach-sessions/check-in')).toHaveLength(1));
@@ -110,8 +110,8 @@ describe('TodayPage (coach)', () => {
       'GET /attendance/overview': () => overview,
     });
     await renderPage(<TodayPage />, { user: coachUser });
-    // Away from the venue: the floating check-in badge turns amber.
-    expect(await screen.findByText(/^In 6:01/)).toHaveClass('text-warning-foreground');
+    // Away from the venue: the check-in time turns red.
+    expect(await screen.findByText(/^In 6:01/)).toHaveClass('text-destructive');
     expect(screen.queryByRole('button', { name: /check (in|out)/i })).not.toBeInTheDocument();
   });
 

@@ -377,7 +377,7 @@ function SessionTile({
         </div>
       </div>
       {/* The status floats on the card's top edge. */}
-      <div className="absolute -top-2.5 right-2 z-10 flex items-center gap-1">
+      <div className="absolute -top-2 right-2 z-10 flex items-center gap-1">
         <FloatBadge tone={st.tone} title={st.hint}>
           {statusLabel(state, {
             startTime: s.batch.startTime,

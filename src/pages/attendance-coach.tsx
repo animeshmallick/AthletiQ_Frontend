@@ -311,7 +311,7 @@ function SessionCards({
               )}
             >
               {(live || s.cancelled) && (
-                <FloatBadge tone={live ? 'on-air' : 'muted'} className="absolute -top-2.5 right-2">
+                <FloatBadge tone={live ? 'on-air' : 'muted'} className="absolute -top-2 right-2">
                   {live ? 'Live' : 'Cancelled'}
                 </FloatBadge>
               )}
