@@ -192,7 +192,7 @@ describe('Batch plan', () => {
       ],
     });
     expect(await screen.findByRole('button', { name: /Edit plan/ })).toBeInTheDocument();
-  });
+  }, 15_000); // lots of typing: slow when the suite runs with coverage
 
   it('edits blocks: reorder from the menu, add and remove', async () => {
     const api = mockApi({
