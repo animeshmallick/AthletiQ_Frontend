@@ -577,7 +577,7 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
       <Card className="overflow-hidden">
         <div
           className={cn(
-            'bg-gradient-to-b to-transparent px-3.5 pt-3 pb-3',
+            'bg-gradient-to-b to-transparent px-3 pt-2 pb-2',
             HERO_TINT[inv.displayStatus],
           )}
         >
@@ -592,7 +592,7 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
             </span>
             <InvoiceStatusBadge status={inv.displayStatus} />
           </div>
-          <p className="tabular mt-2 text-[34px] leading-none font-bold tracking-tight">
+          <p className="tabular mt-1 text-[30px] leading-none font-bold tracking-tight">
             {money(inv.totalAmount)}
           </p>
           <p className={cn('mt-1 text-[12.5px] font-medium', STANDING_TONE[inv.displayStatus])}>
@@ -600,9 +600,9 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
           </p>
           <Link
             to={`/students/${inv.student.id}`}
-            className="group mt-3 flex items-center gap-2 rounded-xl border bg-card/80 p-1 pr-2 backdrop-blur transition-colors hover:bg-muted/50"
+            className="group mt-2 flex items-center gap-2 rounded-xl border bg-card/80 p-1 pr-2 backdrop-blur transition-colors hover:bg-muted/50"
           >
-            <Avatar name={inv.student.fullName} className="size-8 text-[11px]" />
+            <Avatar name={inv.student.fullName} className="size-7 text-[10px]" />
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-[13.5px] font-semibold">
                 {inv.student.fullName}
