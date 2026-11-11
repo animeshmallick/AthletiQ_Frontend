@@ -82,8 +82,8 @@ export function AuditLogPage() {
   const active = Number(!!area) + Number(!!person) + Number(sensitive);
   const tabs: { value: Tab; label: string; icon: typeof ListTree }[] = [
     { value: 'insights', label: 'Insights', icon: BarChart3 },
-    { value: 'activity', label: 'Activity', icon: ListTree },
     { value: 'errors' as const, label: 'Errors', icon: Bug },
+    { value: 'activity', label: 'Activity', icon: ListTree },
   ];
 
   return (
