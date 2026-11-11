@@ -293,7 +293,7 @@ function SessionTile({
         }
       }}
       className={cn(
-        'relative cursor-pointer border-l-4 px-2 pt-1.5 transition-shadow hover:shadow-e2',
+        'relative cursor-pointer border-l-4 px-2 pt-1.5 pb-0.5 transition-shadow hover:shadow-e2',
         batchTone(s.batch.id),
         state === 'cancelled' && 'opacity-75',
       )}
