@@ -622,10 +622,9 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
             <Button
               variant="success"
               className="h-9 min-w-0 flex-1 gap-1 px-3 text-[13px]"
-              aria-label="I have received the payment"
               onClick={() => setPaying(true)}
             >
-              <Wallet /> <span className="truncate">Received payment</span>
+              <Wallet /> <span className="truncate">Record payment</span>
             </Button>
           )}
           {tiles

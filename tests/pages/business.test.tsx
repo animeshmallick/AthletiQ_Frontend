@@ -288,9 +288,7 @@ describe('invoice adjustment', () => {
       route: '/invoices?invoice=i1',
       user: coachUser,
     });
-    expect(
-      await screen.findByRole('button', { name: /i have received the payment/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /record payment/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument();
   });
 });

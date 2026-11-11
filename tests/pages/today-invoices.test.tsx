@@ -267,7 +267,7 @@ describe('InvoicesPage', () => {
     // Coaches cannot cancel invoices.
     expect(screen.queryByRole('button', { name: 'Cancel invoice' })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /i have received the payment/i }));
+    await user.click(screen.getByRole('button', { name: /record payment/i }));
     await user.type(screen.getByLabelText(/UPI reference/i), 'UTR123');
     // Slide to confirm (keyboard: Enter on the slider).
     screen.getByRole('slider', { name: /slide to confirm ₹2,500 received/i }).focus();
@@ -292,7 +292,7 @@ describe('InvoicesPage', () => {
       user: both,
     });
     await user.click(await screen.findByRole('button', { name: /Anya Rao/ }));
-    await user.click(await screen.findByRole('button', { name: /i have received the payment/i }));
+    await user.click(await screen.findByRole('button', { name: /record payment/i }));
 
     // Warning first: taking it as admin sends it to academy cash.
     expect(await screen.findByRole('alert')).toHaveTextContent('You’re receiving this as admin');
@@ -327,7 +327,7 @@ describe('InvoicesPage', () => {
       user: both,
     });
     await user.click(await screen.findByRole('button', { name: /Anya Rao/ }));
-    await user.click(await screen.findByRole('button', { name: /i have received the payment/i }));
+    await user.click(await screen.findByRole('button', { name: /record payment/i }));
     (await screen.findByRole('slider', { name: /slide to accept ₹2,500 as admin/i })).focus();
     await user.keyboard('{Enter}');
     await waitFor(() => expect(api.find('POST /invoices/i1/payments')).toHaveLength(1));
