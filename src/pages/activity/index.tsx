@@ -96,66 +96,70 @@ export function AuditLogPage() {
             ? 'Who did what and when, with trends and failures.'
             : 'Everything you have done, with trends.'
         }
-        actions={<SummaryButton admin={admin} />}
       />
       {/* Period first: it applies to every tab. */}
-      <FilterBar>
+      {/* Three columns: period · the dates it covers · summarise (and filters on Activity). */}
+      <FilterBar className="grid grid-cols-3 gap-1.5">
         <PeriodFilter
           value={period}
           onChange={(k) => set({ period: k === '24h' ? null : k })}
           options={ACTIVITY_PERIODS}
+          className="col-span-2 grid grid-cols-2 [&_select]:w-full [&_select]:max-w-none"
         />
-        {tab === 'activity' && view === 'events' && (
-          <FilterMenu
-            active={active}
-            onReset={() => set({ area: null, person: null, sensitive: null })}
-          >
-            <FilterField label="Area">
-              <Select
-                value={area}
-                onChange={(e) => set({ area: e.target.value || null })}
-                className="h-9"
-                aria-label="Area"
-              >
-                <option value="">All areas</option>
-                {Object.entries(ENTITY).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v.label}
-                  </option>
-                ))}
-              </Select>
-            </FilterField>
-            {admin && (
-              <FilterField label="Person">
+        <div className="flex min-w-0 items-center justify-end gap-1.5">
+          <SummaryButton admin={admin} />
+          {tab === 'activity' && view === 'events' && (
+            <FilterMenu
+              active={active}
+              onReset={() => set({ area: null, person: null, sensitive: null })}
+            >
+              <FilterField label="Area">
                 <Select
-                  value={person}
-                  onChange={(e) => set({ person: e.target.value || null })}
+                  value={area}
+                  onChange={(e) => set({ area: e.target.value || null })}
                   className="h-9"
-                  aria-label="Person"
+                  aria-label="Area"
                 >
-                  <option value="">Everyone</option>
-                  {person && !personName && <option value={person}>Selected person</option>}
-                  {people.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.n})
+                  <option value="">All areas</option>
+                  {Object.entries(ENTITY).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.label}
                     </option>
                   ))}
                 </Select>
               </FilterField>
-            )}
-            <label className="flex cursor-pointer items-center justify-between gap-3 text-[13px]">
-              <span className="inline-flex items-center gap-1.5">
-                <AlertTriangle className="size-4 text-warning-foreground dark:text-warning" />
-                Only items worth a second look
-              </span>
-              <Switch
-                checked={sensitive}
-                onCheckedChange={(c) => set({ sensitive: c ? '1' : null })}
-                aria-label="Only items worth a second look"
-              />
-            </label>
-          </FilterMenu>
-        )}
+              {admin && (
+                <FilterField label="Person">
+                  <Select
+                    value={person}
+                    onChange={(e) => set({ person: e.target.value || null })}
+                    className="h-9"
+                    aria-label="Person"
+                  >
+                    <option value="">Everyone</option>
+                    {person && !personName && <option value={person}>Selected person</option>}
+                    {people.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.n})
+                      </option>
+                    ))}
+                  </Select>
+                </FilterField>
+              )}
+              <label className="flex cursor-pointer items-center justify-between gap-3 text-[13px]">
+                <span className="inline-flex items-center gap-1.5">
+                  <AlertTriangle className="size-4 text-warning-foreground dark:text-warning" />
+                  Only items worth a second look
+                </span>
+                <Switch
+                  checked={sensitive}
+                  onCheckedChange={(c) => set({ sensitive: c ? '1' : null })}
+                  aria-label="Only items worth a second look"
+                />
+              </label>
+            </FilterMenu>
+          )}
+        </div>
       </FilterBar>
       <Segmented
         ariaLabel="Activity view"
