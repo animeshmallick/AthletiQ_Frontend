@@ -1,3 +1,4 @@
+import { InvoiceDetailPage } from '@/pages/invoices/detail';
 import { InvoicesPage } from '@/pages/invoices';
 import { TodayPage } from '@/pages/today';
 import { invoiceDetail, studentListItem } from '../fixtures';
@@ -396,6 +397,35 @@ describe('InvoicesPage', () => {
     });
     await user.click(await screen.findByRole('button', { name: /whatsapp/i }));
     await waitFor(() => expect(win.location.href).toBe('https://wa.me/91?text=Hi'));
+  });
+
+  it('shows the batch enrollment date and other dues on the invoice page', async () => {
+    mockApi({
+      'GET /invoices/i1': () => ({
+        ...invoiceDetail,
+        student: { ...invoiceDetail.student, joiningDate: '2025-06-01' },
+        about: {
+          coachName: 'Ravi',
+          locationName: 'Main ground',
+          startTime: '06:00:00',
+          endTime: '07:00:00',
+          trainingDays: [1, 3, 5],
+          batchJoinedOn: '2025-09-01',
+          billingStartsOn: '2025-09-01',
+          otherDue: { count: 2, amount: 500_000 },
+        },
+      }),
+    });
+    await renderPage(<InvoiceDetailPage />, {
+      path: '/invoices/:id',
+      route: '/invoices/i1',
+      user: adminUser,
+    });
+    expect(await screen.findByText('Batch enrollment')).toBeInTheDocument();
+    expect(screen.getAllByText('1 Sept 2025', { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/In the academy since/)).toBeInTheDocument();
+    expect(screen.getByText('Coach Ravi')).toBeInTheDocument();
+    expect(screen.getByText('2 more unpaid invoices')).toBeInTheDocument();
   });
 
   it('shows a friendly empty state', async () => {

@@ -649,6 +649,9 @@ export interface InvoiceDetail extends Omit<Invoice, 'student'> {
     startTime: string | null;
     endTime: string | null;
     trainingDays: number[] | null;
+    /** When the student joined this batch (their first enrollment in it). */
+    batchJoinedOn?: string | null;
+    billingStartsOn?: string | null;
     otherDue: { count: number; amount: number };
   };
 }

@@ -740,12 +740,25 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
             />
           )}
           <DetailRow icon={<ReceiptText />} label="Fee plan" value={inv.feePlanName} />
-          {inv.student.joiningDate && (
+          {inv.about?.batchJoinedOn && (
             <DetailRow
               icon={<UserRound />}
-              label="Student since"
-              value={formatDate(inv.student.joiningDate)}
-              sub={inv.student.status === 'active' ? undefined : `Status: ${inv.student.status}`}
+              label="Batch enrollment"
+              value={formatDate(inv.about.batchJoinedOn)}
+              sub={[
+                // The academy joining date, when it differs (e.g. moved from another batch).
+                inv.student.joiningDate &&
+                inv.about?.batchJoinedOn &&
+                inv.student.joiningDate !== inv.about.batchJoinedOn
+                  ? `In the academy since ${formatDate(inv.student.joiningDate)}`
+                  : null,
+                inv.about?.billingStartsOn
+                  ? `Billing from ${formatDate(inv.about.billingStartsOn)}`
+                  : null,
+                inv.student.status === 'active' ? null : `Status: ${inv.student.status}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             />
           )}
         </ul>
