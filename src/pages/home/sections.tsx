@@ -406,9 +406,19 @@ const GROUPS: { severity: AppTask['severity']; title: string }[] = [
 ];
 
 /** Everything the app wants done, most urgent first; each item opens where it's resolved. */
-export function TodoList() {
+/** To-dos about one of today's sessions; the session cards on Today already show these. */
+const SESSION_KINDS: ReadonlySet<AppTask['kind']> = new Set([
+  'check-in',
+  'missed-check-in',
+  'attendance',
+  'lesson-plan',
+]);
+
+export function TodoList({ hideSessionTasks = false }: { hideSessionTasks?: boolean } = {}) {
   const q = useTasks();
-  const items = q.data?.items ?? [];
+  const items = (q.data?.items ?? []).filter(
+    (t) => !hideSessionTasks || !SESSION_KINDS.has(t.kind),
+  );
   return (
     <Panel title={`To-dos${items.length ? ` · ${items.length}` : ''}`} icon={<CheckCircle2 />}>
       {q.isPending ? (

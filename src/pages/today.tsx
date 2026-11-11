@@ -383,7 +383,7 @@ function CoachToday() {
 
       <SectionDivider>To-dos</SectionDivider>
       <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-        <TodoList />
+        <TodoList hideSessionTasks />
         <div className="space-y-2">
           <PlanningNudge />
         </div>
@@ -479,7 +479,7 @@ function AdminToday() {
           <DayPlan isAdmin />
         </div>
         <div className="min-w-0 lg:col-span-2">
-          <TodoList />
+          <TodoList hideSessionTasks />
         </div>
       </div>
 
