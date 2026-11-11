@@ -50,13 +50,7 @@ import {
   useTasks,
 } from '@/lib/queries';
 import type { AppTask, DayOverviewSession } from '@/lib/types';
-import {
-  lateLabel,
-  lateMinutes,
-  missingParts,
-  sessionStatus,
-  STATUS_META,
-} from '@/lib/session-status';
+import { lateLabel, lateMinutes, sessionStatus, STATUS_META } from '@/lib/session-status';
 import { cn } from '@/lib/utils';
 
 // ─── Shared bits ─────────────────────────────────────────────────────────────
@@ -220,15 +214,6 @@ export function DayPlan({
             {sessions.map((s) => {
               const st = statusOf(s, day);
               const style = STATUS_META[st];
-              const open =
-                st === 'partial'
-                  ? missingParts({
-                      ...s,
-                      ...s.batch,
-                      coachFeedback: s.batch.coachFeedback,
-                      lessonPlanFilled: s.lessonPlanFilled,
-                    })
-                  : [];
               const todos = todosFor(s.batch.id);
               return (
                 <li key={s.batch.id}>
@@ -298,11 +283,6 @@ export function DayPlan({
                             {s.batch.location.name}
                           </p>
                           <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] [&_[data-slot=badge]]:gap-0.5 [&_[data-slot=badge]]:px-1.5">
-                            {open.length > 0 && (
-                              <span className="font-semibold text-warning-foreground dark:text-warning">
-                                Open: {open.join(', ')}
-                              </span>
-                            )}
                             {st === 'cancelled' && s.cancelled && (
                               <span className="text-muted-foreground">{s.cancelled}</span>
                             )}
@@ -327,21 +307,10 @@ export function DayPlan({
                               </>
                             )}
                             {!s.cancelled && s.batch.coachFeedback !== false && (
-                              <Badge
-                                variant={
-                                  !s.hasLessonPlan
-                                    ? 'muted'
-                                    : s.lessonPlanFits === false
-                                      ? 'warning'
-                                      : 'success'
-                                }
-                              >
+                              // Is today's lesson plan filled in (any drills count)?
+                              <Badge variant={s.lessonPlanFilled ? 'success' : 'muted'}>
                                 <ClipboardList />{' '}
-                                {!s.hasLessonPlan
-                                  ? 'No plan'
-                                  : s.lessonPlanFits === false
-                                    ? 'Plan needs update'
-                                    : 'Plan'}
+                                {s.lessonPlanFilled ? 'Plan filled' : 'Plan not filled'}
                               </Badge>
                             )}
                           </div>

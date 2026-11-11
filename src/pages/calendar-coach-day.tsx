@@ -357,8 +357,9 @@ function SessionTile({
             to={`/lesson-plans?batch=${s.batch.id}&date=${date}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <Badge variant={s.hasLessonPlan ? 'success' : 'warning'}>
-              <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'Add plan'}
+            {/* Is the day's lesson plan filled in (any drills count)? */}
+            <Badge variant={s.lessonPlanFilled ? 'success' : 'muted'}>
+              <ClipboardList /> {s.lessonPlanFilled ? 'Plan filled' : 'Plan not filled'}
             </Badge>
           </Link>
           {isToday &&
