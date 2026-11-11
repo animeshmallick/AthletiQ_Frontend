@@ -1,6 +1,7 @@
 import type {
   AttendanceSheet,
   Batch,
+  DayOverviewSession,
   FeedbackTemplate,
   InvoiceDetail,
   StudentDetail,
@@ -221,3 +222,31 @@ export const invoiceDetail: InvoiceDetail = {
   },
   payments: [],
 };
+
+/** A session on the attendance day view (batch b1 by default). */
+export const daySession = (overrides: Partial<DayOverviewSession> = {}): DayOverviewSession => ({
+  batch: {
+    id: 'b1',
+    name: 'Morning U-12',
+    startTime: '06:00:00',
+    endTime: '07:00:00',
+    coach: { id: 'c1', name: 'Coach One' },
+    location: { id: 'l1', name: 'Main ground' },
+  },
+  expectedStudents: 2,
+  marked: 1,
+  present: 0,
+  attendanceComplete: false,
+  hasLessonPlan: false,
+  coachSession: null,
+  cancelled: null,
+  ...overrides,
+});
+
+/** GET /attendance/calendar for one day. */
+export const calendarDay = (date: string, sessions = [daySession()]) => ({
+  from: date,
+  to: date,
+  today: '2026-03-20',
+  days: [{ date, sessions }],
+});

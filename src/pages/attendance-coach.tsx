@@ -1,7 +1,7 @@
 /**
- * Coach attendance: pick the day, (optionally) a place, then one of that day's sessions. Marking
- * is "everyone's here, tap the exceptions": every tap saves at once with an undo, and each
- * student shows their last few sessions so patterns are easy to spot.
+ * Attendance (coaches and admins): a day at a time, each session a collapsible card. Marking is
+ * one tap per student (P / A / L / E): every tap saves at once with an undo, and each student
+ * shows their last few sessions so patterns are easy to spot.
  */
 import { usePendingMarks } from '@/lib/attendance-outbox';
 import { useOnline } from '@/lib/use-online';
@@ -16,11 +16,13 @@ import {
 } from '@/components/attendance-kit';
 import {
   CalendarDays,
+  ChevronDown,
   CheckCheck,
   CheckCircle2,
   Lock,
   MapPin,
-  MoreHorizontal,
+  MoreVertical,
+  TableProperties,
   RefreshCw,
   StickyNote,
   Users,
@@ -29,6 +31,10 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
+import { Accordion } from 'radix-ui';
+import { useUser } from '@/app/auth';
+import { Floating } from '@/components/floating-badge';
+import { SwipeDays } from '@/components/swipe-days';
 import { toast } from 'sonner';
 import { haptic } from '@/app/native';
 import {
@@ -41,7 +47,6 @@ import {
 } from '@/components/common';
 import { PeriodStepper } from '@/components/date-nav';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -55,7 +60,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/overlays';
-import { Badge, Card, Input, Skeleton } from '@/components/ui/primitives';
+import { Badge, Card, Input } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import {
   addDays,
@@ -93,20 +98,28 @@ function pickDefault(sessions: DayOverviewSession[], now: number, isToday: boole
   );
 }
 
-export function CoachAttendance() {
+/**
+ * Attendance for coaches and admins alike: one day at a time (swipe or use the arrows), every
+ * session of that day as a collapsible card. Today opens the live / next session.
+ */
+export function AttendanceDay() {
+  const isAdmin = useUser().role === 'admin';
   const [params, setParams] = useSearchParams();
   const date = params.get('date') ?? today();
-  const batchId = params.get('batch') ?? '';
-  const loc = params.get('loc') ?? '';
+  const batchParam = params.get('batch') ?? '';
   const isToday = date === today();
   const now = useIstMinutes();
   const cal = useCalendar(date, date);
-  const set = (patch: Record<string, string>) => {
+  const [direction, setDirection] = useState<1 | -1 | 0>(0);
+  const [open, setOpen] = useState<string[]>([]);
+  const openedFor = useRef<string | null>(null);
+
+  const go = (d: string) => {
+    if (d > today() || d === date) return;
+    setDirection(d > date ? 1 : -1);
     const p = new URLSearchParams(params);
-    for (const [k, v] of Object.entries(patch)) {
-      if (v) p.set(k, v);
-      else p.delete(k);
-    }
+    p.set('date', d);
+    p.delete('batch');
     setParams(p, { replace: true });
   };
 
@@ -117,26 +130,19 @@ export function CoachAttendance() {
       ),
     [cal.data, date],
   );
-  const locations = useMemo(() => {
-    const m = new Map<string, { id: string; name: string; n: number }>();
-    for (const s of sessions) {
-      const l = s.batch.location;
-      m.set(l.id, { id: l.id, name: l.name, n: (m.get(l.id)?.n ?? 0) + 1 });
-    }
-    return [...m.values()];
-  }, [sessions]);
-  const visible = loc ? sessions.filter((s) => s.batch.location.id === loc) : sessions;
-  const selected = sessions.find((s) => s.batch.id === batchId);
 
-  // Keep a sensible session selected as the day / place changes.
+  // Once per day: open the session asked for (a link with ?batch=), else today's live / next one.
   const ready = !!cal.data && !cal.isPlaceholderData;
   useEffect(() => {
-    if (!ready || !visible.length) return;
-    if (selected && visible.includes(selected)) return;
-    const pick = pickDefault(visible, now, isToday);
-    if (pick && pick.batch.id !== batchId) set({ batch: pick.batch.id });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `set` changes every render
-  }, [ready, visible, selected, batchId, now, isToday]);
+    if (!ready || openedFor.current === date) return;
+    openedFor.current = date;
+    const asked = sessions.find((s) => s.batch.id === batchParam);
+    const pick = asked ?? (isToday ? pickDefault(sessions, now, true) : undefined);
+    setOpen(pick ? [pick.batch.id] : []);
+  }, [ready, date, sessions, batchParam, isToday, now]);
+
+  const marked = sessions.reduce((n, s) => n + (s.cancelled ? 0 : s.marked), 0);
+  const expected = sessions.reduce((n, s) => n + (s.cancelled ? 0 : s.expectedStudents), 0);
 
   return (
     <div className="space-y-1.5">
@@ -151,203 +157,135 @@ export function CoachAttendance() {
         sublabel={
           cal.isPending
             ? 'Loading…'
-            : `${isToday ? '' : `${formatLongDate(date)} · `}${plural(sessions.length, 'session')}`
+            : `${isToday ? '' : `${formatLongDate(date)} · `}${plural(sessions.length, 'session')}${
+                expected ? ` · ${marked}/${expected} marked` : ''
+              }`
         }
         prevLabel="Previous day"
         nextLabel="Next day"
-        onPrev={() => set({ date: addDays(date, -1), batch: '' })}
-        onNext={() => set({ date: addDays(date, 1), batch: '' })}
+        onPrev={() => go(addDays(date, -1))}
+        onNext={() => go(addDays(date, 1))}
         nextDisabled={date >= today()}
-        onToday={isToday ? undefined : () => set({ date: today(), batch: '' })}
-        pick={{ value: date, max: today(), onChange: (d) => set({ date: d, batch: '' }) }}
+        onToday={isToday ? undefined : () => go(today())}
+        pick={{ value: date, max: today(), onChange: go }}
       />
 
-      {locations.length > 1 && (
-        <div
-          role="radiogroup"
-          aria-label="Location"
-          className="-mx-1 flex [scrollbar-width:none] gap-1.5 overflow-x-auto px-1 pb-0.5"
-        >
-          {[{ id: '', name: 'All places', n: sessions.length }, ...locations].map((l) => {
-            const on = loc === l.id;
-            return (
-              <button
-                key={l.id || 'all'}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                onClick={() => set({ loc: l.id })}
-                className={cn(
-                  'flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2 text-[11px] font-medium transition-colors',
-                  on
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'bg-card text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {l.id && <MapPin className="size-3" />}
-                <span className="max-w-40 truncate">{l.name}</span>
-                <span
-                  className={cn(
-                    'tabular rounded-full px-1 text-[10px] font-bold',
-                    on ? 'bg-primary/15' : 'bg-muted',
-                  )}
-                >
-                  {l.n}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {cal.isPending ? (
-        <div className="flex gap-2">
-          <Skeleton className="h-[4.5rem] w-44 rounded-xl" />
-          <Skeleton className="h-[4.5rem] w-44 rounded-xl" />
-        </div>
-      ) : cal.isError ? (
-        <ErrorState error={cal.error} onRetry={() => void cal.refetch()} />
-      ) : sessions.length === 0 ? (
-        <EmptyState
-          icon={<CalendarDays />}
-          title={`No sessions ${isToday ? 'today' : `on ${formatShortDate(date)}`}`}
-          description="Pick another day to take or check attendance."
-        />
-      ) : (
-        <SessionCards
-          sessions={visible}
-          selectedId={selected?.batch.id ?? ''}
-          isToday={isToday}
-          now={now}
-          onSelect={(id) => set({ batch: id })}
-        />
-      )}
-
-      {selected && (
-        <Tabs defaultValue="session" key={selected.batch.id}>
-          <TabsList className="mb-1.5">
-            <TabsTrigger value="session">Mark</TabsTrigger>
-            <TabsTrigger value="register">Monthly register</TabsTrigger>
-          </TabsList>
-          <TabsContent value="session">
-            <CoachSheet key={`${selected.batch.id}:${date}`} session={selected} date={date} />
-          </TabsContent>
-          <TabsContent value="register">
-            <MonthlyRegister batchId={selected.batch.id} />
-          </TabsContent>
-        </Tabs>
-      )}
+      <SwipeDays
+        dayKey={date}
+        direction={direction}
+        onStep={(n) => go(addDays(date, n))}
+        prevLabel="Previous day"
+        nextLabel={isToday ? 'Today' : 'Next day'}
+      >
+        {cal.isPending ? (
+          <ListSkeleton rows={3} />
+        ) : cal.isError ? (
+          <ErrorState error={cal.error} onRetry={() => void cal.refetch()} />
+        ) : sessions.length === 0 ? (
+          <EmptyState
+            icon={<CalendarDays />}
+            title={`No sessions ${isToday ? 'today' : `on ${formatShortDate(date)}`}`}
+            description="Swipe or use the arrows to see another day."
+          />
+        ) : (
+          <Accordion.Root
+            type="multiple"
+            value={open}
+            onValueChange={setOpen}
+            className="space-y-1.5 pt-1"
+          >
+            {sessions.map((s) => (
+              <SessionItem
+                key={s.batch.id}
+                s={s}
+                date={date}
+                live={
+                  isToday &&
+                  !s.cancelled &&
+                  now >= minutes(s.batch.startTime) &&
+                  now < minutes(s.batch.endTime)
+                }
+                isAdmin={isAdmin}
+              />
+            ))}
+          </Accordion.Root>
+        )}
+      </SwipeDays>
     </div>
   );
 }
 
-function SessionCards({
-  sessions,
-  selectedId,
-  isToday,
-  now,
-  onSelect,
+/** One session: collapsed to its time, name, place and progress; open to mark it. */
+function SessionItem({
+  s,
+  date,
+  live,
+  isAdmin,
 }: {
-  sessions: DayOverviewSession[];
-  selectedId: string;
-  isToday: boolean;
-  now: number;
-  onSelect: (id: string) => void;
+  s: DayOverviewSession;
+  date: string;
+  live: boolean;
+  isAdmin: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  // Fade the edges that have more cards behind them, so it reads as scrollable.
-  const [edges, setEdges] = useState({ left: false, right: false });
-  const measure = () => {
-    const el = ref.current;
-    if (!el) return;
-    setEdges({
-      left: el.scrollLeft > 4,
-      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
-    });
-  };
-  useEffect(() => {
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [sessions.length]);
-  // Bring the selected card into view.
-  useEffect(() => {
-    const el = ref.current?.querySelector<HTMLElement>('[aria-checked="true"]');
-    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  }, [selectedId]);
-
+  const [register, setRegister] = useState(false);
+  const left = s.expectedStudents - s.marked;
+  const pct = s.expectedStudents ? (s.marked / s.expectedStudents) * 100 : 0;
+  const badge = s.cancelled ? (
+    <FloatBadge tone="muted">Cancelled</FloatBadge>
+  ) : live ? (
+    <FloatBadge tone="on-air">Live</FloatBadge>
+  ) : s.expectedStudents === 0 ? null : s.attendanceComplete ? (
+    <FloatBadge tone="success">All marked</FloatBadge>
+  ) : s.marked > 0 ? (
+    <FloatBadge tone="pending">{left} to mark</FloatBadge>
+  ) : null;
   return (
-    <div className="relative -mx-1">
-      <div
-        ref={ref}
-        onScroll={measure}
-        role="radiogroup"
-        aria-label="Session"
-        className="flex snap-x scroll-px-1 [scrollbar-width:none] gap-1.5 overflow-x-auto px-1 pt-2 pb-1 [&::-webkit-scrollbar]:hidden"
+    <Floating badges={badge}>
+      <Accordion.Item
+        value={s.batch.id}
+        className={cn(
+          'overflow-hidden rounded-xl border border-l-4 bg-card shadow-e1',
+          batchTone(s.batch.id),
+          s.cancelled && 'opacity-75',
+        )}
       >
-        {sessions.map((s) => {
-          const on = s.batch.id === selectedId;
-          const live =
-            isToday &&
-            !s.cancelled &&
-            now >= minutes(s.batch.startTime) &&
-            now < minutes(s.batch.endTime);
-          const pct = s.expectedStudents ? (s.marked / s.expectedStudents) * 100 : 0;
-          return (
-            <button
-              key={s.batch.id}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              aria-label={`${s.batch.name}, ${formatTime(s.batch.startTime)}, ${s.batch.location.name}`}
-              onClick={() => onSelect(s.batch.id)}
-              className={cn(
-                // ~2.4 cards per row on phones, so the next one always peeks in.
-                'relative flex w-[40%] max-w-48 min-w-36 shrink-0 cursor-pointer snap-start flex-col rounded-xl border px-2 py-1.5 text-left transition-all duration-200 active:scale-[0.98]',
-                on
-                  ? 'border-primary bg-primary/8 shadow-e2 ring-1 ring-primary dark:bg-primary/15'
-                  : cn(
-                      'border-l-4 bg-card shadow-e1 hover:shadow-e2',
-                      batchTone(s.batch.id),
-                      'bg-card',
-                    ),
-                s.cancelled && !on && 'opacity-60',
-              )}
-            >
-              {(live || s.cancelled) && (
-                <FloatBadge tone={live ? 'on-air' : 'muted'} className="absolute -top-2 right-2">
-                  {live ? 'Live' : 'Cancelled'}
-                </FloatBadge>
-              )}
-              <span
-                className={cn(
-                  'tabular truncate text-[10px] font-semibold',
-                  on ? 'text-primary' : 'text-muted-foreground',
-                )}
-              >
-                {formatTime(s.batch.startTime)} – {formatTime(s.batch.endTime)}
-                <span className="font-normal text-muted-foreground">
-                  {' '}
-                  · {s.batch.location.name}
-                </span>
+        <Accordion.Header>
+          <Accordion.Trigger className="group grid w-full cursor-pointer grid-cols-[3.75rem_minmax(0,1fr)_auto] items-center gap-x-2 px-2 py-1.5 text-left hover:bg-muted/40">
+            <span className="tabular leading-tight">
+              <span className="block text-[12.5px] font-bold">{formatTime(s.batch.startTime)}</span>
+              <span className="block text-[10px] text-muted-foreground">
+                to {formatTime(s.batch.endTime)}
               </span>
+            </span>
+            <span className="min-w-0 leading-tight">
               <span
                 className={cn(
-                  'truncate text-[13px] leading-tight font-semibold',
-                  on ? 'text-primary' : 'text-foreground',
+                  'block truncate text-[13.5px] font-semibold',
                   s.cancelled && 'line-through',
                 )}
               >
                 {s.batch.name}
               </span>
-              {!s.cancelled && (
-                <span className="mt-1 flex items-center gap-1.5">
+              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+                <MapPin className="size-3 shrink-0" />
+                <span className="truncate">
+                  {s.batch.location.name}
+                  {isAdmin ? ` · ${s.batch.coach.name}` : ''}
+                </span>
+              </span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              {!s.cancelled && s.expectedStudents > 0 && (
+                <span className="flex w-11 flex-col items-end gap-0.5">
                   <span
                     className={cn(
-                      'h-1 flex-1 overflow-hidden rounded-full',
-                      on ? 'bg-primary/15' : 'bg-muted',
+                      'tabular text-[11px] font-semibold',
+                      s.attendanceComplete ? 'text-success' : 'text-foreground/80',
                     )}
                   >
+                    {s.marked}/{s.expectedStudents}
+                  </span>
+                  <span className="h-1 w-full overflow-hidden rounded-full bg-muted">
                     <span
                       className={cn(
                         'block h-full rounded-full',
@@ -356,39 +294,33 @@ function SessionCards({
                       style={{ width: `${pct}%` }}
                     />
                   </span>
-                  <span
-                    className={cn(
-                      'tabular text-[10px] font-semibold',
-                      on ? 'text-primary' : 'text-muted-foreground',
-                    )}
-                  >
-                    {s.marked}/{s.expectedStudents}
-                  </span>
-                  {s.attendanceComplete && (
-                    <CheckCircle2
-                      aria-label="All marked"
-                      className={cn('size-3', 'text-success')}
-                    />
-                  )}
                 </span>
               )}
-            </button>
-          );
-        })}
-      </div>
-      {edges.left && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-background to-transparent"
-        />
-      )}
-      {edges.right && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent"
-        />
-      )}
-    </div>
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </span>
+          </Accordion.Trigger>
+        </Accordion.Header>
+        <Accordion.Content className="space-y-1 border-t bg-muted/15 p-1">
+          <CoachSheet key={`${s.batch.id}:${date}`} session={s} date={date} />
+          <button
+            type="button"
+            onClick={() => setRegister(true)}
+            className="flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg py-1 text-[11.5px] font-medium text-primary hover:bg-primary/5"
+          >
+            <TableProperties className="size-3.5" /> Monthly register
+          </button>
+        </Accordion.Content>
+      </Accordion.Item>
+      <Dialog open={register} onOpenChange={setRegister}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Monthly register</DialogTitle>
+            <DialogDescription>{s.batch.name}: every session this month.</DialogDescription>
+          </DialogHeader>
+          {register && <MonthlyRegister batchId={s.batch.id} />}
+        </DialogContent>
+      </Dialog>
+    </Floating>
   );
 }
 
@@ -398,7 +330,8 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
   const mark = useMarkAttendance(batchId, date);
   const pendingHere = usePendingMarks(batchId, date);
   const online = useOnline();
-  const coachToday = useCoachToday(date === today());
+  const isCoach = useUser().role === 'coach';
+  const coachToday = useCoachToday(isCoach && date === today());
   const [noteFor, setNoteFor] = useState<Student | null>(null);
   const [filter, setFilter] = useState<AttendanceFilter>('all');
 
@@ -418,8 +351,7 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
     );
 
   const editable = data.editable;
-  const { summary } = data;
-  const marked = summary.total - summary.unmarked;
+  const marked = data.students.filter((s) => s.status).length;
   const unmarked = data.students.filter((s) => !s.status);
   const todayItem = coachToday.data?.sessions.find((t) => t.batch.id === batchId);
   const waiting = pendingHere;
@@ -600,7 +532,7 @@ function StudentRow({
   return (
     <div
       className={cn(
-        'flex items-center gap-2 px-2 py-1.5 transition-colors',
+        'flex items-center gap-1.5 py-1.5 pr-1 pl-1.5 transition-colors',
         s.status === 'absent' && 'bg-destructive/[0.04]',
       )}
     >
@@ -638,9 +570,9 @@ function StudentRow({
           <button
             type="button"
             aria-label={`More for ${s.fullName}`}
-            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="-mr-1 flex h-7 w-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            <MoreHorizontal className="size-4" />
+            <MoreVertical className="size-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

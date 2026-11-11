@@ -1,11 +1,9 @@
 import { __resetOutbox, flushOutbox, pendingCount } from '@/lib/attendance-outbox';
 import type { AttendanceStatus } from '@/lib/types';
 import { AttendancePage } from '@/pages/attendance';
-import { batch, sheet } from '../fixtures';
+import { sheet } from '../fixtures';
 import { fireEvent, within } from '@testing-library/react';
 import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
-
-const route = '/attendance?batch=b1&date=2026-03-09';
 
 /** One student's status button (Present / Absent / Late / Excused). */
 const statusBtn = async (name: string, status: string) =>
@@ -13,128 +11,6 @@ const statusBtn = async (name: string, status: string) =>
     'radio',
     { name: status },
   );
-
-describe('AttendancePage (admin)', () => {
-  it('marks attendance with one tap and saves only changes', async () => {
-    const api = mockApi({
-      'GET /batches': () => [batch],
-      'GET /attendance/session': () => sheet(),
-      'PUT /attendance/session': (c) => ({
-        saved: (c.body as { records: unknown[] }).records.length,
-      }),
-    });
-    const { user } = await renderPage(<AttendancePage />, {
-      path: '/attendance',
-      route,
-      user: adminUser,
-    });
-
-    expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
-    expect(screen.getByText('Makeup')).toBeInTheDocument();
-    expect(screen.queryByText(/unsaved change/)).not.toBeInTheDocument();
-
-    // "Rest present" only fills unmarked students.
-    await user.click(screen.getByRole('button', { name: /rest present/i }));
-    expect(await screen.findByText(/unsaved change/)).toHaveTextContent('1 unsaved change');
-
-    // Change Bhavin from absent to late, with a note.
-    const lateButtons = screen.getAllByRole('radio', { name: 'Late' });
-    await user.click(lateButtons[1]!);
-    await user.click(screen.getAllByRole('button', { name: 'Note for Bhavin Shah' })[0]!);
-    await user.type(screen.getByPlaceholderText(/add a note/i), 'Traffic');
-
-    await user.click(screen.getByRole('button', { name: /save attendance/i }));
-    await waitFor(() => expect(api.find('PUT /attendance/session')).toHaveLength(1));
-    expect(api.find('PUT /attendance/session')[0]!.body).toEqual({
-      batchId: 'b1',
-      date: '2026-03-09',
-      records: [
-        { studentId: 's1', status: 'present', note: null },
-        { studentId: 's2', status: 'late', note: 'Traffic' },
-      ],
-    });
-  });
-
-  it('can undo unsaved changes', async () => {
-    mockApi({ 'GET /batches': () => [batch], 'GET /attendance/session': () => sheet() });
-    const { user } = await renderPage(<AttendancePage />, {
-      path: '/attendance',
-      route,
-      user: adminUser,
-    });
-    await user.click(await screen.findByRole('button', { name: /rest present/i }));
-    expect(screen.getByText(/unsaved change/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /undo/i }));
-    expect(screen.queryByText(/unsaved change/)).not.toBeInTheDocument();
-  });
-
-  it('shows a locked session read-only', async () => {
-    mockApi({
-      'GET /batches': () => [batch],
-      'GET /attendance/session': () => sheet({ editable: false }),
-    });
-    await renderPage(<AttendancePage />, { path: '/attendance', route, user: adminUser });
-    expect(await screen.findByText(/locked for editing/)).toBeInTheDocument();
-    expect(screen.getAllByRole('radio', { name: 'Present' })[0]).toBeDisabled();
-    expect(screen.queryByRole('button', { name: /all present/i })).not.toBeInTheDocument();
-  });
-
-  it('explains days with no session or no students', async () => {
-    mockApi({
-      'GET /batches': () => [batch],
-      'GET /attendance/session': () => sheet({ isScheduledDay: false, students: [] }),
-    });
-    await renderPage(<AttendancePage />, {
-      path: '/attendance',
-      route: '/attendance?batch=b1&date=2026-03-15',
-      user: adminUser,
-    });
-    expect(await screen.findByText('No session on Sunday')).toBeInTheDocument();
-  });
-
-  it('auto-selects the only batch and shows server errors', async () => {
-    mockApi({
-      'GET /batches': () => [batch],
-      'GET /attendance/session': () => ({
-        status: 500,
-        body: { error: { code: 'INTERNAL', message: 'Database unavailable' } },
-      }),
-    });
-    const { router } = await renderPage(<AttendancePage />, {
-      path: '/attendance',
-      route: '/attendance',
-      user: adminUser,
-    });
-    await waitFor(() => expect(router.state.location.search).toContain('batch=b1'));
-    expect(await screen.findByText('Database unavailable')).toBeInTheDocument();
-  });
-
-  it('shows the monthly register', async () => {
-    mockApi({
-      'GET /batches': () => [batch],
-      'GET /attendance/session': () => sheet(),
-      'GET /attendance/register': () => ({
-        batch: { id: 'b1', name: 'Morning U-12' },
-        dates: ['2026-03-02', '2026-03-04'],
-        students: [
-          {
-            studentId: 's1',
-            fullName: 'Anya Rao',
-            code: 'ATQ-0001',
-            marks: { '2026-03-02': 'present', '2026-03-04': 'absent' },
-          },
-        ],
-      }),
-    });
-    const { user } = await renderPage(<AttendancePage />, {
-      path: '/attendance',
-      route,
-      user: adminUser,
-    });
-    await user.click(await screen.findByRole('tab', { name: 'Monthly register' }));
-    expect(await screen.findByText('50%')).toBeInTheDocument();
-  });
-});
 
 const at = (id: string, name: string, loc: [string, string], start: string, extra = {}) => ({
   batch: {
@@ -211,21 +87,48 @@ const coachPage = (route = '/attendance?date=2026-03-09') =>
   renderPage(<AttendancePage />, { path: '/attendance', route, user: coachUser });
 
 describe('AttendancePage (coach)', () => {
-  it('picks the day’s first session and filters sessions by place', async () => {
+  it('lists the day’s sessions collapsed; tap one to mark it', async () => {
     coachApi();
-    const { user, router } = await coachPage();
-    const sessions = await screen.findByRole('radiogroup', { name: 'Session' });
-    expect(within(sessions).getAllByRole('radio')).toHaveLength(3);
-    await waitFor(() => expect(router.state.location.search).toContain('batch=b1'));
+    const { user } = await coachPage();
+    const morning = await screen.findByRole('button', { name: /Morning U-12/ });
+    expect(morning).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: /Lake Squad/ })).toBeInTheDocument();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.queryByText('Anya Rao')).not.toBeInTheDocument();
+    await user.click(morning);
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
+  });
 
-    await user.click(
-      within(screen.getByRole('radiogroup', { name: 'Location' })).getByRole('radio', {
-        name: /Lake Club/,
-      }),
+  it('opens the session a link asks for, and steps to another day', async () => {
+    coachApi();
+    const { user, router } = await coachPage('/attendance?date=2026-03-09&batch=b2');
+    expect(await screen.findByRole('button', { name: /Lake Squad/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
     );
-    expect(within(sessions).getAllByRole('radio')).toHaveLength(1);
-    await waitFor(() => expect(router.state.location.search).toContain('batch=b2'));
+    await user.click(screen.getByRole('button', { name: 'Previous day' }));
+    await waitFor(() => expect(router.state.location.search).toContain('date=2026-03-08'));
+    expect(router.state.location.search).not.toContain('batch=');
+  });
+
+  it('opens the monthly register from a session', async () => {
+    coachApi({
+      'GET /attendance/register': () => ({
+        batch: { id: 'b1', name: 'Morning U-12' },
+        dates: ['2026-03-02', '2026-03-04'],
+        students: [
+          {
+            studentId: 's1',
+            fullName: 'Anya Rao',
+            code: 'ATQ-0001',
+            marks: { '2026-03-02': 'present', '2026-03-04': 'absent' },
+          },
+        ],
+      }),
+    });
+    const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
+    await user.click(await screen.findByRole('button', { name: /monthly register/i }));
+    expect(await screen.findByText('50%')).toBeInTheDocument();
   });
 
   it('marks everyone left present in one tap, with undo', async () => {
@@ -342,5 +245,46 @@ describe('AttendancePage (coach)', () => {
     });
     await coachPage('/attendance?date=2026-03-15');
     expect(await screen.findByText(/^No sessions on/)).toBeInTheDocument();
+  });
+});
+
+describe('AttendancePage (admin)', () => {
+  const adminPage = (route = '/attendance?date=2026-03-09&batch=b1') =>
+    renderPage(<AttendancePage />, { path: '/attendance', route, user: adminUser });
+
+  it('sees every session with its coach and marks with one tap', async () => {
+    const api = coachApi();
+    const { user } = await adminPage();
+    expect(await screen.findByRole('button', { name: /Lake Squad/ })).toHaveTextContent(
+      'Coach One',
+    );
+    await user.click(await statusBtn('Anya Rao', 'Late'));
+    await waitFor(() => expect(api.find('PUT /attendance/session')).toHaveLength(1));
+    expect(api.find('PUT /attendance/session')[0]!.body).toMatchObject({
+      batchId: 'b1',
+      date: '2026-03-09',
+      records: [{ studentId: 's1', status: 'late' }],
+    });
+    // Admins aren't checking in: no coach "today" call.
+    expect(api.find('GET /coach-sessions/today')).toHaveLength(0);
+  });
+
+  it('shows a locked session read-only', async () => {
+    coachApi({ 'GET /attendance/session': () => sheet({ editable: false }) });
+    await adminPage();
+    expect(await screen.findByText(/locked for editing/)).toBeInTheDocument();
+    expect(await statusBtn('Anya Rao', 'Present')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /present/i })).not.toBeInTheDocument();
+  });
+
+  it('shows server errors', async () => {
+    coachApi({
+      'GET /attendance/session': () => ({
+        status: 500,
+        body: { error: { code: 'INTERNAL', message: 'Database unavailable' } },
+      }),
+    });
+    await adminPage();
+    expect(await screen.findByText('Database unavailable')).toBeInTheDocument();
   });
 });

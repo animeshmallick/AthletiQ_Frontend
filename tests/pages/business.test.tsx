@@ -5,7 +5,14 @@ import { InvoicesPage } from '@/pages/invoices';
 import { StudentDetailPage } from '@/pages/students/detail';
 import { StudentsPage } from '@/pages/students/list';
 import { TodayPage } from '@/pages/today';
-import { batch, invoiceDetail, sheet, studentDetail, studentListItem } from '../fixtures';
+import {
+  batch,
+  calendarDay,
+  invoiceDetail,
+  sheet,
+  studentDetail,
+  studentListItem,
+} from '../fixtures';
 import { adminUser, coachUser, mockApi, renderPage, screen, waitFor, chooseOption } from '../utils';
 
 const route = '/attendance?batch=b1&date=2026-03-09';
@@ -15,6 +22,7 @@ describe('cancelling a session (rain / holiday)', () => {
     const unmarked = sheet({ students: sheet().students.map((s) => ({ ...s, status: null })) });
     const api = mockApi({
       'GET /batches': () => [batch],
+      'GET /attendance/calendar': () => calendarDay('2026-03-09'),
       'GET /attendance/session': () => unmarked,
       'POST /batches/b1/cancellations': () => ({ status: 201, body: { data: { id: 'c1' } } }),
     });
@@ -34,7 +42,11 @@ describe('cancelling a session (rain / holiday)', () => {
   });
 
   it('hides "cancel" once attendance exists', async () => {
-    mockApi({ 'GET /batches': () => [batch], 'GET /attendance/session': () => sheet() });
+    mockApi({
+      'GET /batches': () => [batch],
+      'GET /attendance/calendar': () => calendarDay('2026-03-09'),
+      'GET /attendance/session': () => sheet(),
+    });
     await renderPage(<AttendancePage />, { path: '/attendance', route, user: adminUser });
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /cancel session/i })).not.toBeInTheDocument();
@@ -43,6 +55,7 @@ describe('cancelling a session (rain / holiday)', () => {
   it('shows a cancelled session and restores it', async () => {
     const api = mockApi({
       'GET /batches': () => [batch],
+      'GET /attendance/calendar': () => calendarDay('2026-03-09'),
       'GET /attendance/session': () =>
         sheet({ cancelled: { reason: 'Diwali holiday', cancelledAt: '' }, editable: false }),
       'DELETE /batches/b1/cancellations/2026-03-09': () => ({ status: 204 }),
