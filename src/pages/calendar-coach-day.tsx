@@ -303,10 +303,14 @@ function SessionTile({
         <div className="tabular leading-tight">
           <p className="text-[12.5px] font-bold">{formatTime(s.batch.startTime)}</p>
           <p className="text-[10px] text-muted-foreground">to {formatTime(s.batch.endTime)}</p>
+          {/* Scheduled above, the check-in below. */}
+          {s.coachSession && !s.cancelled && (
+            <hr aria-hidden className="my-1 mr-2 border-current opacity-15" />
+          )}
           {s.coachSession && !s.cancelled && (
             <p
               className={cn(
-                'mt-0.5 text-[10px] font-medium',
+                'text-[10px] font-medium',
                 s.coachSession.flagged ? 'text-destructive' : 'text-foreground/70',
               )}
               title={s.coachSession.flagged ? 'Checked in away from the venue' : 'Checked in'}
