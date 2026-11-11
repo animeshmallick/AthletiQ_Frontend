@@ -12,6 +12,12 @@ import {
   Undo2,
   Wallet,
   AlertTriangle,
+  Banknote,
+  CircleEllipsis,
+  CreditCard,
+  Landmark,
+  ScrollText,
+  Smartphone,
   CalendarClock,
   CalendarRange,
   ChevronRight,
@@ -43,9 +49,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/overlays';
-import { Badge, Card, Input, Select, Separator, Textarea } from '@/components/ui/primitives';
+import { Badge, Card, Input, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage, requestBlob } from '@/lib/api';
 import {
+  addDays,
   formatDate,
   formatInstant,
   formatShortDate,
@@ -130,6 +137,15 @@ function ReceiveAsNotice({
   );
 }
 
+const PAY_MODES = [
+  { value: 'upi', label: 'UPI', icon: Smartphone },
+  { value: 'cash', label: 'Cash', icon: Banknote },
+  { value: 'bank_transfer', label: 'Bank', icon: Landmark },
+  { value: 'card', label: 'Card', icon: CreditCard },
+  { value: 'cheque', label: 'Cheque', icon: ScrollText },
+  { value: 'other', label: 'Other', icon: CircleEllipsis },
+] as const;
+
 function MarkPaidDialog({
   invoice,
   open,
@@ -150,6 +166,7 @@ function MarkPaidDialog({
   const [paidOn, setPaidOn] = useState(today());
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
+  const [noteOpen, setNoteOpen] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   async function submit() {
@@ -172,76 +189,159 @@ function MarkPaidDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirm payment received</DialogTitle>
+      <DialogContent className="gap-3">
+        <DialogHeader className="gap-0.5">
+          <DialogTitle>Record payment</DialogTitle>
           <DialogDescription>
-            {invoice.number} · {invoice.student.fullName}. The invoice is marked paid and the amount
-            is counted as collected by you, and split as set in the fee plan.
+            {invoice.student.fullName} · <span className="font-mono">{invoice.number}</span>
           </DialogDescription>
         </DialogHeader>
         {alsoCoach && <ReceiveAsNotice receivedAs={receivedAs} onChange={setReceivedAs} />}
-        <div className="rounded-xl bg-success/10 px-4 py-3">
-          <p className="text-xs font-medium text-success">Amount received</p>
-          <p className="tabular text-2xl font-semibold">{money(invoice.totalAmount)}</p>
+
+        {/* What's being paid. */}
+        <div className="flex items-center gap-3 rounded-xl border border-success/25 bg-gradient-to-br from-success/12 to-success/4 px-3 py-2">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+            <Wallet className="size-4.5" />
+          </span>
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block text-[11px] font-medium text-success">Amount received</span>
+            <span className="tabular block text-[22px] font-bold tracking-tight">
+              {money(invoice.totalAmount)}
+            </span>
+          </span>
+          <span className="text-right text-[11px] leading-tight text-muted-foreground">
+            {formatShortDate(invoice.periodStart)} – {formatShortDate(invoice.periodEnd)}
+            {invoice.batchName && <span className="block truncate">{invoice.batchName}</span>}
+          </span>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Payment mode" required>
-            <Select value={mode} onChange={(e) => setMode(e.target.value)}>
-              {Object.entries(PAYMENT_MODE_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Paid on" required>
+
+        {/* How it was paid: one tap. */}
+        <div className="space-y-1">
+          <p className="text-[12px] font-medium">Payment method</p>
+          <div role="radiogroup" aria-label="Payment method" className="grid grid-cols-3 gap-1">
+            {PAY_MODES.map((m) => {
+              const on = mode === m.value;
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setMode(m.value)}
+                  className={cn(
+                    'flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border text-[12.5px] font-medium transition-colors',
+                    on
+                      ? 'border-primary bg-primary/8 text-primary ring-1 ring-primary'
+                      : 'bg-card text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-3.5" />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <label htmlFor="paid-on" className="text-[12px] font-medium">
+              Paid on
+            </label>
             <Input
+              id="paid-on"
               type="date"
               value={paidOn}
               max={today()}
               min={invoice.periodStart}
               onChange={(e) => setPaidOn(e.target.value)}
+              className="h-9"
             />
-          </Field>
-          <Field
-            label={mode === 'upi' ? 'UPI reference / UTR' : 'Reference'}
-            className="sm:col-span-2"
-          >
+            <div className="flex gap-1">
+              {[
+                { label: 'Today', value: today() },
+                { label: 'Yesterday', value: addDays(today(), -1) },
+              ]
+                .filter((d) => d.value >= invoice.periodStart)
+                .map((d) => (
+                  <button
+                    key={d.label}
+                    type="button"
+                    onClick={() => setPaidOn(d.value)}
+                    className={cn(
+                      'h-6 cursor-pointer rounded-full border px-2 text-[11px] transition-colors',
+                      paidOn === d.value
+                        ? 'border-primary/40 bg-primary/8 text-primary'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="pay-ref" className="text-[12px] font-medium">
+              {mode === 'upi' ? 'UPI reference / UTR' : 'Reference'}
+            </label>
             <Input
+              id="pay-ref"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               placeholder="Optional"
+              className="h-9"
             />
-          </Field>
-          {isCoach && (
-            <Field
-              label="Where is the money now?"
-              className="sm:col-span-2"
-              hint={
-                heldBy === 'collector'
-                  ? 'You keep your share; the rest is added to the cash you hold for the academy.'
-                  : 'It went straight to the academy (e.g. its UPI or bank). The academy owes you your share.'
-              }
-            >
-              <Segmented
-                ariaLabel="Where is the money now?"
-                className="w-full"
-                value={heldBy}
-                onChange={setHeldBy}
-                options={[
-                  { value: 'collector', label: 'With me' },
-                  { value: 'academy', label: 'Academy’s account' },
-                ]}
-              />
-            </Field>
-          )}
-          <Field label="Note" className="sm:col-span-2">
-            <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
+          </div>
         </div>
+
+        {isCoach && (
+          <div className="space-y-1">
+            <p className="text-[12px] font-medium">Where is the money now?</p>
+            <Segmented
+              ariaLabel="Where is the money now?"
+              className="w-full"
+              value={heldBy}
+              onChange={setHeldBy}
+              options={[
+                { value: 'collector', label: 'With me', className: 'flex-1' },
+                { value: 'academy', label: 'Academy’s account', className: 'flex-1' },
+              ]}
+            />
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              {heldBy === 'collector'
+                ? 'You keep your share; the rest is added to the cash you hold for the academy.'
+                : 'It went straight to the academy (e.g. its UPI or bank). The academy owes you your share.'}
+            </p>
+          </div>
+        )}
+
+        {noteOpen || note ? (
+          <div className="space-y-1">
+            <label htmlFor="pay-note" className="text-[12px] font-medium">
+              Note
+            </label>
+            <Textarea
+              id="pay-note"
+              rows={2}
+              autoFocus={!note}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. paid by father, part of a family payment"
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setNoteOpen(true)}
+            className="-mt-1 w-fit cursor-pointer text-[12px] font-medium text-primary hover:underline"
+          >
+            + Add a note
+          </button>
+        )}
+
         {/* Slide to confirm: a deliberate gesture for money changing hands. */}
-        <div className="space-y-1.5">
+        <div className="space-y-1 border-t pt-2">
           <SlideToConfirm
             key={attempt}
             tone={alsoCoach && receivedAs === 'admin' ? 'warning' : 'success'}
@@ -256,7 +356,10 @@ function MarkPaidDialog({
             }
             onConfirm={() => void submit()}
           />
-          <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
+          <p className="text-center text-[10.5px] text-muted-foreground">
+            Marks the invoice paid and splits it as set in the fee plan.
+          </p>
+          <Button variant="ghost" className="h-8 w-full" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
         </div>

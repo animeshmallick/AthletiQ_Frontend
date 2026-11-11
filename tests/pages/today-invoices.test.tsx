@@ -328,11 +328,14 @@ describe('InvoicesPage', () => {
     });
     await user.click(await screen.findByRole('button', { name: /Anya Rao/ }));
     await user.click(await screen.findByRole('button', { name: /record payment/i }));
+    // Payment method is one tap.
+    await user.click(await screen.findByRole('radio', { name: /Cash/ }));
     (await screen.findByRole('slider', { name: /slide to accept ₹2,500 as admin/i })).focus();
     await user.keyboard('{Enter}');
     await waitFor(() => expect(api.find('POST /invoices/i1/payments')).toHaveLength(1));
     const body = api.find('POST /invoices/i1/payments')[0]!.body as Record<string, unknown>;
     expect(body.receivedAs).toBe('admin');
+    expect(body.mode).toBe('cash');
     expect(body.heldBy).toBeUndefined();
   });
 
