@@ -595,12 +595,12 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
           <p className="tabular mt-2 text-[34px] leading-none font-bold tracking-tight">
             {money(inv.totalAmount)}
           </p>
-          <p className={cn('mt-1.5 text-[12.5px] font-medium', STANDING_TONE[inv.displayStatus])}>
+          <p className={cn('mt-1 text-[12.5px] font-medium', STANDING_TONE[inv.displayStatus])}>
             {standing}
           </p>
           <Link
             to={`/students/${inv.student.id}`}
-            className="group mt-3 flex items-center gap-2 rounded-xl border bg-card/80 p-1.5 pr-2 backdrop-blur transition-colors hover:bg-muted/50"
+            className="group mt-3 flex items-center gap-2 rounded-xl border bg-card/80 p-1 pr-2 backdrop-blur transition-colors hover:bg-muted/50"
           >
             <Avatar name={inv.student.fullName} className="size-8 text-[11px]" />
             <span className="min-w-0 flex-1 leading-tight">
@@ -617,11 +617,11 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
           </Link>
         </div>
         {/* One compact row: the main action, then icon buttons (admin extras in a menu). */}
-        <div className="flex items-center gap-1.5 border-t p-2">
+        <div className="flex items-center gap-1 border-t p-2">
           {inv.status === 'due' && (
             <Button
               variant="success"
-              className="h-9 min-w-0 flex-1 gap-1.5 px-3 text-[13px]"
+              className="h-9 min-w-0 flex-1 gap-1 px-3 text-[13px]"
               aria-label="I have received the payment"
               onClick={() => setPaying(true)}
             >
@@ -648,7 +648,7 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
                 <Button
                   key={t.key}
                   variant="outline"
-                  className="h-9 min-w-0 flex-1 gap-1.5 px-2 text-[12.5px]"
+                  className="h-9 min-w-0 flex-1 gap-1 px-2 text-[12.5px]"
                   loading={t.loading}
                   onClick={t.onClick}
                 >
@@ -782,7 +782,7 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
       </Card>
 
       {/* Amount */}
-      <Card className="space-y-1.5 px-3.5 py-1 text-[13px]">
+      <Card className="space-y-1 px-3.5 py-1 text-[13px]">
         <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           Amount
         </h3>
@@ -824,13 +824,13 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
 
       {/* Payments */}
       <Card className="px-3.5 py-1">
-        <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           Payments{inv.payments.length ? ` · ${inv.payments.length}` : ''}
         </h3>
         {inv.payments.length === 0 ? (
           <p className="text-[13px] text-muted-foreground">No payments recorded yet.</p>
         ) : (
-          <ul className="space-y-1.5">
+          <ul className="space-y-1">
             {inv.payments.map((p) => (
               <PaymentRow key={p.id} p={p} invoiceId={inv.id} canReverse={isAdmin} />
             ))}
@@ -840,7 +840,7 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
 
       {(inv.split?.length ?? 0) > 0 && (
         <Card className="px-3.5 py-1">
-          <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <h3 className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             {isAdmin ? 'Where this fee went' : 'Your share of this fee'}
           </h3>
           <ul className="divide-y">
