@@ -197,8 +197,9 @@ export function LessonPlansPage() {
       );
     return (
       <Accordion.Root
-        type="multiple"
-        defaultValue={batchId ? [batchId] : []}
+        type="single"
+        collapsible
+        defaultValue={batchId || undefined}
         className="space-y-1.5"
       >
         {day.map(({ b, t: bt }) => (

@@ -1,3 +1,4 @@
+import { ExpandGroup, useExpand } from '@/components/expand-group';
 import { ChevronDown, Landmark, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -49,7 +50,7 @@ function entryLabel(e: FundTxn['entries'][number], myId: string) {
 
 function TxnRow({ t, onReverse }: { t: FundTxn; onReverse?: () => void }) {
   const me = useUser();
-  const [open, setOpen] = useState(false);
+  const [open, toggle] = useExpand(t.id);
   const meta = TXN_META[t.type];
   const Icon = meta.icon;
   const reversed = Boolean(t.reversedAt);
@@ -67,7 +68,7 @@ function TxnRow({ t, onReverse }: { t: FundTxn; onReverse?: () => void }) {
         type="button"
         className="flex w-full cursor-pointer items-center gap-3 text-left"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
       >
         <span
           className={cn(
@@ -262,11 +263,13 @@ export function Ledger({
         ) : q.data.data.length === 0 ? (
           <EmptyState icon={<Landmark />} title="No money movements in this period" />
         ) : (
-          <ul className="divide-y">
-            {q.data.data.map((t) => (
-              <TxnRow key={t.id} t={t} onReverse={admin ? () => setReversing(t) : undefined} />
-            ))}
-          </ul>
+          <ExpandGroup>
+            <ul className="divide-y">
+              {q.data.data.map((t) => (
+                <TxnRow key={t.id} t={t} onReverse={admin ? () => setReversing(t) : undefined} />
+              ))}
+            </ul>
+          </ExpandGroup>
         )}
         {q.data?.meta && (
           <div className="px-3 pb-3">

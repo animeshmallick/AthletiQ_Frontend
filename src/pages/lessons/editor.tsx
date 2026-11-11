@@ -3,6 +3,7 @@
  * (handle) or with the menu's move up/down; a live meter shows how the blocks add up against the
  * session length, which they must match exactly.
  */
+import { ExpandGroup, useExpand } from '@/components/expand-group';
 import { arrayMove, Sortable, SortableList } from '@/components/sortable';
 import {
   ArrowDown,
@@ -317,35 +318,38 @@ export function PlanEditor({
       <div className="sticky top-0 z-20 -mx-1 rounded-lg bg-background/95 px-1 py-1 backdrop-blur">
         <MinutesMeter blocks={blocks} target={target} onFit={fit} />
       </div>
-      <SortableList items={blocks} onReorder={onChange} className="space-y-1.5">
-        {blocks.map((b, i) => (
-          <Sortable key={b.key} id={b.key} label={b.name || 'block'}>
-            {(handle) => (
-              <BlockCard
-                block={b}
-                options={options?.[b.name]}
-                handle={handle}
-                first={i === 0}
-                last={i === blocks.length - 1}
-                onChange={(patch) => update(b.key, patch)}
-                onMove={(dir) => move(i, dir)}
-                onDuplicate={() =>
-                  onChange([
-                    ...blocks.slice(0, i + 1),
-                    {
-                      ...b,
-                      key: newKey(),
-                      drills: b.drills.map((d) => ({ ...d, key: newKey() })),
-                    },
-                    ...blocks.slice(i + 1),
-                  ])
-                }
-                onRemove={() => onChange(blocks.filter((x) => x.key !== b.key))}
-              />
-            )}
-          </Sortable>
-        ))}
-      </SortableList>
+      {/* One drill open at a time across the editor. */}
+      <ExpandGroup>
+        <SortableList items={blocks} onReorder={onChange} className="space-y-1.5">
+          {blocks.map((b, i) => (
+            <Sortable key={b.key} id={b.key} label={b.name || 'block'}>
+              {(handle) => (
+                <BlockCard
+                  block={b}
+                  options={options?.[b.name]}
+                  handle={handle}
+                  first={i === 0}
+                  last={i === blocks.length - 1}
+                  onChange={(patch) => update(b.key, patch)}
+                  onMove={(dir) => move(i, dir)}
+                  onDuplicate={() =>
+                    onChange([
+                      ...blocks.slice(0, i + 1),
+                      {
+                        ...b,
+                        key: newKey(),
+                        drills: b.drills.map((d) => ({ ...d, key: newKey() })),
+                      },
+                      ...blocks.slice(i + 1),
+                    ])
+                  }
+                  onRemove={() => onChange(blocks.filter((x) => x.key !== b.key))}
+                />
+              )}
+            </Sortable>
+          ))}
+        </SortableList>
+      </ExpandGroup>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="w-full border-dashed">
@@ -526,7 +530,7 @@ function DrillRow({
   onChange: (patch: Partial<DraftDrill>) => void;
   onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, toggle] = useExpand(d.key);
   const summary = [d.minutes ? `${d.minutes} min` : null, d.reps].filter(Boolean).join(' · ');
   return (
     <div className="rounded-lg bg-card">
@@ -553,7 +557,7 @@ function DrillRow({
           type="button"
           aria-expanded={open}
           aria-label={`Details for ${d.name || 'drill'}`}
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggle}
           className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
         >
           <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />

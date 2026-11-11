@@ -111,7 +111,7 @@ export function AttendanceDay() {
   const now = useIstMinutes();
   const cal = useCalendar(date, date);
   const [direction, setDirection] = useState<1 | -1 | 0>(0);
-  const [open, setOpen] = useState<string[]>([]);
+  const [open, setOpen] = useState('');
   const openedFor = useRef<string | null>(null);
 
   const go = (d: string) => {
@@ -138,7 +138,7 @@ export function AttendanceDay() {
     openedFor.current = date;
     const asked = sessions.find((s) => s.batch.id === batchParam);
     const pick = asked ?? (isToday ? pickDefault(sessions, now, true) : undefined);
-    setOpen(pick ? [pick.batch.id] : []);
+    setOpen(pick?.batch.id ?? '');
   }, [ready, date, sessions, batchParam, isToday, now]);
 
   const marked = sessions.reduce((n, s) => n + (s.cancelled ? 0 : s.marked), 0);
@@ -189,7 +189,8 @@ export function AttendanceDay() {
           />
         ) : (
           <Accordion.Root
-            type="multiple"
+            type="single"
+            collapsible
             value={open}
             onValueChange={setOpen}
             className="space-y-1.5 pt-1"

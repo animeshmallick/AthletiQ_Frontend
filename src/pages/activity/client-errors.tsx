@@ -3,6 +3,7 @@
  * by cause (most frequent first, with a sample stack and the trail of screens and taps), and the
  * latest events. Admins see everyone; coaches see their own devices. Kept 30 days.
  */
+import { ExpandGroup, useExpand } from '@/components/expand-group';
 import {
   CheckCircle2,
   ChevronDown,
@@ -195,11 +196,13 @@ export function ClientErrorsView({ range }: { range: { from: string; to: string 
       ) : (
         <>
           <SectionDivider>Problems · {d.groups.length}</SectionDivider>
-          <ul className="space-y-1.5">
-            {d.groups.map((g) => (
-              <ProblemRow key={g.fingerprint} g={g} showUsers={d.scope === 'academy'} />
-            ))}
-          </ul>
+          <ExpandGroup>
+            <ul className="space-y-1.5">
+              {d.groups.map((g) => (
+                <ProblemRow key={g.fingerprint} g={g} showUsers={d.scope === 'academy'} />
+              ))}
+            </ul>
+          </ExpandGroup>
 
           <SectionDivider>Latest</SectionDivider>
           <Card className="divide-y p-0">
@@ -237,7 +240,7 @@ function ProblemRow({
   g: ClientErrorInsights['groups'][number];
   showUsers: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, toggle] = useExpand(g.fingerprint);
   const trail = Array.isArray(g.details?.trail) ? (g.details.trail as string[]) : null;
   const facts = g.details
     ? Object.entries(g.details).filter(([k, v]) => k !== 'trail' && v !== null && v !== '')
@@ -246,7 +249,7 @@ function ProblemRow({
     <li className="overflow-hidden rounded-xl border bg-card shadow-e1">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-expanded={open}
         className="flex w-full cursor-pointer items-start gap-2 px-2 py-1.5 text-left hover:bg-muted/40"
       >
