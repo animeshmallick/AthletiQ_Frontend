@@ -81,7 +81,7 @@ export function AuditLogPage() {
 
   const active = Number(!!area) + Number(!!person) + Number(sensitive);
   const tabs: { value: Tab; label: string; icon: typeof ListTree }[] = [
-    { value: 'insights', label: 'Insights', icon: BarChart3 },
+    { value: 'insights', label: 'Dashboard', icon: BarChart3 },
     { value: 'errors' as const, label: 'Errors', icon: Bug },
     { value: 'activity', label: 'Activity', icon: ListTree },
   ];
@@ -98,21 +98,7 @@ export function AuditLogPage() {
         }
         actions={<SummaryButton admin={admin} />}
       />
-      <Segmented
-        ariaLabel="Activity view"
-        className="mb-2 w-full sm:w-auto"
-        value={tab}
-        onChange={(v) => set({ tab: v === 'insights' ? null : v })}
-        options={tabs.map((t) => ({
-          value: t.value,
-          label: (
-            <span className="inline-flex items-center gap-1.5">
-              <t.icon className="size-4" /> {t.label}
-            </span>
-          ),
-        }))}
-      />
-
+      {/* Period first: it applies to every tab. */}
       <FilterBar>
         <PeriodFilter
           value={period}
@@ -171,6 +157,20 @@ export function AuditLogPage() {
           </FilterMenu>
         )}
       </FilterBar>
+      <Segmented
+        ariaLabel="Activity view"
+        className="mb-2 w-full sm:w-auto"
+        value={tab}
+        onChange={(v) => set({ tab: v === 'insights' ? null : v })}
+        options={tabs.map((t) => ({
+          value: t.value,
+          label: (
+            <span className="inline-flex items-center gap-1.5">
+              <t.icon className="size-4" /> {t.label}
+            </span>
+          ),
+        }))}
+      />
 
       {tab === 'activity' && (
         <>
