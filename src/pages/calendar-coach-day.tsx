@@ -275,7 +275,6 @@ function SessionTile({
 }) {
   const me = useUser();
   const st = STATUS_META[state];
-  const pct = s.expectedStudents ? Math.round((s.marked / s.expectedStudents) * 100) : 0;
   // Checked in over 10 minutes after the start.
   const late = s.coachSession
     ? lateMinutes({ startTime: s.batch.startTime, checkInAt: s.coachSession.checkInAt })
@@ -351,8 +350,8 @@ function SessionTile({
                 </Badge>
               )}
               <Badge variant={s.attendanceComplete ? 'success' : s.marked ? 'default' : 'muted'}>
-                <Users /> {s.marked}/{s.expectedStudents}
-                {s.expectedStudents > 0 && s.marked > 0 ? ` · ${pct}%` : ''}
+                {/* Present (late counts) out of the students expected. */}
+                <Users /> {s.present}/{s.expectedStudents} present
               </Badge>
               {/* Is the day's lesson plan filled in? (Not for attendance-only batches.) */}
               {s.batch.coachFeedback !== false && (

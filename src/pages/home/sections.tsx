@@ -311,7 +311,7 @@ export function DayPlan({
                                         : 'muted'
                                   }
                                 >
-                                  <Users /> {s.marked}/{s.expectedStudents}
+                                  <Users /> {s.present}/{s.expectedStudents} present
                                 </Badge>
                               </>
                             )}
