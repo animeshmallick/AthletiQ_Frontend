@@ -48,7 +48,13 @@ import {
   useTasks,
 } from '@/lib/queries';
 import type { DayOverviewSession, TodaySession } from '@/lib/types';
-import { lateLabel, lateMinutes, sessionStatus, STATUS_META } from '@/lib/session-status';
+import {
+  lateLabel,
+  lateMinutes,
+  sessionStatus,
+  statusLabel,
+  STATUS_META,
+} from '@/lib/session-status';
 import { cn } from '@/lib/utils';
 import { CollectedByCard, MoneySnapshot } from './today-insights';
 import {
@@ -133,19 +139,17 @@ function CoachSessionCard({
 }) {
   const pct =
     overview && overview.expectedStudents ? (overview.marked / overview.expectedStudents) * 100 : 0;
-  const status = sessionStatus(
-    {
-      startTime: item.batch.startTime,
-      endTime: item.batch.endTime,
-      cancelled: item.cancelled,
-      checkInAt: item.session?.checkInAt,
-      expectedStudents: overview?.expectedStudents ?? 0,
-      attendanceComplete: overview?.attendanceComplete ?? false,
-      lessonPlanFilled: overview?.lessonPlanFilled,
-      coachFeedback: overview?.batch.coachFeedback,
-    },
-    today(),
-  );
+  const statusIn = {
+    startTime: item.batch.startTime,
+    endTime: item.batch.endTime,
+    cancelled: item.cancelled,
+    checkInAt: item.session?.checkInAt,
+    expectedStudents: overview?.expectedStudents ?? 0,
+    attendanceComplete: overview?.attendanceComplete ?? false,
+    lessonPlanFilled: overview?.lessonPlanFilled,
+    coachFeedback: overview?.batch.coachFeedback,
+  };
+  const status = sessionStatus(statusIn, today());
   const meta = STATUS_META[status];
   // Checked in over 10 minutes after the start: amber, with how late.
   const late = item.session
@@ -160,7 +164,7 @@ function CoachSessionCard({
           title={meta.hint}
           icon={item.cancelled ? <CloudRain /> : undefined}
         >
-          {meta.label}
+          {statusLabel(status, statusIn)}
         </FloatBadge>,
         item.asSubstitute ? (
           <FloatBadge key="s" tone="primary" icon={<Repeat />}>
@@ -176,6 +180,7 @@ function CoachSessionCard({
             key="t"
             tone={item.session.flagged || late ? 'warning' : 'success'}
             icon={item.session.flagged ? <ShieldAlert /> : <MapPin />}
+            className="bg-card"
             title={item.session.flagged ? 'Checked in away from the venue' : undefined}
           >
             In {formatClock(item.session.checkInAt)}

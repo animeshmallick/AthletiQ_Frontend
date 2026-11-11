@@ -7,7 +7,15 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 export type FloatTone =
-  'success' | 'warning' | 'destructive' | 'primary' | 'muted' | 'neutral' | 'live' | 'on-air';
+  | 'success'
+  | 'warning'
+  | 'destructive'
+  | 'primary'
+  | 'muted'
+  | 'neutral'
+  | 'live'
+  | 'on-air'
+  | 'pending';
 
 // Light, opaque tints (they sit over the card's border): soft fill, tone-coloured text and a
 // hairline border, with a faint glow in the same colour.
@@ -24,6 +32,9 @@ const TONE: Record<FloatTone, string> = {
   /** Red for what is happening right now. */
   'on-air':
     'bg-[color-mix(in_oklab,var(--color-rose-600)_12%,var(--color-card))] border border-rose-600/25 text-rose-700 shadow-rose-600/15 dark:text-rose-400',
+  /** Something still to do (e.g. "Attendance pending"): orange, apart from amber warnings. */
+  pending:
+    'bg-[color-mix(in_oklab,var(--color-orange-500)_14%,var(--color-card))] border border-orange-500/35 text-orange-700 shadow-orange-500/15 dark:text-orange-300',
   /** Quiet states (later, done): a light card-coloured pill. */
   neutral: 'border bg-card text-muted-foreground shadow-black/8',
   muted: 'border bg-muted text-muted-foreground shadow-black/8',

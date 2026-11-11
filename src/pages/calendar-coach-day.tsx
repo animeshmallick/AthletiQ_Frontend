@@ -39,6 +39,7 @@ import {
   lateLabel,
   lateMinutes,
   sessionStatus,
+  statusLabel,
   STATUS_META,
   type SessionStatus,
 } from '@/lib/session-status';
@@ -323,6 +324,7 @@ function SessionTile({
                 : 'success'
             }
             icon={<MapPin />}
+            className="bg-card"
           >
             In {formatClock(s.coachSession.checkInAt)}
             {(({ late }) => (late ? ` · ${lateLabel(late)}` : ''))({
@@ -334,7 +336,16 @@ function SessionTile({
           </FloatBadge>
         )}
         <FloatBadge tone={st.tone} title={st.hint}>
-          {st.label}
+          {statusLabel(state, {
+            startTime: s.batch.startTime,
+            endTime: s.batch.endTime,
+            cancelled: s.cancelled,
+            checkInAt: s.coachSession?.checkInAt,
+            expectedStudents: s.expectedStudents,
+            attendanceComplete: s.attendanceComplete,
+            lessonPlanFilled: s.lessonPlanFilled,
+            coachFeedback: s.batch.coachFeedback,
+          })}
         </FloatBadge>
       </div>
       {s.cancelled ? (
@@ -349,7 +360,7 @@ function SessionTile({
               {s.substitute.id === me.id ? 'You cover' : s.substitute.name}
             </Badge>
           )}
-          <Badge variant={s.attendanceComplete ? 'success' : s.marked ? 'warning' : 'muted'}>
+          <Badge variant={s.attendanceComplete ? 'success' : s.marked ? 'default' : 'muted'}>
             <Users /> {s.marked}/{s.expectedStudents}
             {s.expectedStudents > 0 && s.marked > 0 ? ` · ${pct}%` : ''}
           </Badge>

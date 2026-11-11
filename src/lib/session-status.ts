@@ -106,7 +106,7 @@ export const STATUS_META: Record<
   },
   partial: {
     label: 'Partial',
-    tone: 'warning',
+    tone: 'pending',
     dot: 'bg-warning',
     hint: 'Checked in; something is still open',
   },
@@ -123,3 +123,15 @@ export const STATUS_META: Record<
     hint: 'Cancelled',
   },
 };
+
+/**
+ * The badge text: for a Partial session, what's still pending ("Attendance pending",
+ * "Plan pending", "Attendance & plan pending"); otherwise the status's label.
+ */
+export function statusLabel(status: SessionStatus, s: StatusInput) {
+  if (status !== 'partial') return STATUS_META[status].label;
+  const open = missingParts(s).map((p) => (p === 'lesson plan' ? 'plan' : p));
+  if (!open.length) return STATUS_META.partial.label;
+  const text = open.join(' & ');
+  return `${text[0]!.toUpperCase()}${text.slice(1)} pending`;
+}
