@@ -7,6 +7,13 @@ import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../u
 
 const route = '/attendance?batch=b1&date=2026-03-09';
 
+/** One student's status button (Present / Absent / Late / Excused). */
+const statusBtn = async (name: string, status: string) =>
+  within(await screen.findByRole('radiogroup', { name: `Attendance for ${name}` })).getByRole(
+    'radio',
+    { name: status },
+  );
+
 describe('AttendancePage (admin)', () => {
   it('marks attendance with one tap and saves only changes', async () => {
     const api = mockApi({
@@ -55,7 +62,7 @@ describe('AttendancePage (admin)', () => {
       route,
       user: adminUser,
     });
-    await user.click(await screen.findByRole('button', { name: /^all present/i }));
+    await user.click(await screen.findByRole('button', { name: /rest present/i }));
     expect(screen.getByText(/unsaved change/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /undo/i }));
     expect(screen.queryByText(/unsaved change/)).not.toBeInTheDocument();
@@ -238,19 +245,32 @@ describe('AttendancePage (coach)', () => {
     });
   });
 
-  it('toggles a student with one tap and saves it straight away', async () => {
+  it('marks a student with one tap and saves it straight away', async () => {
     const api = coachApi();
     const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
-    // Bhavin was absent: a tap makes him present.
-    await user.click(await screen.findByRole('button', { name: /^Bhavin Shah: Absent/ }));
+    // Bhavin was absent: one tap on P makes him present.
+    expect(await statusBtn('Bhavin Shah', 'Absent')).toHaveAttribute('aria-checked', 'true');
+    await user.click(await statusBtn('Bhavin Shah', 'Present'));
     // Shown at once, before the save lands.
-    expect(
-      await screen.findByRole('button', { name: /^Bhavin Shah: Present/ }),
-    ).toBeInTheDocument();
+    await waitFor(async () =>
+      expect(await statusBtn('Bhavin Shah', 'Present')).toHaveAttribute('aria-checked', 'true'),
+    );
     await waitFor(() => expect(api.find('PUT /attendance/session')).toHaveLength(1));
     expect(api.find('PUT /attendance/session')[0]!.body).toMatchObject({
       records: [{ studentId: 's2', status: 'present', note: null }],
     });
+  });
+
+  it('filters the list from the summary counts', async () => {
+    coachApi();
+    const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
+    const show = await screen.findByRole('radiogroup', { name: 'Show students' });
+    await user.click(within(show).getByRole('radio', { name: /^Absent/ }));
+    expect(screen.getByText('Bhavin Shah')).toBeInTheDocument();
+    expect(screen.queryByText('Anya Rao')).not.toBeInTheDocument();
+    // Tap again: everyone.
+    await user.click(within(show).getByRole('radio', { name: /^Absent/ }));
+    expect(screen.getByText('Anya Rao')).toBeInTheDocument();
   });
 
   it('shows each student’s recent sessions and 30-day rate', async () => {
@@ -269,11 +289,11 @@ describe('AttendancePage (coach)', () => {
       },
     });
     const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
-    await user.click(await screen.findByRole('button', { name: /^Bhavin Shah: Absent/ }));
+    await user.click(await statusBtn('Bhavin Shah', 'Present'));
     // Kept (not rolled back), and the coach is told it's on the phone.
-    expect(
-      await screen.findByRole('button', { name: /^Bhavin Shah: Present/ }),
-    ).toBeInTheDocument();
+    await waitFor(async () =>
+      expect(await statusBtn('Bhavin Shah', 'Present')).toHaveAttribute('aria-checked', 'true'),
+    );
     expect(await screen.findByText(/saved on this phone/)).toBeInTheDocument();
     expect(pendingCount('b1', '2026-03-09')).toBe(1);
     expect(screen.getByText(/taken while offline/)).toBeInTheDocument();
@@ -293,9 +313,12 @@ describe('AttendancePage (coach)', () => {
       }),
     });
     const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
-    await user.click(await screen.findByRole('button', { name: /^Anya Rao: not marked/ }));
+    await user.click(await statusBtn('Anya Rao', 'Present'));
     expect(await screen.findByText('Check in first')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Anya Rao: not marked/ })).toBeInTheDocument();
+    // Back to unmarked.
+    await waitFor(async () =>
+      expect(await statusBtn('Anya Rao', 'Present')).toHaveAttribute('aria-checked', 'false'),
+    );
   });
 
   it('explains a locked session', async () => {
@@ -304,7 +327,7 @@ describe('AttendancePage (coach)', () => {
     });
     await coachPage('/attendance?date=2026-03-09&batch=b1');
     expect(await screen.findByText('You checked out')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Anya Rao/ })).toBeDisabled();
+    expect(await statusBtn('Anya Rao', 'Present')).toBeDisabled();
     expect(screen.queryByRole('button', { name: /present$/i })).not.toBeInTheDocument();
   });
 

@@ -7,6 +7,14 @@ import { usePendingMarks } from '@/lib/attendance-outbox';
 import { useOnline } from '@/lib/use-online';
 import { FloatBadge } from '@/components/floating-badge';
 import {
+  AttendanceSummary,
+  AttendanceTrail,
+  type AttendanceFilter,
+  countMarks,
+  matchesFilter,
+  StatusToggle,
+} from '@/components/attendance-kit';
+import {
   CalendarDays,
   CheckCheck,
   CheckCircle2,
@@ -14,7 +22,6 @@ import {
   MapPin,
   MoreHorizontal,
   RefreshCw,
-  Search,
   StickyNote,
   Users,
   WifiOff,
@@ -74,13 +81,6 @@ import { CheckInButton } from './today';
 
 type Student = AttendanceSheet['students'][number];
 
-const DOT: Record<AttendanceStatus, string> = {
-  present: 'bg-success',
-  late: 'bg-warning',
-  absent: 'bg-destructive',
-  excused: 'bg-info',
-};
-
 /** The live session, else the next one, else the last that started, else the first. */
 function pickDefault(sessions: DayOverviewSession[], now: number, isToday: boolean) {
   const open = sessions.filter((s) => !s.cancelled);
@@ -139,8 +139,12 @@ export function CoachAttendance() {
   }, [ready, visible, selected, batchId, now, isToday]);
 
   return (
-    <div className="space-y-2.5">
-      <PageHeader title="Attendance" description="Everyone’s present — tap who isn’t." />
+    <div className="space-y-1.5">
+      <PageHeader
+        className="mb-0.5 sm:mb-2"
+        title="Attendance"
+        description="Tap P, A, L or E for each student. Every tap saves."
+      />
 
       <PeriodStepper
         label={relativeDay(date)}
@@ -174,7 +178,7 @@ export function CoachAttendance() {
                 aria-checked={on}
                 onClick={() => set({ loc: l.id })}
                 className={cn(
-                  'flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2.5 text-[12px] font-medium transition-colors',
+                  'flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2 text-[11px] font-medium transition-colors',
                   on
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'bg-card text-muted-foreground hover:text-foreground',
@@ -221,7 +225,7 @@ export function CoachAttendance() {
 
       {selected && (
         <Tabs defaultValue="session" key={selected.batch.id}>
-          <TabsList className="mb-2">
+          <TabsList className="mb-1.5">
             <TabsTrigger value="session">Mark</TabsTrigger>
             <TabsTrigger value="register">Monthly register</TabsTrigger>
           </TabsList>
@@ -279,7 +283,7 @@ function SessionCards({
         onScroll={measure}
         role="radiogroup"
         aria-label="Session"
-        className="flex snap-x scroll-px-1 [scrollbar-width:none] gap-2 overflow-x-auto px-1 pt-2.5 pb-1.5 [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x scroll-px-1 [scrollbar-width:none] gap-1.5 overflow-x-auto px-1 pt-2 pb-1 [&::-webkit-scrollbar]:hidden"
       >
         {sessions.map((s) => {
           const on = s.batch.id === selectedId;
@@ -299,7 +303,7 @@ function SessionCards({
               onClick={() => onSelect(s.batch.id)}
               className={cn(
                 // ~2.4 cards per row on phones, so the next one always peeks in.
-                'relative flex w-[40%] max-w-48 min-w-36 shrink-0 cursor-pointer snap-start flex-col gap-0.5 rounded-xl border p-2 text-left transition-all duration-200 active:scale-[0.98]',
+                'relative flex w-[40%] max-w-48 min-w-36 shrink-0 cursor-pointer snap-start flex-col rounded-xl border px-2 py-1.5 text-left transition-all duration-200 active:scale-[0.98]',
                 on
                   ? 'border-primary bg-primary/8 shadow-e2 ring-1 ring-primary dark:bg-primary/15'
                   : cn(
@@ -317,11 +321,15 @@ function SessionCards({
               )}
               <span
                 className={cn(
-                  'tabular text-[10px] font-semibold',
+                  'tabular truncate text-[10px] font-semibold',
                   on ? 'text-primary' : 'text-muted-foreground',
                 )}
               >
                 {formatTime(s.batch.startTime)} – {formatTime(s.batch.endTime)}
+                <span className="font-normal text-muted-foreground">
+                  {' '}
+                  · {s.batch.location.name}
+                </span>
               </span>
               <span
                 className={cn(
@@ -332,17 +340,8 @@ function SessionCards({
               >
                 {s.batch.name}
               </span>
-              <span
-                className={cn(
-                  'flex items-center gap-1 truncate text-[10px]',
-                  'text-muted-foreground',
-                )}
-              >
-                <MapPin className="size-3 shrink-0" />
-                <span className="truncate">{s.batch.location.name}</span>
-              </span>
               {!s.cancelled && (
-                <span className="mt-0.5 flex items-center gap-1.5">
+                <span className="mt-1 flex items-center gap-1.5">
                   <span
                     className={cn(
                       'h-1 flex-1 overflow-hidden rounded-full',
@@ -400,8 +399,8 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
   const pendingHere = usePendingMarks(batchId, date);
   const online = useOnline();
   const coachToday = useCoachToday(date === today());
-  const [query, setQuery] = useState('');
   const [noteFor, setNoteFor] = useState<Student | null>(null);
+  const [filter, setFilter] = useState<AttendanceFilter>('all');
 
   if (sheet.isPending) return <ListSkeleton rows={6} />;
   if (sheet.isError) return <ErrorState error={sheet.error} onRetry={() => void sheet.refetch()} />;
@@ -451,8 +450,6 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
       status ? `${s.fullName} · ${ATTENDANCE_META[status].label}` : `${s.fullName} · mark cleared`,
       [s],
     );
-  // One tap: unmarked → present → absent → present. Late / excused go back to present.
-  const toggle = (s: Student) => setStatus(s, s.status === 'present' ? 'absent' : 'present');
   const allPresent = () =>
     save(
       unmarked.map((s) => ({ studentId: s.studentId, status: 'present', note: s.note })),
@@ -460,15 +457,11 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
       unmarked,
     );
 
-  const q = query.trim().toLowerCase();
-  const rows = q
-    ? data.students.filter(
-        (s) => s.fullName.toLowerCase().includes(q) || s.code.toLowerCase().includes(q),
-      )
-    : data.students;
+  const counts = countMarks(data.students.map((s) => s.status));
+  const rows = data.students.filter((s) => matchesFilter(s.status, filter));
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {/* No signal: marks are kept on the phone and sync when the connection is back. */}
       {(!online || waiting > 0) && (
         <div
@@ -522,96 +515,54 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
         )
       )}
 
-      {/* Progress, counts and the one-tap action in a single slim card. */}
-      <Card className="space-y-1.5 px-2.5 py-2">
-        <div className="flex items-center gap-2">
-          <p className="shrink-0 text-[12px] font-semibold">
-            <span className="tabular">{marked}</span>/
-            <span className="tabular">{summary.total}</span>{' '}
-            <span className="font-normal text-muted-foreground">marked</span>
-          </p>
-          <div className="flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
-            {(['present', 'late', 'excused', 'absent'] as const).map((k) =>
-              summary[k] ? (
-                <span
-                  key={k}
-                  className={cn('h-full', DOT[k])}
-                  style={{ width: `${(summary[k] / summary.total) * 100}%` }}
-                />
-              ) : null,
+      {/* Progress and counts; the counts filter the list. */}
+      <AttendanceSummary
+        counts={counts}
+        filter={filter}
+        onFilter={setFilter}
+        actions={
+          <>
+            {editable && marked === 0 && data.isScheduledDay && (
+              <CancelSessionButton batchId={batchId} date={date} compact />
             )}
-          </div>
-          {editable && marked === 0 && data.isScheduledDay && (
-            <CancelSessionButton batchId={batchId} date={date} compact />
-          )}
-          {editable && unmarked.length > 0 ? (
-            <Button
-              variant="success"
-              size="sm"
-              className="h-7 gap-1 rounded-lg px-2.5 text-[11px] pointer-coarse:h-7 pointer-coarse:text-[11px] [&_svg:not([class*=size-])]:size-3.5"
-              loading={mark.isPending}
-              onClick={allPresent}
-              aria-label={
-                marked === 0
-                  ? `Mark all ${unmarked.length} present`
-                  : `Mark remaining ${unmarked.length} present`
-              }
-            >
-              <CheckCheck />
-              {marked === 0 ? 'All present' : `Rest present · ${unmarked.length}`}
-            </Button>
-          ) : (
-            editable && (
-              <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-success">
-                <CheckCircle2 className="size-3.5" /> Done
-              </span>
-            )
-          )}
-        </div>
-        <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground">
-          {(['present', 'late', 'absent', 'excused'] as const).map((k) => (
-            <span key={k} className="inline-flex items-center gap-1">
-              <span className={cn('size-1.5 rounded-full', DOT[k])} />
-              {ATTENDANCE_META[k].label}
-              <b className="tabular text-foreground">{summary[k]}</b>
-            </span>
-          ))}
-        </div>
-      </Card>
-
-      {data.students.length > 10 && (
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            aria-label="Find a student"
-            placeholder="Find a student"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-8"
-          />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setQuery('')}
-              className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer rounded p-1 text-muted-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
-      )}
+            {editable && unmarked.length > 0 ? (
+              <Button
+                variant="success"
+                size="sm"
+                className="h-7 gap-1 rounded-lg px-2.5 text-[11px] pointer-coarse:h-7 pointer-coarse:text-[11px] [&_svg:not([class*=size-])]:size-3.5"
+                loading={mark.isPending}
+                onClick={allPresent}
+                aria-label={
+                  marked === 0
+                    ? `Mark all ${unmarked.length} present`
+                    : `Mark remaining ${unmarked.length} present`
+                }
+              >
+                <CheckCheck />
+                {marked === 0 ? 'All present' : `Rest present · ${unmarked.length}`}
+              </Button>
+            ) : (
+              editable && (
+                <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-success">
+                  <CheckCircle2 className="size-3.5" /> All marked
+                </span>
+              )
+            )}
+          </>
+        }
+      />
 
       <Card className="divide-y overflow-hidden">
         {rows.length === 0 && (
-          <p className="p-4 text-center text-[13px] text-muted-foreground">No one matches.</p>
+          <p className="p-4 text-center text-[13px] text-muted-foreground">
+            {filter === 'unmarked' ? 'Everyone is marked.' : 'No one here.'}
+          </p>
         )}
         {rows.map((s) => (
           <StudentRow
             key={s.studentId}
             s={s}
             editable={editable}
-            onToggle={() => toggle(s)}
             onSet={(st) => setStatus(s, st)}
             onNote={() => setNoteFor(s)}
           />
@@ -637,125 +588,80 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
 function StudentRow({
   s,
   editable,
-  onToggle,
   onSet,
   onNote,
 }: {
   s: Student;
   editable: boolean;
-  onToggle: () => void;
   onSet: (st: AttendanceStatus | null) => void;
   onNote: () => void;
 }) {
   const navigate = useNavigate();
-  const meta = s.status ? ATTENDANCE_META[s.status] : null;
-  const recent = [...(s.recent ?? [])].reverse(); // oldest → newest, left to right
-  const low = s.rate30 !== null && s.rate30 !== undefined && s.rate30 < 60;
   return (
     <div
       className={cn(
         'flex items-center gap-2 px-2 py-1.5 transition-colors',
-        s.status === 'absent' && 'bg-destructive/5',
+        s.status === 'absent' && 'bg-destructive/[0.04]',
       )}
     >
-      <button
-        type="button"
-        disabled={!editable}
-        onClick={onToggle}
-        aria-label={`${s.fullName}: ${meta?.label ?? 'not marked'}${editable ? '. Tap to change' : ''}`}
-        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg text-left disabled:cursor-default"
-      >
-        <Avatar
-          name={s.fullName}
-          className={cn('size-8', meta && 'ring-2 ring-offset-1 ring-offset-card', {
-            'ring-success': s.status === 'present',
-            'ring-warning': s.status === 'late',
-            'ring-destructive': s.status === 'absent',
-            'ring-info': s.status === 'excused',
-          })}
-        />
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <span className="truncate text-[13px] font-medium">{s.fullName}</span>
-            {s.isMakeup && (
-              <Badge variant="warning" className="h-4 px-1 text-[9px]">
-                Makeup
-              </Badge>
-            )}
-          </span>
-          <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            {recent.length > 0 ? (
-              <span
-                className="flex items-center gap-0.5"
-                title={recent
-                  .map((r) => `${formatShortDate(r.date)}: ${ATTENDANCE_META[r.status].label}`)
-                  .join('\n')}
-                aria-label={`Last ${recent.length}: ${recent.map((r) => ATTENDANCE_META[r.status].label).join(', ')}`}
-              >
-                {recent.map((r) => (
-                  <span key={r.date} className={cn('size-1.5 rounded-full', DOT[r.status])} />
-                ))}
-              </span>
-            ) : (
-              <span>New</span>
-            )}
-            {s.rate30 !== null && s.rate30 !== undefined && (
-              <span className={cn('tabular', low && 'font-semibold text-destructive')}>
-                {s.rate30}% · 30d
-              </span>
-            )}
-            {s.note && (
-              <span className="flex min-w-0 items-center gap-0.5 text-primary">
-                <StickyNote className="size-3 shrink-0" />
-                <span className="truncate">{s.note}</span>
-              </span>
-            )}
-          </span>
-        </span>
-        <span
-          aria-hidden
-          className={cn(
-            'flex h-7 w-[4.5rem] shrink-0 items-center justify-center rounded-lg border text-[11px] font-semibold transition-colors',
-            meta ? meta.active : 'border-dashed text-muted-foreground',
+      <Avatar
+        name={s.fullName}
+        className={cn('size-7 text-[10px]', s.status && 'ring-2 ring-offset-1 ring-offset-card', {
+          'ring-success': s.status === 'present',
+          'ring-warning': s.status === 'late',
+          'ring-destructive': s.status === 'absent',
+          'ring-info': s.status === 'excused',
+        })}
+      />
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="flex items-center gap-1.5">
+          <span className="truncate text-[13px] font-medium">{s.fullName}</span>
+          {s.isMakeup && (
+            <Badge variant="warning" className="h-4 px-1 text-[9px]">
+              Makeup
+            </Badge>
           )}
-        >
-          {meta?.label ?? 'Tap'}
-        </span>
-      </button>
-      {editable && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={`More for ${s.fullName}`}
-              className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <MoreHorizontal className="size-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {(['present', 'late', 'absent', 'excused'] as const).map((k) => (
-              <DropdownMenuItem key={k} onSelect={() => onSet(k)}>
-                <span className={cn('size-2 rounded-full', DOT[k])} />
-                {ATTENDANCE_META[k].label}
-                {s.status === k && <CheckCircle2 className="ml-auto size-3.5" />}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
+        </p>
+        <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <AttendanceTrail recent={s.recent} rate30={s.rate30} />
+          {s.note && (
+            <span className="flex min-w-0 items-center gap-0.5 text-primary">
+              <StickyNote className="size-3 shrink-0" />
+              <span className="truncate">{s.note}</span>
+            </span>
+          )}
+        </p>
+      </div>
+      <StatusToggle value={s.status} onChange={onSet} disabled={!editable} name={s.fullName} />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={`More for ${s.fullName}`}
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <MoreHorizontal className="size-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {editable && (
             <DropdownMenuItem disabled={!s.status} onSelect={onNote}>
               <StickyNote /> {s.note ? 'Edit note' : 'Add note'}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void navigate(`/students/${s.studentId}`)}>
-              <Users /> Open student
-            </DropdownMenuItem>
-            {s.status && (
+          )}
+          <DropdownMenuItem onSelect={() => void navigate(`/students/${s.studentId}`)}>
+            <Users /> Open student
+          </DropdownMenuItem>
+          {editable && s.status && (
+            <>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => onSet(null)}>
                 <X /> Clear mark
               </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

@@ -12,14 +12,15 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { Avatar, EmptyState, ErrorState, ListSkeleton, PageHeader } from '@/components/common';
 import {
-  ATTENDANCE_META,
-  Avatar,
-  EmptyState,
-  ErrorState,
-  ListSkeleton,
-  PageHeader,
-} from '@/components/common';
+  AttendanceSummary,
+  AttendanceTrail,
+  type AttendanceFilter,
+  countMarks,
+  matchesFilter,
+  StatusToggle,
+} from '@/components/attendance-kit';
 import { BatchSelect, DateStepper, useBatchDateParams } from '@/components/pickers';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/controls';
@@ -29,65 +30,19 @@ import { formatShortDate, isoWeekday, today, WEEKDAYS } from '@/lib/format';
 import { useAttendanceSheet, useSaveAttendance } from '@/lib/queries';
 import type { AttendanceStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { haptic } from '@/app/native';
 import { useUser } from '@/app/auth';
 import { CoachAttendance } from './attendance-coach';
 import { CancelledBanner, CancelSessionButton, MonthlyRegister } from './attendance-parts';
 import { Link } from 'react-router';
 
-const STATUSES: AttendanceStatus[] = ['present', 'absent', 'late', 'excused'];
-
 type Draft = Record<string, { status: AttendanceStatus | null; note: string | null }>;
-
-function StatusToggle({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: AttendanceStatus | null;
-  onChange: (s: AttendanceStatus) => void;
-  disabled: boolean;
-}) {
-  return (
-    <div role="radiogroup" aria-label="Attendance status" className="flex shrink-0 gap-1">
-      {STATUSES.map((s) => {
-        const meta = ATTENDANCE_META[s];
-        const active = value === s;
-        return (
-          <button
-            key={s}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            aria-label={meta.label}
-            title={meta.label}
-            disabled={disabled}
-            onClick={() => {
-              haptic();
-              onChange(s);
-            }}
-            className={cn(
-              'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border text-[12px] font-bold transition-all active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-2.5 sm:text-[12.5px] sm:font-semibold',
-              active
-                ? meta.active
-                : 'bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
-            )}
-          >
-            {/* Phones: the first letter (P, L, A, E); wider screens: the word. */}
-            <span className="sm:hidden">{meta.label[0]}</span>
-            <span className="hidden sm:inline">{meta.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
   const sheet = useAttendanceSheet(batchId, date);
   const save = useSaveAttendance();
   const [draft, setDraft] = useState<Draft>({});
   const [openNote, setOpenNote] = useState<string | null>(null);
+  const [filter, setFilter] = useState<AttendanceFilter>('all');
 
   // Re-sync local edits only when the *saved* marks change (not on every background refetch),
   // so unsaved taps are never wiped.
@@ -111,14 +66,7 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
     });
   }, [draft, sheet.data]);
 
-  const counts = useMemo(() => {
-    const c = { present: 0, late: 0, absent: 0, excused: 0, unmarked: 0 };
-    for (const d of Object.values(draft)) {
-      if (d.status) c[d.status]++;
-      else c.unmarked++;
-    }
-    return c;
-  }, [draft]);
+  const counts = useMemo(() => countMarks(Object.values(draft).map((d) => d.status)), [draft]);
 
   if (sheet.isPending) return <ListSkeleton rows={6} />;
   if (sheet.isError) return <ErrorState error={sheet.error} onRetry={() => void sheet.refetch()} />;
@@ -212,45 +160,53 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
         )
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-1.5">
-        <div className="flex flex-wrap gap-1 text-xs [&_[data-slot=badge]]:px-1.5">
-          {STATUSES.map((s) => (
-            <Badge
-              key={s}
-              variant="outline"
-              className={cn('tabular gap-1.5', ATTENDANCE_META[s].className)}
-            >
-              {ATTENDANCE_META[s].label} {counts[s]}
-            </Badge>
-          ))}
-          {counts.unmarked > 0 && <Badge variant="muted">Unmarked {counts.unmarked}</Badge>}
-        </div>
-        {editable && (
-          <div className="flex flex-wrap gap-1.5 [&_button]:h-8 [&_button]:px-2.5 [&_button]:text-[12px]">
-            {nothingMarked && data.isScheduledDay && (
-              <CancelSessionButton batchId={batchId} date={date} />
-            )}
-            <Button variant="outline" size="sm" onClick={() => markAll('present', true)}>
-              <CheckCheck /> Rest present
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => markAll('present', false)}>
-              All present
-            </Button>
-          </div>
-        )}
-      </div>
+      {/* Progress and counts; the counts filter the list. */}
+      <AttendanceSummary
+        counts={counts}
+        filter={filter}
+        onFilter={setFilter}
+        actions={
+          editable && (
+            <div className="flex shrink-0 gap-1 [&_button]:h-7 [&_button]:rounded-lg [&_button]:px-2 [&_button]:text-[11px]">
+              {nothingMarked && data.isScheduledDay && (
+                <CancelSessionButton batchId={batchId} date={date} compact />
+              )}
+              {counts.unmarked > 0 && counts.unmarked < data.students.length ? (
+                <Button variant="success" size="sm" onClick={() => markAll('present', true)}>
+                  <CheckCheck /> Rest present · {counts.unmarked}
+                </Button>
+              ) : (
+                <Button
+                  variant={counts.unmarked ? 'success' : 'outline'}
+                  size="sm"
+                  onClick={() => markAll('present', false)}
+                >
+                  <CheckCheck /> All present
+                </Button>
+              )}
+            </div>
+          )
+        }
+      />
 
       <Card className="divide-y overflow-hidden">
+        {data.students.every((s) => !matchesFilter(draft[s.studentId]?.status ?? null, filter)) && (
+          <p className="p-4 text-center text-[13px] text-muted-foreground">
+            {filter === 'unmarked' ? 'Everyone is marked.' : 'No one here.'}
+          </p>
+        )}
         {data.students.map((s) => {
           const d = draft[s.studentId];
+          if (!matchesFilter(d?.status ?? null, filter)) return null;
           return (
             <div key={s.studentId} className="px-2 py-1.5">
               <div className="flex items-center gap-2">
                 <Avatar name={s.fullName} className="size-7 text-[10px]" />
                 <div className="min-w-0 flex-1 leading-tight">
                   <p className="truncate text-[13.5px] font-medium">{s.fullName}</p>
-                  <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    {s.code}
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <span>{s.code}</span>
+                    <AttendanceTrail recent={s.recent} rate30={s.rate30} />
                     {s.isMakeup && (
                       <Badge variant="default" className="px-1.5 py-0 text-[10px]">
                         Makeup
@@ -262,13 +218,14 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
                   value={d?.status ?? null}
                   onChange={(st) => setStatus(s.studentId, st)}
                   disabled={!editable}
+                  name={s.fullName}
                 />
                 <button
                   type="button"
                   aria-label={`Note for ${s.fullName}`}
                   onClick={() => setOpenNote((o) => (o === s.studentId ? null : s.studentId))}
                   className={cn(
-                    'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted',
+                    'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted',
                     d?.note && 'text-primary',
                   )}
                 >
