@@ -41,6 +41,7 @@ export const TodayPage = page(m3, 'TodayPage');
 const dashboardModule = () => import('@/pages/dashboard');
 export const DashboardPage = page(dashboardModule, 'DashboardPage');
 export const AttendancePage = page(m4, 'AttendancePage');
+export const AttendanceRegisterPage = page(m4, 'AttendanceRegisterPage');
 export const LessonPlansPage = page(m5, 'LessonPlansPage');
 export const FeedbackPage = page(m6, 'FeedbackPage');
 export const FeedbackFormPage = page(m7, 'FeedbackFormPage');
@@ -76,6 +77,7 @@ const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/$/, () => Promise.all([dashboardModule(), m3()])],
   [/^\/calendar$/, calendarModule],
   [/^\/attendance$/, m4],
+  [/^\/attendance\/register\/[^/]+$/, m4],
   [/^\/lesson-plans$/, m5],
   [/^\/feedback$/, m6],
   [/^\/students$/, m8],

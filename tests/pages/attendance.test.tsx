@@ -1,6 +1,6 @@
 import { __resetOutbox, flushOutbox, pendingCount } from '@/lib/attendance-outbox';
 import type { AttendanceStatus } from '@/lib/types';
-import { AttendancePage } from '@/pages/attendance';
+import { AttendancePage, AttendanceRegisterPage } from '@/pages/attendance';
 import { sheet } from '../fixtures';
 import { fireEvent, within } from '@testing-library/react';
 import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
@@ -126,8 +126,15 @@ describe('AttendancePage (coach)', () => {
         ],
       }),
     });
-    const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');
-    await user.click(await screen.findByRole('button', { name: /monthly register/i }));
+    const { user, router } = await renderPage(<AttendancePage />, {
+      path: '/attendance',
+      route: '/attendance?date=2026-03-09&batch=b1',
+      user: coachUser,
+      extraRoutes: [{ path: '/attendance/register/:batchId', element: <AttendanceRegisterPage /> }],
+    });
+    // Opens as its own page.
+    await user.click(await screen.findByRole('link', { name: /monthly register/i }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/attendance/register/b1'));
     expect(await screen.findByText('50%')).toBeInTheDocument();
   });
 

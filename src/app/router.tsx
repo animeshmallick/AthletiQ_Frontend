@@ -19,6 +19,7 @@ import {
   StudentsPage,
   StudentDetailPage,
   InvoiceDetailPage,
+  AttendanceRegisterPage,
   FinanceHubPage,
   BatchesPage,
   BatchDetailPage,
@@ -199,6 +200,7 @@ export const router = createBrowserRouter([
           // The calendar is a tab of the dashboard now.
           { path: 'calendar', element: <ToDashboard tab="calendar" /> },
           { path: 'attendance', element: <AttendancePage /> },
+          { path: 'attendance/register/:batchId', element: <AttendanceRegisterPage /> },
           { path: 'lesson-plans', element: <LessonPlansPage /> },
           { path: 'feedback', element: <FeedbackPage /> },
           { path: 'feedback/:studentId/:weekStart', element: <FeedbackFormPage /> },

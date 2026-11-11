@@ -30,7 +30,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Accordion } from 'radix-ui';
 import { useUser } from '@/app/auth';
 import { Floating } from '@/components/floating-badge';
@@ -80,7 +80,7 @@ import {
 } from '@/lib/queries';
 import type { AttendanceSheet, AttendanceStatus, DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { CancelledBanner, CancelSessionButton, MonthlyRegister } from './attendance-parts';
+import { CancelledBanner, CancelSessionButton } from './attendance-parts';
 import { batchTone, minutes, useIstMinutes } from './calendar-meta';
 import { CheckInButton } from './today';
 
@@ -228,7 +228,6 @@ function SessionItem({
   live: boolean;
   isAdmin: boolean;
 }) {
-  const [register, setRegister] = useState(false);
   const left = s.expectedStudents - s.marked;
   const pct = s.expectedStudents ? (s.marked / s.expectedStudents) * 100 : 0;
   const badge = s.cancelled ? (
@@ -303,24 +302,14 @@ function SessionItem({
         </Accordion.Header>
         <Accordion.Content className="space-y-1 border-t bg-muted/15 p-1">
           <CoachSheet key={`${s.batch.id}:${date}`} session={s} date={date} />
-          <button
-            type="button"
-            onClick={() => setRegister(true)}
-            className="flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg py-1 text-[11.5px] font-medium text-primary hover:bg-primary/5"
+          <Link
+            to={`/attendance/register/${s.batch.id}`}
+            className="flex w-full items-center justify-center gap-1 rounded-lg py-1 text-[11.5px] font-medium text-primary hover:bg-primary/5"
           >
             <TableProperties className="size-3.5" /> Monthly register
-          </button>
+          </Link>
         </Accordion.Content>
       </Accordion.Item>
-      <Dialog open={register} onOpenChange={setRegister}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Monthly register</DialogTitle>
-            <DialogDescription>{s.batch.name}: every session this month.</DialogDescription>
-          </DialogHeader>
-          {register && <MonthlyRegister batchId={s.batch.id} />}
-        </DialogContent>
-      </Dialog>
     </Floating>
   );
 }

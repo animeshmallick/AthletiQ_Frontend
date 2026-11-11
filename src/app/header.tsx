@@ -65,6 +65,7 @@ function useScreenTitle(): string {
   if (pathname.startsWith('/account')) return 'Account';
   // Detail screens that aren't in the menu.
   if (pathname.startsWith('/invoices/')) return 'Invoice';
+  if (pathname.startsWith('/attendance/register/')) return 'Monthly register';
   return 'AthletiQ';
 }
 
