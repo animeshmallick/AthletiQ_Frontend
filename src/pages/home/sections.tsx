@@ -4,7 +4,7 @@
  * Shared by the admin and coach homepages; each decides which sections to show.
  */
 import { PeriodStepper } from '@/components/date-nav';
-import { Floating, FloatBadge, type FloatTone } from '@/components/floating-badge';
+import { Floating, FloatBadge } from '@/components/floating-badge';
 import { SwipeDays } from '@/components/swipe-days';
 import {
   AlertTriangle,
@@ -15,7 +15,6 @@ import {
   ClipboardList,
   IndianRupee,
   LogIn,
-  LogOut,
   MapPin,
   MessageSquareText,
   Repeat,
@@ -51,7 +50,13 @@ import {
   useTasks,
 } from '@/lib/queries';
 import type { AppTask, DayOverviewSession } from '@/lib/types';
-import { lateness } from '@/lib/lateness';
+import {
+  lateLabel,
+  lateMinutes,
+  missingParts,
+  sessionStatus,
+  STATUS_META,
+} from '@/lib/session-status';
 import { cn } from '@/lib/utils';
 
 // ─── Shared bits ─────────────────────────────────────────────────────────────
@@ -110,37 +115,21 @@ const Empty = ({ children }: { children: ReactNode }) => (
 
 // ─── Today's plan: day timeline ──────────────────────────────────────────────
 
-type SessionState = 'live' | 'next' | 'later' | 'done' | 'cancelled' | 'past';
-
-function stateOf(
-  s: DayOverviewSession,
-  isToday: boolean,
-  isPast: boolean,
-  now: number,
-  nextId: string | null,
-): SessionState {
-  if (s.cancelled) return 'cancelled';
-  if (isPast) return 'past';
-  if (!isToday) return 'later';
-  const start = toMin(s.batch.startTime);
-  const end = toMin(s.batch.endTime);
-  if (now >= start && now < end) return 'live';
-  if (now >= end) return 'done';
-  return s.batch.id === nextId ? 'next' : 'later';
-}
-
-const STATE_STYLE: Record<SessionState, { label: string; dot: string; badge: string }> = {
-  live: { label: 'Live', dot: 'bg-success animate-pulse', badge: 'bg-success/12 text-success' },
-  next: { label: 'Next', dot: 'bg-primary', badge: 'bg-primary/10 text-primary' },
-  later: { label: 'Later', dot: 'bg-muted-foreground/40', badge: 'bg-muted text-muted-foreground' },
-  done: { label: 'Done', dot: 'bg-muted-foreground/60', badge: 'bg-muted text-muted-foreground' },
-  past: { label: '', dot: 'bg-muted-foreground/60', badge: '' },
-  cancelled: {
-    label: 'Cancelled',
-    dot: 'bg-destructive/60',
-    badge: 'bg-destructive/10 text-destructive',
-  },
-};
+/** A session's status on the timeline (shared with the calendar and attendance). */
+const statusOf = (s: DayOverviewSession, day: string) =>
+  sessionStatus(
+    {
+      startTime: s.batch.startTime,
+      endTime: s.batch.endTime,
+      cancelled: s.cancelled,
+      checkInAt: s.coachSession?.checkInAt,
+      expectedStudents: s.expectedStudents,
+      attendanceComplete: s.attendanceComplete,
+      lessonPlanFilled: s.lessonPlanFilled,
+      coachFeedback: s.batch.coachFeedback,
+    },
+    day,
+  );
 
 /**
  * The day's sessions on a timeline, with today's to-dos pinned to the session they belong to.
@@ -163,9 +152,8 @@ export function DayPlan({
   const sessions = [...(q.data?.days.find((d) => d.date === day)?.sessions ?? [])].sort(
     (a, b) => toMin(a.batch.startTime) - toMin(b.batch.startTime),
   );
-  const nextId = isToday
-    ? (sessions.find((s) => !s.cancelled && toMin(s.batch.startTime) > now)?.batch.id ?? null)
-    : null;
+  // Re-evaluated each minute (Scheduled → Delayed/Live → Completed…).
+  void now;
   const todosFor = (batchId: string) =>
     isToday ? (tasks.data?.items ?? []).filter((t) => t.id.includes(`:${batchId}:`)) : [];
 
@@ -230,18 +218,25 @@ export function DayPlan({
         ) : (
           <ol className="space-y-1.5" aria-label="Timeline">
             {sessions.map((s) => {
-              const st = stateOf(s, isToday, isPast, now, nextId);
-              const style = STATE_STYLE[st];
+              const st = statusOf(s, day);
+              const style = STATUS_META[st];
+              const open =
+                st === 'partial'
+                  ? missingParts({
+                      ...s,
+                      ...s.batch,
+                      coachFeedback: s.batch.coachFeedback,
+                      lessonPlanFilled: s.lessonPlanFilled,
+                    })
+                  : [];
               const todos = todosFor(s.batch.id);
               return (
                 <li key={s.batch.id}>
                   <Floating
                     badges={[
-                      st === 'live' || st === 'next' || st === 'done' || st === 'cancelled' ? (
-                        <FloatBadge key="st" tone={FLOAT_TONE[st]}>
-                          {style.label}
-                        </FloatBadge>
-                      ) : null,
+                      <FloatBadge key="st" tone={style.tone} title={style.hint}>
+                        {style.label}
+                      </FloatBadge>,
                       s.substitute ? (
                         <FloatBadge key="sub" tone="primary" icon={<Repeat />}>
                           {s.substitute.name.split(' ')[0]}
@@ -252,9 +247,7 @@ export function DayPlan({
                       ) : null,
                     ]}
                   >
-                    <Card
-                      className={cn('p-2', (st === 'done' || st === 'cancelled') && 'opacity-70')}
-                    >
+                    <Card className={cn('p-2', st === 'cancelled' && 'opacity-70')}>
                       <div>
                         {/* Time on one line, then the session below at full width. */}
                         <div className="flex items-center gap-2">
@@ -305,14 +298,9 @@ export function DayPlan({
                             {s.batch.location.name}
                           </p>
                           <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] [&_[data-slot=badge]]:gap-0.5 [&_[data-slot=badge]]:px-1.5">
-                            {st === 'later' && (
-                              <span
-                                className={cn(
-                                  'rounded-full px-1.5 py-px font-semibold',
-                                  style.badge,
-                                )}
-                              >
-                                {style.label}
+                            {open.length > 0 && (
+                              <span className="font-semibold text-warning-foreground dark:text-warning">
+                                Open: {open.join(', ')}
                               </span>
                             )}
                             {st === 'cancelled' && s.cancelled && (
@@ -377,7 +365,6 @@ const TODO_SHORT: Partial<Record<AppTask['kind'], string>> = {
   'missed-check-in': 'Missed check-in',
   attendance: 'Attendance pending',
   'lesson-plan': 'Add plan',
-  'check-out': 'Check out',
 };
 const TODO_CHIP: Record<AppTask['severity'], string> = {
   critical: 'bg-destructive/10 text-destructive',
@@ -385,35 +372,24 @@ const TODO_CHIP: Record<AppTask['severity'], string> = {
   info: 'bg-primary/8 text-primary',
 };
 
-const FLOAT_TONE: Record<'live' | 'next' | 'done' | 'cancelled', FloatTone> = {
-  live: 'live',
-  next: 'primary',
-  done: 'muted',
-  cancelled: 'destructive',
-};
-
-/** Check-in at a glance, floating on the card: in → out times (or live), and lateness. */
+/** The check-in, floating on the card: when, how late, and whether it was at the venue. */
 function CheckInFloat({ s }: { s: DayOverviewSession }) {
   const cs = s.coachSession!;
-  const lateText = lateness(cs.checkInAt, s.batch.startTime);
-  const late = !!lateText;
+  const late = lateMinutes({ startTime: s.batch.startTime, checkInAt: cs.checkInAt });
   return (
     <FloatBadge
-      tone={cs.flagged || late ? 'warning' : cs.checkOutAt ? 'success' : 'live'}
-      icon={cs.checkOutAt ? <LogOut /> : undefined}
+      tone={cs.flagged || late ? 'warning' : 'success'}
+      icon={<MapPin />}
       title={[
         `Checked in ${formatClock(cs.checkInAt)}`,
-        cs.checkOutAt ? `out ${formatClock(cs.checkOutAt)}` : 'still there',
-        late ? lateText : 'on time',
+        late ? lateLabel(late) : 'on time',
         cs.flagged ? 'away from the venue' : '',
       ]
         .filter(Boolean)
         .join(' · ')}
     >
-      {cs.checkOutAt
-        ? `${formatClock(cs.checkInAt)} → ${formatClock(cs.checkOutAt)}`
-        : `In ${formatClock(cs.checkInAt)}`}
-      {late ? ` · ${lateText}` : ''}
+      In {formatClock(cs.checkInAt)}
+      {late ? ` · ${lateLabel(late)}` : ''}
     </FloatBadge>
   );
 }
@@ -430,7 +406,6 @@ const KIND_ICON: Partial<Record<AppTask['kind'], ReactNode>> = {
   'missed-check-in': <AlertTriangle />,
   attendance: <Users />,
   'lesson-plan': <ClipboardList />,
-  'check-out': <LogOut />,
   feedback: <MessageSquareText />,
   registrations: <UserPlus />,
   'flagged-check-ins': <ShieldAlert />,

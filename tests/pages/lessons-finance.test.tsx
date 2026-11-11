@@ -256,18 +256,15 @@ describe('CoachSessionsPage', () => {
             checkInAt: '2026-03-09T00:30:00Z',
             checkInLat: 12.98,
             checkInLng: 77.6,
-            checkOutLat: null,
-            checkOutLng: null,
             checkInDistanceM: 850,
             checkInWithinFence: false,
-            checkOutAt: null,
-            checkOutDistanceM: null,
-            checkOutWithinFence: null,
             note: null,
             reviewedAt: null,
             reviewNote: null,
             flagged: true,
-            durationMinutes: null,
+            durationMinutes: 120,
+            scheduledStart: '06:00:00',
+            scheduledEnd: '08:00:00',
             coach: { id: 'coach-1', name: 'Ravi' },
             batch: { id: 'b1', name: 'Morning U-12', startTime: '06:00:00', endTime: '08:00:00' },
             location: { id: 'l1', name: 'Club', radiusMeters: 200 },
@@ -277,8 +274,7 @@ describe('CoachSessionsPage', () => {
           sessions: 1,
           flagged: 1,
           unreviewedFlagged: 1,
-          missingCheckOut: 1,
-          totalHours: 0,
+          totalHours: 2,
         },
       }),
       'GET /users': () => ({ data: [], meta: {} }),
@@ -290,7 +286,10 @@ describe('CoachSessionsPage', () => {
       user: adminUser,
     });
     expect(await screen.findByText('850 m away')).toBeInTheDocument();
-    expect(screen.getByText('no check-out')).toBeInTheDocument();
+    // Checked in at 6:00 am for a 6:00 session: on time, two hours coached.
+    expect(screen.queryByText(/no check-out/)).not.toBeInTheDocument();
+    expect(screen.getByText('Late check-ins')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /check out/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Review' }));
     expect(await screen.findByRole('dialog')).toHaveTextContent('Review check-in');
   });

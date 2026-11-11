@@ -7,7 +7,6 @@ import {
   Clock,
   CloudRain,
   LogIn,
-  LogOut,
   MapPin,
   MessageSquareText,
   Repeat,
@@ -18,7 +17,6 @@ import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import {
-  ConfirmDialog,
   EmptyState,
   ErrorState,
   ListSkeleton,
@@ -50,7 +48,7 @@ import {
   useTasks,
 } from '@/lib/queries';
 import type { DayOverviewSession, TodaySession } from '@/lib/types';
-import { lateness } from '@/lib/lateness';
+import { lateLabel, lateMinutes, sessionStatus, STATUS_META } from '@/lib/session-status';
 import { cn } from '@/lib/utils';
 import { CollectedByCard, MoneySnapshot } from './today-insights';
 import {
@@ -75,9 +73,9 @@ function greeting() {
 
 // ─── Coach: check-in card ────────────────────────────────────────────────────
 
+/** Check in at the venue (GPS). Once checked in, the session's status shows Live instead. */
 export function CheckInButton({
   item,
-  overview,
   compact = false,
 }: {
   item: TodaySession;
@@ -85,21 +83,14 @@ export function CheckInButton({
   /** Small button for dense lists (calendar cards). */
   compact?: boolean;
 }) {
-  const checkIn = useCheck('check-in');
-  const checkOut = useCheck('check-out');
+  const checkIn = useCheck();
   const [locating, setLocating] = useState(false);
-  const [confirmOut, setConfirmOut] = useState(false);
-  const unmarked = overview ? overview.expectedStudents - overview.marked : 0;
-  const s = item.session;
-  const done = Boolean(s?.checkOutAt);
-  const mode: 'check-in' | 'check-out' = s ? 'check-out' : 'check-in';
 
   async function run() {
     setLocating(true);
     try {
       const pos = await getCurrentPosition();
-      const mutation = mode === 'check-in' ? checkIn : checkOut;
-      const res = await mutation.mutateAsync({
+      const res = await checkIn.mutateAsync({
         batchId: item.batch.id,
         latitude: pos.latitude,
         longitude: pos.longitude,
@@ -107,65 +98,29 @@ export function CheckInButton({
       });
       (res.session.flagged ? toast.warning : toast.success)(res.message);
     } catch (err) {
-      toast.error(mode === 'check-in' ? 'Check-in failed' : 'Check-out failed', {
-        description: errorMessage(err),
-      });
+      toast.error('Check-in failed', { description: errorMessage(err) });
     } finally {
       setLocating(false);
     }
   }
 
-  if (done) {
-    return (
-      <Badge
-        variant={s?.flagged ? 'warning' : 'success'}
-        className={compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3'}
-      >
-        <CheckCircle2 /> {formatClock(s!.checkInAt)} – {formatClock(s!.checkOutAt!)}
-      </Badge>
-    );
-  }
+  if (item.session) return null;
   return (
-    <>
-      <Button
-        size="sm"
-        variant={mode === 'check-in' ? 'success' : 'warning'}
-        className={cn(
-          'shrink-0',
-          compact
-            ? 'h-6 gap-1 rounded-md px-2 text-[11px] pointer-coarse:h-6 pointer-coarse:text-[11px] [&_svg:not([class*=size-])]:size-3'
-            : 'h-8 gap-1.5 rounded-lg px-3 text-[12px] pointer-coarse:h-8 [&_svg:not([class*=size-])]:size-3.5',
-        )}
-        title={s ? `In since ${formatClock(s.checkInAt)}` : undefined}
-        loading={locating || checkIn.isPending || checkOut.isPending}
-        onClick={() => (mode === 'check-out' ? setConfirmOut(true) : void run())}
-      >
-        {mode === 'check-in' ? <LogIn /> : <LogOut />}
-        {locating
-          ? 'Locating…'
-          : mode === 'check-in'
-            ? 'Check in'
-            : compact
-              ? 'Check out'
-              : `Check out · in since ${formatClock(s!.checkInAt)}`}
-      </Button>
-      <ConfirmDialog
-        open={confirmOut}
-        onOpenChange={setConfirmOut}
-        title={unmarked > 0 ? 'Attendance is not complete' : 'Check out now?'}
-        description={
-          unmarked > 0
-            ? `${unmarked} of ${overview!.expectedStudents} students are not marked. You can still mark attendance for ${item.batch.name} until the end of today.`
-            : `You can still mark attendance for ${item.batch.name} until the end of today.`
-        }
-        confirmLabel={unmarked > 0 ? 'Check out anyway' : 'Check out'}
-        destructive={unmarked > 0}
-        onConfirm={() => {
-          setConfirmOut(false);
-          void run();
-        }}
-      />
-    </>
+    <Button
+      size="sm"
+      variant="success"
+      className={cn(
+        'shrink-0',
+        compact
+          ? 'h-6 gap-1 rounded-md px-2 text-[11px] pointer-coarse:h-6 pointer-coarse:text-[11px] [&_svg:not([class*=size-])]:size-3'
+          : 'h-8 gap-1.5 rounded-lg px-3 text-[12px] pointer-coarse:h-8 [&_svg:not([class*=size-])]:size-3.5',
+      )}
+      loading={locating || checkIn.isPending}
+      onClick={() => void run()}
+    >
+      <LogIn />
+      {locating ? 'Locating…' : 'Check in'}
+    </Button>
   );
 }
 
@@ -178,16 +133,35 @@ function CoachSessionCard({
 }) {
   const pct =
     overview && overview.expectedStudents ? (overview.marked / overview.expectedStudents) * 100 : 0;
-  // Checked in over 10 minutes after the start: amber, with how late (as on the admin view).
-  const late = item.session ? lateness(item.session.checkInAt, item.batch.startTime) : null;
+  const status = sessionStatus(
+    {
+      startTime: item.batch.startTime,
+      endTime: item.batch.endTime,
+      cancelled: item.cancelled,
+      checkInAt: item.session?.checkInAt,
+      expectedStudents: overview?.expectedStudents ?? 0,
+      attendanceComplete: overview?.attendanceComplete ?? false,
+      lessonPlanFilled: overview?.lessonPlanFilled,
+      coachFeedback: overview?.batch.coachFeedback,
+    },
+    today(),
+  );
+  const meta = STATUS_META[status];
+  // Checked in over 10 minutes after the start: amber, with how late.
+  const late = item.session
+    ? lateMinutes({ startTime: item.batch.startTime, checkInAt: item.session.checkInAt })
+    : null;
   return (
     <Floating
       badges={[
-        item.cancelled ? (
-          <FloatBadge key="c" tone="muted" icon={<CloudRain />}>
-            Cancelled
-          </FloatBadge>
-        ) : null,
+        <FloatBadge
+          key="st"
+          tone={meta.tone}
+          title={meta.hint}
+          icon={item.cancelled ? <CloudRain /> : undefined}
+        >
+          {meta.label}
+        </FloatBadge>,
         item.asSubstitute ? (
           <FloatBadge key="s" tone="primary" icon={<Repeat />}>
             Substitute
@@ -197,21 +171,15 @@ function CoachSessionCard({
             Covered by {item.substitute.name.split(' ')[0]}
           </FloatBadge>
         ) : null,
-        // Checked out: the in–out times float on the corner (amber when away from the venue).
-        item.session?.checkOutAt ? (
+        item.session ? (
           <FloatBadge
             key="t"
             tone={item.session.flagged || late ? 'warning' : 'success'}
-            icon={item.session.flagged ? <ShieldAlert /> : <CheckCircle2 />}
-            title={item.session.flagged ? 'Checked in or out away from the venue' : undefined}
+            icon={item.session.flagged ? <ShieldAlert /> : <MapPin />}
+            title={item.session.flagged ? 'Checked in away from the venue' : undefined}
           >
-            {formatClock(item.session.checkInAt)} – {formatClock(item.session.checkOutAt)}
-            {late ? ' · ' + late : ''}
-          </FloatBadge>
-        ) : item.session ? (
-          <FloatBadge key="t" tone={item.session.flagged || late ? 'warning' : 'live'}>
-            In since {formatClock(item.session.checkInAt)}
-            {late ? ' · ' + late : ''}
+            In {formatClock(item.session.checkInAt)}
+            {late ? ' · ' + lateLabel(late) : ''}
           </FloatBadge>
         ) : null,
       ]}
@@ -235,7 +203,7 @@ function CoachSessionCard({
                 <span className="truncate">{item.location.name}</span>
               </span>
             </p>
-            {!item.cancelled && !item.session?.checkOutAt && (
+            {!item.cancelled && !item.session && (
               <div className="shrink-0">
                 <CheckInButton item={item} overview={overview} compact />
               </div>

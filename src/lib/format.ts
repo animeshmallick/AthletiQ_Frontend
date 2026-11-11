@@ -210,10 +210,7 @@ export function formatPhone(phone: string | null | undefined): string {
   return m ? `+91 ${m[1]} ${m[2]}` : phone;
 }
 
-/** Coach visit times: "6:02 am – 8:01 am", "In 6:02 am · not out" or "Not in". */
-export function coachTimes(cs: { checkInAt: string; checkOutAt: string | null } | null) {
-  if (!cs) return 'Not in';
-  return cs.checkOutAt
-    ? `${formatClock(cs.checkInAt)} – ${formatClock(cs.checkOutAt)}`
-    : `In ${formatClock(cs.checkInAt)} · not out`;
+/** Coach check-in time: "In 6:02 am" or "Not in". */
+export function coachTimes(cs: { checkInAt: string } | null) {
+  return cs ? `In ${formatClock(cs.checkInAt)}` : 'Not in';
 }

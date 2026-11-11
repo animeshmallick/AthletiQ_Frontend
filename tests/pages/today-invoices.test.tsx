@@ -103,25 +103,16 @@ describe('TodayPage (coach)', () => {
     expect(api.find('POST /coach-sessions/check-in')).toHaveLength(0);
   });
 
-  it('offers check-out once checked in, and shows completed sessions', async () => {
+  it('shows the check-in time once checked in (there is no check-out)', async () => {
     mockApi({
       'GET /coach-sessions/today': () =>
-        todaySession({
-          id: 'cs1',
-          checkInAt: '2026-03-09T00:31:00Z',
-          checkOutAt: null,
-          flagged: true,
-        }),
+        todaySession({ id: 'cs1', checkInAt: '2026-03-09T00:31:00Z', flagged: true }),
       'GET /attendance/overview': () => overview,
     });
     await renderPage(<TodayPage />, { user: coachUser });
-    // Compact button; the check-in time is on its tooltip.
-    expect(await screen.findByRole('button', { name: /^check out$/i })).toHaveAttribute(
-      'title',
-      'In since 6:01 am',
-    );
     // Away from the venue: the floating check-in badge turns amber.
-    expect(screen.getByText(/In since 6:01 am/)).toHaveClass('text-warning-foreground');
+    expect(await screen.findByText(/^In 6:01/)).toHaveClass('text-warning-foreground');
+    expect(screen.queryByRole('button', { name: /check (in|out)/i })).not.toBeInTheDocument();
   });
 
   it('shows a rest-day state', async () => {

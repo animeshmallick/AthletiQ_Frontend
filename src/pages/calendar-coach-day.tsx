@@ -4,11 +4,10 @@
  * place). Each session is a compact tile with a status badge, attendance and plan status, and
  * check-in / out for today; tapping it lists who is expected (makeups marked).
  */
-import { FloatBadge, type FloatTone } from '@/components/floating-badge';
+import { FloatBadge } from '@/components/floating-badge';
 import {
   CalendarDays,
   Car,
-  CheckCircle2,
   ClipboardList,
   CloudRain,
   MapPin,
@@ -36,19 +35,15 @@ import type { DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { batchTone, minutes } from './calendar-meta';
 import { CheckInButton } from './today';
+import {
+  lateLabel,
+  lateMinutes,
+  sessionStatus,
+  STATUS_META,
+  type SessionStatus,
+} from '@/lib/session-status';
 
-type State = 'live' | 'next' | 'upcoming' | 'done' | 'cancelled' | 'past' | 'future';
-
-const STATE: Record<State, { label: string; tone: FloatTone }> = {
-  // Broadcast-style red for what is happening now; green stays reserved for check-ins.
-  live: { label: 'Live', tone: 'on-air' },
-  next: { label: 'Next', tone: 'primary' },
-  upcoming: { label: 'Later', tone: 'neutral' },
-  done: { label: 'Done', tone: 'neutral' },
-  cancelled: { label: 'Cancelled', tone: 'muted' },
-  past: { label: 'Past', tone: 'neutral' },
-  future: { label: 'Scheduled', tone: 'neutral' },
-};
+type State = SessionStatus;
 
 const gapLabel = (mins: number) =>
   mins <= 0
@@ -61,14 +56,14 @@ export function CoachDayView({
   date,
   sessions,
   isToday,
-  isPast,
+  isPast = false,
   now,
   isAdmin = false,
 }: {
   date: string;
   sessions: DayOverviewSession[];
   isToday: boolean;
-  isPast: boolean;
+  isPast?: boolean;
   now: number;
   /** Admins: one time-ordered list across all coaches, no location grouping or travel. */
   isAdmin?: boolean;
@@ -78,19 +73,23 @@ export function CoachDayView({
   const sorted = [...sessions].sort(
     (a, b) => minutes(a.batch.startTime) - minutes(b.batch.startTime),
   );
-  const nextId = isToday
-    ? (sorted.find((s) => !s.cancelled && minutes(s.batch.startTime) > now)?.batch.id ?? null)
-    : null;
-  const stateOf = (s: DayOverviewSession): State => {
-    if (s.cancelled) return 'cancelled';
-    if (isPast) return 'past';
-    if (!isToday) return 'future';
-    const start = minutes(s.batch.startTime);
-    const end = minutes(s.batch.endTime);
-    if (now >= start && now < end) return 'live';
-    if (now >= end) return 'done';
-    return s.batch.id === nextId ? 'next' : 'upcoming';
-  };
+  // Scheduled → Delayed / Live → Completed, Partial or Missed (shared with the dashboard).
+  const stateOf = (s: DayOverviewSession): State =>
+    sessionStatus(
+      {
+        startTime: s.batch.startTime,
+        endTime: s.batch.endTime,
+        cancelled: s.cancelled,
+        checkInAt: s.coachSession?.checkInAt,
+        expectedStudents: s.expectedStudents,
+        attendanceComplete: s.attendanceComplete,
+        lessonPlanFilled: s.lessonPlanFilled,
+        coachFeedback: s.batch.coachFeedback,
+      },
+      date,
+      // Judged against the calendar's own today (past, today or ahead).
+      { today: isToday ? date : isPast ? '9999-12-31' : '0000-01-01', minutes: now },
+    );
 
   // Consecutive sessions at the same place form one stop.
   const stops: {
@@ -274,7 +273,7 @@ function SessionTile({
   onOpen: () => void;
 }) {
   const me = useUser();
-  const st = STATE[state];
+  const st = STATUS_META[state];
   const pct = s.expectedStudents ? Math.round((s.marked / s.expectedStudents) * 100) : 0;
   return (
     <Card
@@ -291,7 +290,7 @@ function SessionTile({
       className={cn(
         'relative cursor-pointer border-l-4 px-2 py-1.5 transition-shadow hover:shadow-e2',
         batchTone(s.batch.id),
-        (state === 'done' || state === 'cancelled') && 'opacity-75',
+        state === 'cancelled' && 'opacity-75',
       )}
     >
       <div className="flex items-center gap-2">
@@ -318,15 +317,25 @@ function SessionTile({
         {s.coachSession && !s.cancelled && (
           <FloatBadge
             tone={
-              s.coachSession.flagged ? 'warning' : s.coachSession.checkOutAt ? 'success' : 'live'
+              s.coachSession.flagged ||
+              lateMinutes({ startTime: s.batch.startTime, checkInAt: s.coachSession.checkInAt })
+                ? 'warning'
+                : 'success'
             }
-            icon={s.coachSession.checkOutAt ? <CheckCircle2 /> : undefined}
+            icon={<MapPin />}
           >
-            {formatClock(s.coachSession.checkInAt)}
-            {s.coachSession.checkOutAt ? ` – ${formatClock(s.coachSession.checkOutAt)}` : ''}
+            In {formatClock(s.coachSession.checkInAt)}
+            {(({ late }) => (late ? ` · ${lateLabel(late)}` : ''))({
+              late: lateMinutes({
+                startTime: s.batch.startTime,
+                checkInAt: s.coachSession.checkInAt,
+              }),
+            })}
           </FloatBadge>
         )}
-        <FloatBadge tone={STATE[state].tone}>{st.label}</FloatBadge>
+        <FloatBadge tone={st.tone} title={st.hint}>
+          {st.label}
+        </FloatBadge>
       </div>
       {s.cancelled ? (
         <Badge variant="muted" className="mt-1">
@@ -352,19 +361,10 @@ function SessionTile({
               <ClipboardList /> {s.hasLessonPlan ? 'Plan' : 'Add plan'}
             </Badge>
           </Link>
-          {s.coachSession
-            ? null
-            : (!isToday || (isAdmin && state !== 'next' && state !== 'upcoming')) && (
-                <Badge
-                  variant={isAdmin && (state === 'live' || state === 'done') ? 'warning' : 'muted'}
-                >
-                  No check-in
-                </Badge>
-              )}
           {isToday &&
             todayItem &&
-            !todayItem.session?.checkOutAt &&
-            (state === 'live' || state === 'next' || !!todayItem.session) && (
+            !todayItem.session &&
+            (state === 'scheduled' || state === 'delayed') && (
               <span className="ml-auto" onClick={(e) => e.stopPropagation()}>
                 <CheckInButton item={todayItem} overview={s} compact />
               </span>

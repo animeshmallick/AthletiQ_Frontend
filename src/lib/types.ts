@@ -371,18 +371,16 @@ export interface CoachSession {
   checkInAt: string;
   checkInLat: number;
   checkInLng: number;
-  checkOutLat: number | null;
-  checkOutLng: number | null;
   checkInDistanceM: number;
   checkInWithinFence: boolean;
-  checkOutAt: string | null;
-  checkOutDistanceM: number | null;
-  checkOutWithinFence: boolean | null;
   note: string | null;
   reviewedAt: string | null;
   reviewNote: string | null;
   flagged: boolean;
-  durationMinutes: number | null;
+  /** The session's scheduled length (hours coached count this). */
+  durationMinutes: number;
+  scheduledStart: string;
+  scheduledEnd: string;
 }
 
 export interface DayOverviewSession {
@@ -405,7 +403,7 @@ export interface DayOverviewSession {
   lessonPlanFits?: boolean;
   /** The coach picked this session's drills. */
   lessonPlanFilled?: boolean;
-  coachSession: { checkInAt: string; checkOutAt: string | null; flagged: boolean } | null;
+  coachSession: { checkInAt: string; flagged: boolean } | null;
   cancelled: string | null;
   /** Substitute coach covering this session, if any. */
   substitute?: { id: string; name: string } | null;
@@ -720,7 +718,6 @@ export interface AppTask {
     | 'missed-check-in'
     | 'attendance'
     | 'lesson-plan'
-    | 'check-out'
     | 'feedback'
     | 'registrations'
     | 'flagged-check-ins'

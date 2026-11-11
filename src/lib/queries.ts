@@ -553,7 +553,8 @@ export const useCoachToday = (enabled = true) =>
     enabled,
   });
 
-export function useCheck(kind: 'check-in' | 'check-out') {
+/** Coach check-in at the venue (GPS). There is no check-out. */
+export function useCheck() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (body: {
@@ -562,7 +563,7 @@ export function useCheck(kind: 'check-in' | 'check-out') {
       longitude: number;
       accuracy?: number | null;
       note?: string | null;
-    }) => api.post<{ session: CoachSession; message: string }>(`/coach-sessions/${kind}`, body),
+    }) => api.post<{ session: CoachSession; message: string }>('/coach-sessions/check-in', body),
     onSuccess: () => invalidate(['coach-sessions'], ['attendance', 'overview']),
   });
 }
@@ -585,7 +586,6 @@ export const useCoachSessions = (q: Query) =>
           sessions: number;
           flagged: number;
           unreviewedFlagged: number;
-          missingCheckOut: number;
           totalHours: number;
         };
       }>('/coach-sessions', q),
@@ -598,16 +598,6 @@ export function useReviewSession() {
     mutationFn: ({ id, note }: { id: string; note?: string | null }) =>
       api.post(`/coach-sessions/${id}/review`, { note }),
     onSuccess: () => invalidate(['coach-sessions']),
-  });
-}
-
-/** Admin: close a session a coach forgot to check out of. */
-export function useAdminCheckOut() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: ({ id, at, reason }: { id: string; at?: string; reason?: string | null }) =>
-      api.post(`/coach-sessions/${id}/check-out`, { at, reason }),
-    onSuccess: () => invalidate(['coach-sessions'], ['attendance'], ['me', 'tasks']),
   });
 }
 

@@ -1,4 +1,5 @@
-import { CheckCircle2, Clock, LogOut, MapPin, ShieldAlert, ShieldCheck, Timer } from 'lucide-react';
+import { CheckCircle2, Clock, MapPin, ShieldAlert, ShieldCheck, Timer } from 'lucide-react';
+import { lateLabel, lateMinutes } from '@/lib/session-status';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
@@ -24,94 +25,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/overlays';
-import { Badge, Card, Input, Select, Textarea } from '@/components/ui/primitives';
+import { Badge, Card, Select, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
 import { formatClock, formatDate, formatDuration, formatTimeRange } from '@/lib/format';
 import {
   type CoachSessionRow,
-  useAdminCheckOut,
   useCoachSessions,
   useLocations,
   useReviewSession,
   useUsers,
 } from '@/lib/queries';
-
-/** "2026-03-09T11:30" in IST for a datetime-local input. */
-function istLocal(d: Date) {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    })
-      .formatToParts(d)
-      .map((x) => [x.type, x.value]),
-  );
-  return `${p.year}-${p.month}-${p.day}T${p.hour === '24' ? '00' : p.hour}:${p.minute}`;
-}
-
-function CheckOutDialog({ session, onClose }: { session: CoachSessionRow; onClose: () => void }) {
-  const checkOut = useAdminCheckOut();
-  const [at, setAt] = useState(() => istLocal(new Date()));
-  const [reason, setReason] = useState('');
-  const min = istLocal(new Date(session.checkInAt));
-  const submit = () =>
-    checkOut.mutate(
-      {
-        id: session.id,
-        at: new Date(`${at}:00+05:30`).toISOString(),
-        reason: reason.trim() || null,
-      },
-      {
-        onSuccess: () => {
-          toast.success(`${session.coach.name} checked out`);
-          onClose();
-        },
-        onError: (e) => toast.error(errorMessage(e)),
-      },
-    );
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Check out {session.coach.name}</DialogTitle>
-          <DialogDescription>
-            {session.batch.name} · checked in at {formatClock(session.checkInAt)}. Use this when the
-            coach forgot to check out.
-          </DialogDescription>
-        </DialogHeader>
-        <Field label="Check-out time (IST)" required>
-          <Input
-            type="datetime-local"
-            value={at}
-            min={min}
-            max={istLocal(new Date())}
-            onChange={(e) => e.target.value && setAt(e.target.value)}
-          />
-        </Field>
-        <Field label="Reason" hint="Shown on the session and to the coach.">
-          <Input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="e.g. Forgot to check out after the session"
-          />
-        </Field>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button loading={checkOut.isPending} onClick={submit}>
-            <LogOut /> Check out
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function ReviewDialog({ session, onClose }: { session: CoachSessionRow; onClose: () => void }) {
   const review = useReviewSession();
@@ -132,14 +55,7 @@ function ReviewDialog({ session, onClose }: { session: CoachSessionRow; onClose:
           <StaticMap
             center={{ latitude: loc.latitude, longitude: loc.longitude }}
             radiusMeters={loc.radiusMeters}
-            reading={
-              session.checkInWithinFence &&
-              session.checkOutLat !== null &&
-              session.checkOutLng !== null &&
-              session.checkOutWithinFence === false
-                ? { latitude: session.checkOutLat, longitude: session.checkOutLng }
-                : { latitude: session.checkInLat, longitude: session.checkInLng }
-            }
+            reading={{ latitude: session.checkInLat, longitude: session.checkInLng }}
           />
         )}
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -151,15 +67,11 @@ function ReviewDialog({ session, onClose }: { session: CoachSessionRow; onClose:
             </p>
           </div>
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Check-out</p>
+            <p className="text-xs text-muted-foreground">Session</p>
             <p className="font-medium">
-              {session.checkOutAt ? formatClock(session.checkOutAt) : '—'}
+              {formatTimeRange(session.batch.startTime, session.batch.endTime)}
             </p>
-            {session.checkOutDistanceM !== null && (
-              <p className={session.checkOutWithinFence ? 'text-success' : 'text-destructive'}>
-                {session.checkOutDistanceM} m away
-              </p>
-            )}
+            <p className="text-muted-foreground">{formatDuration(session.durationMinutes)}</p>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -210,7 +122,6 @@ export function CoachSessionsPage() {
   const { from, to } = periodRange(period);
   const [coachId, setCoachId] = useState('');
   const [reviewing, setReviewing] = useState<CoachSessionRow | null>(null);
-  const [closing, setClosing] = useState<CoachSessionRow | null>(null);
   const coaches = useUsers({ role: 'coach', pageSize: 100 });
   const q = useCoachSessions({
     from,
@@ -219,6 +130,10 @@ export function CoachSessionsPage() {
     flagged: flagged ? 'true' : undefined,
   });
   const s = q.data?.summary;
+  // Checked in over 10 minutes after the start.
+  const lateCount = (q.data?.sessions ?? []).filter((r) =>
+    lateMinutes({ startTime: r.batch.startTime, checkInAt: r.checkInAt }),
+  ).length;
 
   return (
     <div>
@@ -298,11 +213,12 @@ export function CoachSessionsPage() {
           hint={s ? `${s.unreviewedFlagged} awaiting review` : undefined}
         />
         <StatCard
-          label="Missing check-out"
+          label="Late check-ins"
           icon={<Clock />}
           loading={q.isPending}
-          value={s?.missingCheckOut ?? 0}
-          tone="destructive"
+          value={lateCount}
+          tone={lateCount ? 'warning' : 'success'}
+          hint="Over 10 min after the start"
         />
       </div>
 
@@ -341,8 +257,7 @@ export function CoachSessionsPage() {
                     </Badge>
                   ) : (
                     <Badge variant="warning">
-                      <ShieldAlert /> {Math.max(r.checkInDistanceM, r.checkOutDistanceM ?? 0)} m
-                      away
+                      <ShieldAlert /> {r.checkInDistanceM} m away
                     </Badge>
                   )
                 ) : (
@@ -353,28 +268,22 @@ export function CoachSessionsPage() {
               </div>
               <p className="tabular col-span-2 flex items-center gap-1.5 text-xs text-muted-foreground sm:block sm:text-right">
                 <span className="font-medium text-foreground">
-                  {formatClock(r.checkInAt)} –{' '}
-                  {r.checkOutAt ? (
-                    formatClock(r.checkOutAt)
-                  ) : (
-                    <span className="text-destructive">no check-out</span>
-                  )}
+                  In {formatClock(r.checkInAt)}
+                  {(({ late }) =>
+                    late ? (
+                      <span className="text-warning-foreground dark:text-warning">
+                        {' '}
+                        · {lateLabel(late)}
+                      </span>
+                    ) : null)({
+                    late: lateMinutes({ startTime: r.batch.startTime, checkInAt: r.checkInAt }),
+                  })}
                 </span>
                 <span aria-hidden className="sm:hidden">
                   ·
                 </span>
                 <span className="sm:block">{formatDuration(r.durationMinutes)}</span>
               </p>
-              {isAdmin && !r.checkOutAt && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="col-span-2 sm:order-last"
-                  onClick={() => setClosing(r)}
-                >
-                  <LogOut /> Check out
-                </Button>
-              )}
               {isAdmin && r.flagged && !r.reviewedAt && (
                 <Button
                   size="sm"
@@ -390,7 +299,6 @@ export function CoachSessionsPage() {
         </Card>
       )}
       {reviewing && <ReviewDialog session={reviewing} onClose={() => setReviewing(null)} />}
-      {closing && <CheckOutDialog session={closing} onClose={() => setClosing(null)} />}
     </div>
   );
 }

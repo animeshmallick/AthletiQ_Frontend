@@ -100,13 +100,8 @@ describe('labels', () => {
 });
 
 describe('coachTimes', () => {
-  it('shows check-in and check-out, or what is missing', () => {
+  it('shows the check-in time, or that there is none', () => {
     expect(coachTimes(null)).toBe('Not in');
-    expect(coachTimes({ checkInAt: '2026-03-09T00:32:00Z', checkOutAt: null })).toMatch(
-      /^In 6:02\s?am · not out$/i,
-    );
-    expect(
-      coachTimes({ checkInAt: '2026-03-09T00:32:00Z', checkOutAt: '2026-03-09T02:31:00Z' }),
-    ).toMatch(/^6:02\s?am – 8:01\s?am$/i);
+    expect(coachTimes({ checkInAt: '2026-03-09T00:32:00Z' })).toMatch(/^In 6:02\s?am$/i);
   });
 });
