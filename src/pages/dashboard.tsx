@@ -20,7 +20,6 @@ export function DashboardPage() {
     <div>
       <Segmented
         ariaLabel="Dashboard view"
-        size="sm"
         className="mb-2 w-full sm:w-auto"
         value={tab}
         onChange={(v) => setParams(v === 'calendar' ? { tab: 'calendar' } : {}, { replace: true })}

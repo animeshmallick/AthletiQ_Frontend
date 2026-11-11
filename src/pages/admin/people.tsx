@@ -24,7 +24,7 @@ export function PeoplePage() {
     <div>
       <Segmented
         ariaLabel="Users"
-        className="mb-2.5 w-full sm:w-auto"
+        className="mb-2 w-full sm:w-auto"
         value={tab}
         // Switching sections starts clean (each section has its own filters).
         onChange={(v) => setParams(v === 'students' ? {} : { tab: v }, { replace: true })}

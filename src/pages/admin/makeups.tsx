@@ -49,7 +49,7 @@ export function MakeupsPage() {
         ariaLabel="Request status"
         value={status}
         onChange={(v) => setParams(v === 'pending' ? {} : { status: v }, { replace: true })}
-        className="mb-3 w-full sm:w-auto"
+        className="mb-2 w-full sm:w-auto"
         options={[
           { value: 'pending', label: 'Pending' },
           { value: 'approved', label: 'Approved' },

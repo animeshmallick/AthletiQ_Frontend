@@ -179,7 +179,7 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {data.needsCheckIn ? (
         <div
           role="status"
@@ -350,18 +350,26 @@ function AdminAttendance() {
   return (
     <div>
       <PageHeader
+        className="mb-2 sm:mb-3"
         title="Attendance"
         description="Mark who showed up. Changes save in one tap — even on a slow connection."
       />
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <Card className="mb-1.5 flex flex-col gap-1 p-1 sm:flex-row sm:items-center">
         <BatchSelect
           value={batchId}
           onChange={setBatch}
           batches={batches.data}
           loading={batches.isPending}
+          className="h-9 border-0 bg-muted/50 text-[13.5px] shadow-none sm:w-80"
         />
-        <DateStepper value={date} onChange={setDate} min={minDate} max={maxDate} />
-      </div>
+        <DateStepper
+          value={date}
+          onChange={setDate}
+          min={minDate}
+          max={maxDate}
+          className="h-9 border-0 shadow-none sm:flex-1"
+        />
+      </Card>
 
       {!batchId ? (
         <EmptyState
@@ -381,14 +389,14 @@ function AdminAttendance() {
               to {formatShortDate(cover.toDate)}.
             </p>
           ) : (
-            <TabsList className="mb-4">
+            <TabsList className="mb-2">
               <TabsTrigger value="session">Session</TabsTrigger>
               <TabsTrigger value="register">Monthly register</TabsTrigger>
             </TabsList>
           )}
           <TabsContent value="session">
             {!runsToday && (
-              <p className="mb-3 text-sm text-muted-foreground">
+              <p className="mb-2 text-[12.5px] text-muted-foreground">
                 {batch?.name} doesn’t usually run on {WEEKDAYS[isoWeekday(date) - 1]?.long}s — only
                 makeups appear here.
               </p>

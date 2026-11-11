@@ -243,7 +243,7 @@ export function RegistrationsPage() {
           setStatus(v);
           setPage(1);
         }}
-        className="mb-4 w-full sm:w-auto"
+        className="mb-2 w-full sm:w-auto"
         options={[
           {
             value: 'pending',
