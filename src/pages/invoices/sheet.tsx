@@ -203,14 +203,19 @@ function MarkPaidDialog({
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
             <Wallet className="size-4.5" />
           </span>
-          <span className="min-w-0 flex-1 leading-tight">
-            <span className="block text-[11px] font-medium text-success">Amount received</span>
+          <span className="shrink-0 leading-tight">
+            <span className="block text-[11px] font-medium whitespace-nowrap text-success">
+              Amount received
+            </span>
             <span className="tabular block text-[22px] font-bold tracking-tight">
               {money(invoice.totalAmount)}
             </span>
           </span>
-          <span className="text-right text-[11px] leading-tight text-muted-foreground">
-            {formatShortDate(invoice.periodStart)} – {formatShortDate(invoice.periodEnd)}
+          {/* Takes the space left and truncates, so it never runs into the amount. */}
+          <span className="min-w-0 flex-1 text-right text-[11px] leading-tight text-muted-foreground">
+            <span className="block truncate">
+              {formatShortDate(invoice.periodStart)} – {formatShortDate(invoice.periodEnd)}
+            </span>
             {invoice.batchName && <span className="block truncate">{invoice.batchName}</span>}
           </span>
         </div>
