@@ -35,7 +35,7 @@ import { CoachAttendance } from './attendance-coach';
 import { CancelledBanner, CancelSessionButton, MonthlyRegister } from './attendance-parts';
 import { Link } from 'react-router';
 
-const STATUSES: AttendanceStatus[] = ['present', 'late', 'absent', 'excused'];
+const STATUSES: AttendanceStatus[] = ['present', 'absent', 'late', 'excused'];
 
 type Draft = Record<string, { status: AttendanceStatus | null; note: string | null }>;
 
@@ -49,11 +49,7 @@ function StatusToggle({
   disabled: boolean;
 }) {
   return (
-    <div
-      role="radiogroup"
-      aria-label="Attendance status"
-      className="grid w-full grid-cols-4 gap-1.5 sm:w-auto"
-    >
+    <div role="radiogroup" aria-label="Attendance status" className="flex shrink-0 gap-1">
       {STATUSES.map((s) => {
         const meta = ATTENDANCE_META[s];
         const active = value === s;
@@ -71,13 +67,15 @@ function StatusToggle({
               onChange(s);
             }}
             className={cn(
-              'h-10 min-w-0 cursor-pointer rounded-xl border px-1 text-[13px] font-semibold transition-all active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-20 sm:text-sm',
+              'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border text-[12px] font-bold transition-all active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-2.5 sm:text-[12.5px] sm:font-semibold',
               active
                 ? meta.active
                 : 'bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
             )}
           >
-            {meta.label}
+            {/* Phones: the first letter (P, L, A, E); wider screens: the word. */}
+            <span className="sm:hidden">{meta.label[0]}</span>
+            <span className="hidden sm:inline">{meta.label}</span>
           </button>
         );
       })}
@@ -214,8 +212,8 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
         )
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-1.5">
+        <div className="flex flex-wrap gap-1 text-xs [&_[data-slot=badge]]:px-1.5">
           {STATUSES.map((s) => (
             <Badge
               key={s}
@@ -228,7 +226,7 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
           {counts.unmarked > 0 && <Badge variant="muted">Unmarked {counts.unmarked}</Badge>}
         </div>
         {editable && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 [&_button]:h-8 [&_button]:px-2.5 [&_button]:text-[12px]">
             {nothingMarked && data.isScheduledDay && (
               <CancelSessionButton batchId={batchId} date={date} />
             )}
@@ -246,51 +244,40 @@ function SessionSheet({ batchId, date }: { batchId: string; date: string }) {
         {data.students.map((s) => {
           const d = draft[s.studentId];
           return (
-            <div key={s.studentId} className="p-3 sm:p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <Avatar name={s.fullName} />
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{s.fullName}</p>
-                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {s.code}
-                      {s.isMakeup && <Badge variant="default">Makeup</Badge>}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label={`Note for ${s.fullName}`}
-                    onClick={() => setOpenNote((o) => (o === s.studentId ? null : s.studentId))}
-                    className={cn(
-                      'ml-auto cursor-pointer rounded-md p-2 text-muted-foreground hover:bg-muted sm:hidden',
-                      d?.note && 'text-primary',
+            <div key={s.studentId} className="px-2 py-1.5">
+              <div className="flex items-center gap-2">
+                <Avatar name={s.fullName} className="size-7 text-[10px]" />
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="truncate text-[13.5px] font-medium">{s.fullName}</p>
+                  <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    {s.code}
+                    {s.isMakeup && (
+                      <Badge variant="default" className="px-1.5 py-0 text-[10px]">
+                        Makeup
+                      </Badge>
                     )}
-                  >
-                    <StickyNote className="size-4" />
-                  </button>
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <StatusToggle
-                    value={d?.status ?? null}
-                    onChange={(st) => setStatus(s.studentId, st)}
-                    disabled={!editable}
-                  />
-                  <button
-                    type="button"
-                    aria-label={`Note for ${s.fullName}`}
-                    onClick={() => setOpenNote((o) => (o === s.studentId ? null : s.studentId))}
-                    className={cn(
-                      'hidden cursor-pointer rounded-md p-2 text-muted-foreground hover:bg-muted sm:block',
-                      d?.note && 'text-primary',
-                    )}
-                  >
-                    <StickyNote className="size-4" />
-                  </button>
-                </div>
+                <StatusToggle
+                  value={d?.status ?? null}
+                  onChange={(st) => setStatus(s.studentId, st)}
+                  disabled={!editable}
+                />
+                <button
+                  type="button"
+                  aria-label={`Note for ${s.fullName}`}
+                  onClick={() => setOpenNote((o) => (o === s.studentId ? null : s.studentId))}
+                  className={cn(
+                    'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted',
+                    d?.note && 'text-primary',
+                  )}
+                >
+                  <StickyNote className="size-4" />
+                </button>
               </div>
               {(openNote === s.studentId || d?.note) && (
                 <Input
-                  className="mt-3"
+                  className="mt-1.5 h-8 text-[13px]"
                   placeholder="Add a note (e.g. left early, minor injury)…"
                   value={d?.note ?? ''}
                   disabled={!editable}

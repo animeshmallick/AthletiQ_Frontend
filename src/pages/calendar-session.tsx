@@ -35,7 +35,7 @@ import type { AttendanceStatus, DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { batchTone, liveStatus } from './calendar-meta';
 
-const STATUSES: AttendanceStatus[] = ['present', 'late', 'absent', 'excused'];
+const STATUSES: AttendanceStatus[] = ['present', 'absent', 'late', 'excused'];
 const BAR: Record<AttendanceStatus, string> = {
   present: 'bg-success',
   late: 'bg-warning',
