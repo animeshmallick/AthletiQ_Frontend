@@ -298,7 +298,7 @@ function SessionTile({
         state === 'cancelled' && 'opacity-75',
       )}
     >
-      {/* Two columns: when (scheduled, checked in, how late) | what (batch, coach and place). */}
+      {/* Two columns: when (scheduled, checked in, how late) | what (batch, place, badges). */}
       <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2">
         <div className="tabular leading-tight">
           <p className="text-[12.5px] font-bold">{formatTime(s.batch.startTime)}</p>
@@ -333,6 +333,44 @@ function SessionTile({
             {isAdmin ? `${s.batch.coach.name} · ` : ''}
             {s.batch.location.name}
           </p>
+          {s.cancelled ? (
+            <Badge variant="muted" className="mt-1">
+              <CloudRain /> {s.cancelled}
+            </Badge>
+          ) : (
+            // Under the name: everything about the session at a glance.
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1 [&_[data-slot=badge]]:px-1.5 [&_[data-slot=badge]]:text-[10px]">
+              {s.substitute && (
+                <Badge variant="default">
+                  <Repeat />
+                  {s.substitute.id === me.id ? 'You cover' : s.substitute.name}
+                </Badge>
+              )}
+              <Badge variant={s.attendanceComplete ? 'success' : s.marked ? 'default' : 'muted'}>
+                <Users /> {s.marked}/{s.expectedStudents}
+                {s.expectedStudents > 0 && s.marked > 0 ? ` · ${pct}%` : ''}
+              </Badge>
+              {/* Is the day's lesson plan filled in? (Not for attendance-only batches.) */}
+              {s.batch.coachFeedback !== false && (
+                <Link
+                  to={`/lesson-plans?batch=${s.batch.id}&date=${date}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Badge variant={s.lessonPlanFilled ? 'success' : 'muted'}>
+                    <ClipboardList /> {s.lessonPlanFilled ? 'Plan filled' : 'Plan not filled'}
+                  </Badge>
+                </Link>
+              )}
+              {isToday &&
+                todayItem &&
+                !todayItem.session &&
+                (state === 'scheduled' || state === 'delayed') && (
+                  <span className="ml-auto" onClick={(e) => e.stopPropagation()}>
+                    <CheckInButton item={todayItem} overview={s} compact />
+                  </span>
+                )}
+            </div>
+          )}
         </div>
       </div>
       {/* The status floats on the card's top edge. */}
@@ -350,44 +388,6 @@ function SessionTile({
           })}
         </FloatBadge>
       </div>
-      {s.cancelled ? (
-        <Badge variant="muted" className="mt-1">
-          <CloudRain /> {s.cancelled}
-        </Badge>
-      ) : (
-        // Third row, full width: everything about the session at a glance.
-        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1 border-t border-border/60 pt-1.5 [&_[data-slot=badge]]:px-1.5 [&_[data-slot=badge]]:text-[10px]">
-          {s.substitute && (
-            <Badge variant="default">
-              <Repeat />
-              {s.substitute.id === me.id ? 'You cover' : s.substitute.name}
-            </Badge>
-          )}
-          <Badge variant={s.attendanceComplete ? 'success' : s.marked ? 'default' : 'muted'}>
-            <Users /> {s.marked}/{s.expectedStudents}
-            {s.expectedStudents > 0 && s.marked > 0 ? ` · ${pct}%` : ''}
-          </Badge>
-          {/* Is the day's lesson plan filled in? (Not for attendance-only batches.) */}
-          {s.batch.coachFeedback !== false && (
-            <Link
-              to={`/lesson-plans?batch=${s.batch.id}&date=${date}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Badge variant={s.lessonPlanFilled ? 'success' : 'muted'}>
-                <ClipboardList /> {s.lessonPlanFilled ? 'Plan filled' : 'Plan not filled'}
-              </Badge>
-            </Link>
-          )}
-          {isToday &&
-            todayItem &&
-            !todayItem.session &&
-            (state === 'scheduled' || state === 'delayed') && (
-              <span className="ml-auto" onClick={(e) => e.stopPropagation()}>
-                <CheckInButton item={todayItem} overview={s} compact />
-              </span>
-            )}
-        </div>
-      )}
     </Card>
   );
 }
