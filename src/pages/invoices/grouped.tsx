@@ -167,22 +167,11 @@ export function InvoiceGroups({
                       {money(s.total)}
                     </span>
                   </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    {plural(g.invoices.length, 'invoice')}
-                    {s.paidN ? ` · ${s.paidN} paid` : ''}
-                  </span>
-                  {/* Collected (green) and overdue (red) out of the group's total. */}
-                  {s.total > 0 && (
-                    <span
-                      className="mt-1 flex h-1 overflow-hidden rounded-full bg-muted"
-                      role="img"
-                      aria-label={`${Math.round(collected)}% collected`}
-                    >
-                      <span className="h-full bg-success" style={{ width: `${collected}%` }} />
-                      <span className="h-full bg-destructive" style={{ width: `${late}%` }} />
+                  {/* One line: how many, then overdue / due / paid. */}
+                  <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1 text-[10px] font-semibold">
+                    <span className="mr-0.5 text-[11px] font-normal text-muted-foreground">
+                      {plural(g.invoices.length, 'invoice')}
                     </span>
-                  )}
-                  <span className="mt-1 flex flex-wrap items-center gap-1 text-[10px] font-semibold">
                     {s.overdueN > 0 && (
                       <span className="rounded-full bg-destructive/10 px-1.5 py-px text-destructive">
                         Overdue {money(s.overdue)} · {s.overdueN}
@@ -195,10 +184,21 @@ export function InvoiceGroups({
                     )}
                     {s.paidN > 0 && (
                       <span className="rounded-full bg-success/10 px-1.5 py-px text-success">
-                        Paid {money(s.paid)}
+                        Paid {money(s.paid)} · {s.paidN}
                       </span>
                     )}
                   </span>
+                  {/* Collected (green) and overdue (red) out of the group's total. */}
+                  {s.total > 0 && (
+                    <span
+                      className="mt-1 flex h-1 overflow-hidden rounded-full bg-muted"
+                      role="img"
+                      aria-label={`${Math.round(collected)}% collected`}
+                    >
+                      <span className="h-full bg-success" style={{ width: `${collected}%` }} />
+                      <span className="h-full bg-destructive" style={{ width: `${late}%` }} />
+                    </span>
+                  )}
                 </span>
                 <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
               </Accordion.Trigger>
