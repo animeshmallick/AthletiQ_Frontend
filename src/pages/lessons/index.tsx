@@ -5,7 +5,7 @@
  */
 import { Accordion } from 'radix-ui';
 import { CalendarX2, ChevronDown, Layers, MapPin } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useBlocker, useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
 import { ConfirmDialog, EmptyState, ListSkeleton, PageHeader } from '@/components/common';
@@ -50,14 +50,23 @@ export function LessonPlansPage() {
   const [direction, setDirection] = useState<1 | -1 | 0>(0);
 
   // Unsaved edits anywhere on the page (a day being filled in, the batch plan): ask first.
+  // A ref mirrors the state so the checks below see a discard at once — reading the last render's
+  // state let "Discard" re-trigger the same question (a confirm ↔ discard loop).
   const [editing, setEditing] = useState<Record<string, boolean>>({});
-  const markEditing = (key: string, on: boolean) =>
-    setEditing((e) => (Boolean(e[key]) === on ? e : { ...e, [key]: on }));
+  const editingRef = useRef<Record<string, boolean>>({});
+  const markEditing = (key: string, on: boolean) => {
+    if (Boolean(editingRef.current[key]) === on) return;
+    editingRef.current = { ...editingRef.current, [key]: on };
+    setEditing(editingRef.current);
+  };
+  const discardAll = () => {
+    editingRef.current = {};
+    setEditing({});
+  };
   const busy = Object.values(editing).some(Boolean);
-  const planDirty = Boolean(editing.plan);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      busy &&
+      Object.values(editingRef.current).some(Boolean) &&
       (currentLocation.pathname !== nextLocation.pathname ||
         currentLocation.search !== nextLocation.search),
   );
@@ -137,8 +146,9 @@ export function LessonPlansPage() {
         <Dialog
           open={planOpen}
           onOpenChange={(o) => {
-            if (o) return;
-            if (planDirty) setConfirmClose(true);
+            // Ignore the close a tap on the confirmation itself causes.
+            if (o || confirmClose) return;
+            if (editingRef.current.plan) setConfirmClose(true);
             else set({ plan: '' });
           }}
         >
@@ -178,7 +188,7 @@ export function LessonPlansPage() {
         confirmLabel="Discard changes"
         destructive
         onConfirm={() => {
-          setEditing({});
+          discardAll();
           if (blocker.state === 'blocked') blocker.proceed();
         }}
       />

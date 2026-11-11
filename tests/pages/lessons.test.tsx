@@ -226,6 +226,27 @@ describe('Batch plan', () => {
     ).toEqual(['Cool down', 'Ball drills', 'Workout']);
   });
 
+  it('closing with unsaved edits asks once, and Discard really closes (no loop)', async () => {
+    mockApi({
+      'GET /batches': () => [batch],
+      'GET /lessons/batch-plan': () => view({ plan }),
+    });
+    const { user, router } = await renderPage(<LessonPlansPage />, {
+      path: '/lesson-plans',
+      route: '/lesson-plans?batch=b1&plan=1',
+      user: coachUser,
+    });
+    await user.click(await screen.findByRole('button', { name: /Edit plan/ }));
+    await user.keyboard('{Escape}');
+    expect(await screen.findByText('Close without saving?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Discard changes' }));
+    await waitFor(() => expect(router.state.location.search).not.toContain('plan=1'));
+    // Neither question comes back.
+    expect(screen.queryByText('Close without saving?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Leave without saving?')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('flags a plan that no longer fits the sessions', async () => {
     mockApi({
       'GET /batches': () => [batch, { ...batch, id: 'b2', name: 'Mixed' }],
