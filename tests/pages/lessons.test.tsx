@@ -2,7 +2,7 @@ import { within } from '@testing-library/react';
 import { LessonPlansPage } from '@/pages/lessons';
 import type { BatchPlan, BatchPlanView, PlanOverviewItem, SessionPlanView } from '@/lib/types';
 import { batch } from '../fixtures';
-import { adminUser, chooseOption, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
+import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
 const info = {
   id: 'b1',
@@ -110,10 +110,8 @@ describe('Lesson plans by day', () => {
     expect(await screen.findByRole('button', { name: /Fill now/ })).toBeInTheDocument();
     expect(screen.getByText('Ball drills')).toBeInTheDocument();
 
-    // One batch: just its plan, and the batch plan in a modal.
-    await chooseOption(user, screen.getByLabelText('Batch'), 'b1');
-    expect(screen.queryByRole('button', { name: /Evening/ })).not.toBeInTheDocument();
-    await user.click(await screen.findByRole('button', { name: 'Edit plan' }));
+    // The batch's plan template opens in a modal from its card.
+    await user.click(screen.getByRole('button', { name: /Manage plan template/ }));
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('Skipping')).toBeInTheDocument();
     expect(within(dialog).getByText('Light feet')).toBeInTheDocument();
@@ -376,7 +374,7 @@ describe('Session plans', () => {
     expect(await screen.findByText('Not filled in yet')).toBeInTheDocument();
   });
 
-  it('steps between session days and shows days without a session', async () => {
+  it('opens the batch a link asks for, and steps to days without a session', async () => {
     const api = mockApi({
       'GET /batches': () => [{ ...batch, weekdays: [1, 3] }],
       'GET /lessons/session': (c) =>
@@ -389,18 +387,17 @@ describe('Session plans', () => {
     });
     const { user } = await renderPage(<LessonPlansPage />, {
       path: '/lesson-plans',
-      // A Tuesday snaps to Wednesday.
-      route: '/lesson-plans?batch=b1&date=2026-03-10',
+      route: '/lesson-plans?batch=b1&date=2026-03-11',
       user: coachUser,
     });
     expect(await screen.findByText(/This session was cancelled/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Fill now/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Next session' }));
-    await waitFor(() =>
-      expect(
-        api.find('GET /lessons/session').some((c) => c.query.get('date') === '2026-03-16'),
-      ).toBe(true),
+    expect(api.find('GET /lessons/session').some((c) => c.query.get('date') === '2026-03-11')).toBe(
+      true,
     );
+    // Thursday: b1 doesn't run.
+    await user.click(screen.getByRole('button', { name: 'Next day' }));
+    expect(await screen.findByText('No sessions this day')).toBeInTheDocument();
   });
 
   it('offers to set up the plan when the batch has none', async () => {

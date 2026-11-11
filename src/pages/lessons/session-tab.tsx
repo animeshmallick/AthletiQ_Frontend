@@ -191,8 +191,13 @@ export function SessionPlan({
   return (
     <div className="space-y-1.5">
       {(actions || (d.source !== 'none' && !fits && !d.lockedReason)) && (
-        <div className="flex flex-wrap items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-1.5">
           <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+            {d.source === 'batch' && d.canAdjust && !d.lockedReason && (
+              <span className="text-[11.5px] leading-snug text-muted-foreground">
+                Follows the batch plan. Pick today’s drills.
+              </span>
+            )}
             {d.source !== 'none' && !fits && !d.lockedReason && (
               <Badge variant="warning">
                 {d.totalMinutes} of {d.minutes} min
@@ -256,11 +261,6 @@ export function SessionPlan({
         />
       ) : (
         <>
-          {d.source === 'batch' && d.canAdjust && (
-            <p className="text-[12px] text-muted-foreground">
-              The day follows the batch plan’s blocks. Tap Fill now to pick its drills.
-            </p>
-          )}
           <PlanView blocks={d.blocks} target={d.minutes} focus={d.focus} />
         </>
       )}

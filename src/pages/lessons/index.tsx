@@ -1,19 +1,16 @@
 /**
- * Lesson plans, by day. "All batches" (the default) lists every batch with a session that day as
- * a collapsible section; picking one batch shows just its plan, with "Edit plan" for the batch
- * plan (a modal: view, edit, copy). Swipe or use the arrows to move a day (a session day when one
- * batch is picked).
+ * Lesson plans, by day: every batch with a session that day as a collapsible card (swipe or use
+ * the arrows to change the day). Each card has the day's plan and a button for the batch's plan
+ * template (a modal: view, edit, copy). ?batch= opens that card; with &plan=1, its template.
  */
 import { Accordion } from 'radix-ui';
-import { CalendarX2, ChevronDown, Layers, MapPin, Repeat } from 'lucide-react';
+import { CalendarX2, ChevronDown, Layers, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { useBlocker, useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
 import { ConfirmDialog, EmptyState, ListSkeleton, PageHeader } from '@/components/common';
 import { Floating, FloatBadge } from '@/components/floating-badge';
-import { BatchSelect } from '@/components/pickers';
 import { SwipeDays } from '@/components/swipe-days';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -22,20 +19,11 @@ import {
   DialogTitle,
 } from '@/components/ui/overlays';
 import { timesOn } from '@/lib/batch-times';
-import {
-  addDays,
-  formatShortDate,
-  formatTime,
-  formatTimeRange,
-  isoWeekday,
-  plural,
-  today,
-} from '@/lib/format';
+import { addDays, formatTime, isoWeekday, plural, today } from '@/lib/format';
 import { batchTone } from '../calendar-meta';
-import { useBatches, usePlanOverview, useSessionPlan } from '@/lib/queries';
+import { useBatches, useSessionPlan } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { snapToSession } from './meta';
 import { LessonInsightsButton } from './insights';
 import { PlanTab } from './plan-tab';
 import { DayStepper, SessionPlan, SessionStatus } from './session-tab';
@@ -60,7 +48,6 @@ export function LessonPlansPage() {
   // The batch plan opens in a modal (?plan=1, e.g. from the batch page or a to-do).
   const planOpen = !!batch && !subOnly && params.get('plan') === '1';
   const [direction, setDirection] = useState<1 | -1 | 0>(0);
-  const status = usePlanOverview().data?.batches.find((b) => b.id === batchId)?.status;
 
   // Unsaved edits anywhere on the page (a day being filled in, the batch plan): ask first.
   const [editing, setEditing] = useState<Record<string, boolean>>({});
@@ -89,34 +76,21 @@ export function LessonPlansPage() {
       { replace: true },
     );
 
-  // One batch: its session days (a substitute stays within the days they cover). All: any day.
-  const snap = (d: string, dir: 1 | -1 = 1) => {
-    if (!batch) return d;
-    const s = snapToSession(d, batch.weekdays, dir);
-    const cover = isCoach ? batch.substitution : null;
-    if (!cover) return s;
-    if (s < cover.fromDate) return snapToSession(cover.fromDate, batch.weekdays, 1);
-    if (s > cover.toDate) return snapToSession(cover.toDate, batch.weekdays, -1);
-    return s;
-  };
-  const date = snap(params.get('date') ?? today());
+  const date = params.get('date') ?? today();
   const step = (n: 1 | -1) => {
     if (busy) return;
     setDirection(n);
-    set({ date: snap(addDays(date, n), n) });
+    set({ date: addDays(date, n), batch: '' });
   };
   const pick = (d: string) => {
     setDirection(d > date ? 1 : -1);
-    set({ date: snap(d) });
+    set({ date: d, batch: '' });
   };
 
   const day = (batches.data ?? [])
     .filter((b) => runsOn(b, date, isCoach))
     .map((b) => ({ b, t: timesOn(b, date) }))
     .sort((x, y) => x.t.startTime.localeCompare(y.t.startTime));
-  const t = batch ? timesOn(batch, date) : null;
-  const sq = useSessionPlan(batch?.id, date);
-  const single = sq.data?.date === date && sq.data.batch.id === batch?.id ? sq.data : undefined;
 
   return (
     <div>
@@ -134,73 +108,26 @@ export function LessonPlansPage() {
       />
 
       <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <BatchSelect
-            value={batchId}
-            onChange={(id) => set({ batch: id, plan: '' })}
-            batches={batches.data}
-            loading={batches.isPending}
-            allowAll
-            className="min-w-0 flex-1 sm:w-80 sm:flex-none"
-          />
-          {batch && !subOnly && (
-            <Button
-              size="sm"
-              variant={isCoach && status && status !== 'ready' ? 'default' : 'outline'}
-              onClick={() => set({ plan: '1' })}
-              className="h-8 shrink-0 gap-1 px-2 text-[12px] pointer-coarse:h-8 pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
-            >
-              <Layers />
-              {!isCoach
-                ? 'View plan'
-                : status === 'none'
-                  ? 'Set up plan'
-                  : status === 'needs-update'
-                    ? 'Update plan'
-                    : 'Edit plan'}
-            </Button>
-          )}
-        </div>
-
-        {batch?.substitution && isCoach && (
-          <div
-            role="status"
-            className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-2 py-1 text-[12px]"
-          >
-            <Repeat aria-hidden className="size-3.5 shrink-0 text-primary" />
-            You’re covering {batch.name} from {formatShortDate(batch.substitution.fromDate)} to{' '}
-            {formatShortDate(batch.substitution.toDate)}.
-          </div>
-        )}
-
-        <Floating badges={batch ? <SessionStatus d={single} /> : null}>
-          <DayStepper
-            date={date}
-            unit={batch ? 'session' : 'day'}
-            sub={
-              batch && t
-                ? formatTimeRange(t.startTime, t.endTime)
-                : batches.data
-                  ? day.length
-                    ? plural(day.length, 'session')
-                    : 'No sessions'
-                  : undefined
-            }
-            disabled={busy}
-            onStep={step}
-            onPick={pick}
-            onToday={date !== snap(today()) ? () => pick(today()) : undefined}
-          />
-        </Floating>
+        <DayStepper
+          date={date}
+          unit="day"
+          sub={
+            batches.data ? (day.length ? plural(day.length, 'session') : 'No sessions') : undefined
+          }
+          disabled={busy}
+          onStep={step}
+          onPick={pick}
+          onToday={date !== today() ? () => pick(today()) : undefined}
+        />
 
         {/* While a day is being filled in it stays put: no swiping. */}
         <SwipeDays
-          dayKey={batchId + ':' + date}
+          dayKey={date}
           direction={direction}
           onStep={step}
           disabled={busy}
-          prevLabel={batch ? 'Previous session' : 'Previous day'}
-          nextLabel={batch ? 'Next session' : 'Next day'}
+          prevLabel="Previous day"
+          nextLabel="Next day"
         >
           {renderDay()}
         </SwipeDays>
@@ -260,24 +187,6 @@ export function LessonPlansPage() {
 
   function renderDay() {
     if (batches.isPending) return <ListSkeleton rows={4} />;
-    if (batchId && !batch)
-      return (
-        <EmptyState
-          icon={<CalendarX2 />}
-          title="Batch not found"
-          description="It may be inactive, or not one of yours."
-        />
-      );
-    if (batch)
-      return (
-        <SessionPlan
-          key={`${batch.id}:${date}`}
-          batchId={batch.id}
-          date={date}
-          onEditingChange={(on) => markEditing(`${batch.id}:${date}`, on)}
-          onOpenPlan={isCoach && !subOnly ? () => set({ plan: '1' }) : undefined}
-        />
-      );
     if (!day.length)
       return (
         <EmptyState
@@ -287,7 +196,11 @@ export function LessonPlansPage() {
         />
       );
     return (
-      <Accordion.Root type="multiple" className="space-y-1.5">
+      <Accordion.Root
+        type="multiple"
+        defaultValue={batchId ? [batchId] : []}
+        className="space-y-1.5"
+      >
         {day.map(({ b, t: bt }) => (
           <BatchDay
             key={`${b.id}:${date}`}
@@ -300,6 +213,10 @@ export function LessonPlansPage() {
             onOpenPlan={
               isCoach && !b.substitution ? () => set({ batch: b.id, plan: '1' }) : undefined
             }
+            onViewPlan={
+              !isCoach || !b.substitution ? () => set({ batch: b.id, plan: '1' }) : undefined
+            }
+            canEdit={isCoach}
           />
         ))}
       </Accordion.Root>
@@ -316,6 +233,8 @@ function BatchDay({
   showCoach,
   onEditingChange,
   onOpenPlan,
+  onViewPlan,
+  canEdit,
 }: {
   b: Batch;
   date: string;
@@ -324,6 +243,9 @@ function BatchDay({
   showCoach: boolean;
   onEditingChange: (on: boolean) => void;
   onOpenPlan?: () => void;
+  /** Opens the batch's plan template (coaches edit it, admins view it). */
+  onViewPlan?: () => void;
+  canEdit: boolean;
 }) {
   const q = useSessionPlan(b.id, date);
   const d = q.data?.date === date && q.data.batch.id === b.id ? q.data : undefined;
@@ -368,13 +290,23 @@ function BatchDay({
             />
           </Accordion.Trigger>
         </Accordion.Header>
-        <Accordion.Content className="border-t bg-muted/15 p-1">
+        <Accordion.Content className="space-y-1 border-t bg-muted/15 p-1">
           <SessionPlan
             batchId={b.id}
             date={date}
             onEditingChange={onEditingChange}
             onOpenPlan={onOpenPlan}
           />
+          {onViewPlan && (
+            <button
+              type="button"
+              onClick={onViewPlan}
+              className="flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg py-1 text-[11.5px] font-medium text-primary hover:bg-primary/5"
+            >
+              <Layers className="size-3.5" />
+              {canEdit ? 'Manage plan template' : 'View plan template'}
+            </button>
+          )}
         </Accordion.Content>
       </Accordion.Item>
     </Floating>
