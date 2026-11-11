@@ -339,7 +339,7 @@ function SessionTile({
             </Badge>
           ) : (
             // Under the name: everything about the session at a glance.
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1 [&_[data-slot=badge]]:px-1.5 [&_[data-slot=badge]]:text-[10px]">
+            <div className="flex min-w-0 flex-wrap items-center gap-1 [&_[data-slot=badge]]:px-1.5 [&_[data-slot=badge]]:text-[10px]">
               {s.substitute && (
                 <Badge variant="default">
                   <Repeat />
