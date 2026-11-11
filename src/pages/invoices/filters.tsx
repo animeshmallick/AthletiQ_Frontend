@@ -76,6 +76,7 @@ export function InvoiceFilters({
   search,
   set,
   summary,
+  actions,
 }: {
   params: URLSearchParams;
   status: string;
@@ -83,6 +84,8 @@ export function InvoiceFilters({
   set: (patch: Record<string, string | null>) => void;
   /** Shown at the end of the chip row (e.g. "24 invoices · ₹69,000"). */
   summary?: ReactNode;
+  /** Beside the search (e.g. the grouping toggle). */
+  actions?: ReactNode;
 }) {
   const isAdmin = useUser().role === 'admin';
   const students = useStudents({ pageSize: 100, sort: 'name' });
@@ -178,6 +181,7 @@ export function InvoiceFilters({
           className="min-w-0 flex-1"
           dense
         />
+        {actions}
         <FilterMenu active={active} onReset={resetAll} className="h-9">
           <div className="space-y-2.5 sm:max-h-[min(70vh,34rem)] sm:overflow-y-auto sm:pr-1">
             <div className="space-y-1">

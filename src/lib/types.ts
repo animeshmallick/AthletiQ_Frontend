@@ -605,6 +605,9 @@ export interface Invoice {
   displayStatus: InvoiceDisplayStatus;
   paidAt: string | null;
   batchName: string | null;
+  /** List only: for grouping by batch / place. */
+  batchId?: string | null;
+  location?: { id: string; name: string } | null;
   feePlanName: string;
   student: { id: string; code: string; fullName: string; phone: string };
 }

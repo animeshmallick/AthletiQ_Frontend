@@ -1,21 +1,15 @@
-import { ChevronRight, IndianRupee, Play } from 'lucide-react';
+import { IndianRupee, Layers, List, MapPin, Play } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
-import {
-  EmptyState,
-  ErrorState,
-  InvoiceStatusBadge,
-  ListSkeleton,
-  PageHeader,
-  Pagination,
-} from '@/components/common';
+import { EmptyState, ErrorState, ListSkeleton, PageHeader, Pagination } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatDate, formatShortDate, money, plural } from '@/lib/format';
+import { money, plural } from '@/lib/format';
 import { useInvoices, useRunInvoiceJob } from '@/lib/queries';
-import { cn } from '@/lib/utils';
+import { Segmented } from '@/components/ui/controls';
+import { InvoiceGroups, InvoiceRow, type InvoiceGroupBy } from './grouped';
 import { InvoiceSheet } from './sheet';
 import { defaultSort, filterQuery, InvoiceFilters, INVOICE_FILTERS } from './filters';
 
@@ -26,6 +20,9 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
   const search = params.get('q') ?? '';
   const page = Number(params.get('page') ?? 1);
   const openId = params.get('invoice');
+  // Grouped by batch or place, or one flat list. Coaches start grouped by batch, admins on the list.
+  const defaultGroup = user.role === 'admin' ? 'none' : 'batch';
+  const group = (params.get('group') ?? defaultGroup) as InvoiceGroupBy | 'none';
   const runJob = useRunInvoiceJob();
 
   const q = useInvoices({
@@ -34,7 +31,8 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
     sort: params.get('sort') ?? defaultSort(status),
     ...filterQuery(params),
     page,
-    pageSize: 25,
+    // Grouped: the whole lot (up to 100) so each group's totals are complete.
+    pageSize: group === 'none' ? 25 : 100,
   });
 
   const set = (patch: Record<string, string | null>) => {
@@ -82,6 +80,20 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
         status={status}
         search={search}
         set={set}
+        actions={
+          <Segmented
+            ariaLabel="Show invoices"
+            size="sm"
+            value={group}
+            onChange={(v) => set({ group: v === defaultGroup ? null : v })}
+            options={[
+              { value: 'batch', label: <Layers className="size-3.5" aria-label="By batch" /> },
+              { value: 'location', label: <MapPin className="size-3.5" aria-label="By place" /> },
+              { value: 'none', label: <List className="size-3.5" aria-label="As a list" /> },
+            ]}
+            className="h-9 shrink-0 items-center"
+          />
+        }
         summary={
           q.data?.meta && q.data.meta.total > 0 ? (
             <>
@@ -119,43 +131,19 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
         />
       ) : (
         <>
-          <Card className="divide-y">
-            {q.data.data.map((inv) => (
-              <button
-                key={inv.id}
-                onClick={() => set({ invoice: inv.id })}
-                className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/40"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] leading-tight font-medium">
-                    {inv.student.fullName}
-                  </p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    <span className="font-mono">{inv.number}</span> ·{' '}
-                    {formatShortDate(inv.periodStart)} – {formatShortDate(inv.periodEnd)}
-                    {/* A student in several batches has an invoice per batch. */}
-                    {inv.batchName ? ` · ${inv.batchName}` : ''}
-                  </p>
-                </div>
-                <div className="hidden text-right text-xs text-muted-foreground sm:block">
-                  <p>Due</p>
-                  <p
-                    className={cn(
-                      'font-medium',
-                      inv.displayStatus === 'overdue' ? 'text-destructive' : 'text-foreground',
-                    )}
-                  >
-                    {formatDate(inv.dueDate)}
-                  </p>
-                </div>
-                <span className="tabular w-20 text-right text-[14px] font-semibold">
-                  {money(inv.totalAmount)}
-                </span>
-                <InvoiceStatusBadge status={inv.displayStatus} />
-                <ChevronRight className="hidden size-4 text-muted-foreground sm:block" />
-              </button>
-            ))}
-          </Card>
+          {group === 'none' ? (
+            <Card className="divide-y">
+              {q.data.data.map((inv) => (
+                <InvoiceRow key={inv.id} inv={inv} onOpen={() => set({ invoice: inv.id })} />
+              ))}
+            </Card>
+          ) : (
+            <InvoiceGroups
+              invoices={q.data.data}
+              by={group}
+              onOpen={(id) => set({ invoice: id })}
+            />
+          )}
           {q.data.meta && (
             <Pagination
               page={q.data.meta.page}

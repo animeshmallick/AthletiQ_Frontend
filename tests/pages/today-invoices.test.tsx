@@ -215,6 +215,26 @@ describe('InvoicesPage', () => {
     meta: { page: 1, pageSize: 25, total: 1, totalPages: 1, totalAmount: 250_000 },
   };
 
+  it('admins start on the list, and can group by place', async () => {
+    const api = mockApi({
+      'GET /invoices': () => ({
+        ...list,
+        data: [{ ...list.data[0], location: { id: 'l1', name: 'Main ground' } }],
+      }),
+    });
+    const { user, router } = await renderPage(<InvoicesPage />, {
+      path: '/invoices',
+      route: '/invoices',
+      user: adminUser,
+    });
+    expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
+    expect(api.find('GET /invoices')[0]!.query.get('pageSize')).toBe('25');
+    await user.click(screen.getByRole('radio', { name: 'By place' }));
+    await waitFor(() => expect(router.state.location.search).toContain('group=location'));
+    expect(await screen.findByRole('button', { name: /Main ground/ })).toBeInTheDocument();
+    expect(screen.queryByText('Anya Rao')).not.toBeInTheDocument();
+  });
+
   it('lists unpaid invoices and records a payment', async () => {
     const api = mockApi({
       'GET /invoices': () => list,
@@ -231,8 +251,13 @@ describe('InvoicesPage', () => {
       user: coachUser,
     });
 
+    // Coaches start grouped by batch: the group sums up its invoices; open it to see them.
+    const group = await screen.findByRole('button', { name: /Morning U-12/ });
+    expect(group).toHaveTextContent('Overdue ₹2,500 · 1');
+    expect(api.find('GET /invoices')[0]!.query.get('pageSize')).toBe('100');
+    await user.click(group);
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
-    expect(screen.getByText('1 invoice')).toBeInTheDocument();
+    expect(screen.getAllByText('1 invoice').length).toBeGreaterThan(0);
     expect(api.find('GET /invoices')[0]!.query.get('sort')).toBe('dueDateAsc');
 
     await user.click(screen.getByRole('button', { name: /Anya Rao/ }));
