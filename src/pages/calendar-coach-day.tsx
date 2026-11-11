@@ -276,6 +276,10 @@ function SessionTile({
   const me = useUser();
   const st = STATUS_META[state];
   const pct = s.expectedStudents ? Math.round((s.marked / s.expectedStudents) * 100) : 0;
+  // Checked in over 10 minutes after the start.
+  const late = s.coachSession
+    ? lateMinutes({ startTime: s.batch.startTime, checkInAt: s.coachSession.checkInAt })
+    : null;
   return (
     <Card
       role="button"
@@ -294,47 +298,45 @@ function SessionTile({
         state === 'cancelled' && 'opacity-75',
       )}
     >
-      <div className="flex items-center gap-2">
-        <div className="tabular w-14 shrink-0 leading-tight">
-          <p className="text-[12px] font-bold">{formatTime(s.batch.startTime)}</p>
-          <p className="text-[10px] text-muted-foreground">{formatTime(s.batch.endTime)}</p>
-        </div>
-        <p
-          className={cn(
-            'min-w-0 flex-1 truncate text-[13px] font-semibold',
-            s.cancelled && 'line-through',
+      {/* Two columns: when (scheduled, checked in, how late) | what (batch, coach and place). */}
+      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2">
+        <div className="tabular leading-tight">
+          <p className="text-[12.5px] font-bold">{formatTime(s.batch.startTime)}</p>
+          <p className="text-[10px] text-muted-foreground">to {formatTime(s.batch.endTime)}</p>
+          {s.coachSession && !s.cancelled && (
+            <p
+              className={cn(
+                'mt-0.5 text-[10px] font-medium',
+                s.coachSession.flagged ? 'text-destructive' : 'text-foreground/70',
+              )}
+              title={s.coachSession.flagged ? 'Checked in away from the venue' : 'Checked in'}
+            >
+              In {formatClock(s.coachSession.checkInAt)}
+            </p>
           )}
-        >
-          {s.batch.name}
-        </p>
-      </div>
-      {isAdmin && (
-        <p className="truncate pl-16 text-[11px] text-muted-foreground">
-          {s.batch.coach.name} · {s.batch.location.name}
-        </p>
-      )}
-      {/* Status (and check-in times) float on the card's top edge. */}
-      <div className="absolute -top-2.5 right-2 z-10 flex items-center gap-1">
-        {s.coachSession && !s.cancelled && (
-          <FloatBadge
-            tone={
-              s.coachSession.flagged ||
-              lateMinutes({ startTime: s.batch.startTime, checkInAt: s.coachSession.checkInAt })
-                ? 'warning'
-                : 'success'
-            }
-            icon={<MapPin />}
-            className="bg-card"
+          {late && (
+            <p className="text-[10px] font-semibold text-warning-foreground dark:text-warning">
+              {lateLabel(late)}
+            </p>
+          )}
+        </div>
+        <div className="min-w-0 pr-1">
+          <p
+            className={cn(
+              'truncate text-[13.5px] leading-snug font-semibold',
+              s.cancelled && 'line-through',
+            )}
           >
-            In {formatClock(s.coachSession.checkInAt)}
-            {(({ late }) => (late ? ` · ${lateLabel(late)}` : ''))({
-              late: lateMinutes({
-                startTime: s.batch.startTime,
-                checkInAt: s.coachSession.checkInAt,
-              }),
-            })}
-          </FloatBadge>
-        )}
+            {s.batch.name}
+          </p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {isAdmin ? `${s.batch.coach.name} · ` : ''}
+            {s.batch.location.name}
+          </p>
+        </div>
+      </div>
+      {/* The status floats on the card's top edge. */}
+      <div className="absolute -top-2.5 right-2 z-10 flex items-center gap-1">
         <FloatBadge tone={st.tone} title={st.hint}>
           {statusLabel(state, {
             startTime: s.batch.startTime,
@@ -353,7 +355,8 @@ function SessionTile({
           <CloudRain /> {s.cancelled}
         </Badge>
       ) : (
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1 [&_[data-slot=badge]]:px-1.5 [&_[data-slot=badge]]:text-[10px]">
+        // Third row, full width: everything about the session at a glance.
+        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1 border-t border-border/60 pt-1.5 [&_[data-slot=badge]]:px-1.5 [&_[data-slot=badge]]:text-[10px]">
           {s.substitute && (
             <Badge variant="default">
               <Repeat />
@@ -364,15 +367,17 @@ function SessionTile({
             <Users /> {s.marked}/{s.expectedStudents}
             {s.expectedStudents > 0 && s.marked > 0 ? ` · ${pct}%` : ''}
           </Badge>
-          <Link
-            to={`/lesson-plans?batch=${s.batch.id}&date=${date}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Is the day's lesson plan filled in (any drills count)? */}
-            <Badge variant={s.lessonPlanFilled ? 'success' : 'muted'}>
-              <ClipboardList /> {s.lessonPlanFilled ? 'Plan filled' : 'Plan not filled'}
-            </Badge>
-          </Link>
+          {/* Is the day's lesson plan filled in? (Not for attendance-only batches.) */}
+          {s.batch.coachFeedback !== false && (
+            <Link
+              to={`/lesson-plans?batch=${s.batch.id}&date=${date}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Badge variant={s.lessonPlanFilled ? 'success' : 'muted'}>
+                <ClipboardList /> {s.lessonPlanFilled ? 'Plan filled' : 'Plan not filled'}
+              </Badge>
+            </Link>
+          )}
           {isToday &&
             todayItem &&
             !todayItem.session &&
