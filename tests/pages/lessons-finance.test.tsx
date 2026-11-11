@@ -6,6 +6,7 @@ import { adminUser, chooseOption, coachUser, mockApi, renderPage, screen, waitFo
 
 describe('FinancePage', () => {
   it('renders KPIs, breakdowns and the projection', async () => {
+    const consoleError = jest.spyOn(console, 'error');
     const api = mockApi({
       'GET /finance/summary': () => ({
         range: { from: '2026-03-01', to: '2026-03-09' },
@@ -54,6 +55,15 @@ describe('FinancePage', () => {
             issueDate: '2026-03-10',
             amount: 250_000,
           },
+          // Same student, second batch: listed again (and must not clash as a React key).
+          {
+            studentId: 's1',
+            code: 'A',
+            fullName: 'Anya Rao',
+            batchName: 'Evening Chess',
+            issueDate: '2026-03-10',
+            amount: 100_000,
+          },
         ],
       }),
       'GET /users': () => ({ data: [], meta: {} }),
@@ -67,7 +77,9 @@ describe('FinancePage', () => {
     expect((await screen.findAllByText('₹10,000')).length).toBeGreaterThan(0);
     expect(screen.getByText('25%')).toBeInTheDocument();
     expect(screen.getAllByText('Morning U-12').length).toBeGreaterThan(0);
-    expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
+    expect((await screen.findAllByText('Anya Rao')).length).toBe(2);
+    expect(consoleError.mock.calls.some((c) => String(c[0]).includes('same key'))).toBe(false);
+    consoleError.mockRestore();
     expect(screen.getByText('Collected by')).toBeInTheDocument();
     expect(screen.getByText('Coach Arjun')).toBeInTheDocument();
     await chooseOption(user, screen.getByRole('combobox', { name: 'Period' }), 'fy');

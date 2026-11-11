@@ -352,7 +352,8 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
                   <ul className="max-h-80 divide-y overflow-y-auto">
                     {projection.data.invoices.map((i) => (
                       <li
-                        key={i.studentId}
+                        // A student in two batches has an invoice for each: key by both.
+                        key={`${i.studentId}:${i.batchName ?? ''}:${i.issueDate}`}
                         className="flex items-center justify-between gap-3 py-2 text-sm"
                       >
                         <div className="min-w-0">
