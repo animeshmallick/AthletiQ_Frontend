@@ -31,7 +31,7 @@ export const ENTITY: Record<
     label: 'Invoice',
     icon: IndianRupee,
     tone: 'bg-emerald-500/14 text-emerald-700 dark:text-emerald-300',
-    link: '/finance?tab=invoices&status=all&invoice=',
+    link: '/invoices/',
   },
   student: {
     label: 'Student',

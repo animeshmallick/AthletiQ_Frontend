@@ -637,10 +637,20 @@ export interface InvoiceDetail extends Omit<Invoice, 'student'> {
     guardianName: string | null;
     phone: string;
     status: string;
+    joiningDate?: string;
   };
   payments: Payment[];
   /** Where the fee went (coaches: only their own share). */
   split?: SplitLine[];
+  /** The batch, the student's training days and what else they owe. */
+  about?: {
+    coachName: string | null;
+    locationName: string | null;
+    startTime: string | null;
+    endTime: string | null;
+    trainingDays: number[] | null;
+    otherDue: { count: number; amount: number };
+  };
 }
 
 export interface FinanceSummary {

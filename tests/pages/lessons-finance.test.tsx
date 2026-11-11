@@ -224,10 +224,7 @@ describe('Batches', () => {
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent('Ravi Rao');
     expect(dialog).toHaveTextContent('6 of 8 · 75%');
-    expect(screen.getByRole('link', { name: 'Invoice' })).toHaveAttribute(
-      'href',
-      '/finance?tab=invoices&invoice=i9',
-    );
+    expect(screen.getByRole('link', { name: 'Invoice' })).toHaveAttribute('href', '/invoices/i9');
     expect(screen.getByRole('link', { name: 'Open profile' })).toHaveAttribute(
       'href',
       '/students/s1',

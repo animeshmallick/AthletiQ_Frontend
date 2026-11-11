@@ -126,7 +126,7 @@ describe('Activity log (admin)', () => {
     expect(dialog).toHaveTextContent('ReasonMistake');
     expect(within(dialog).getByRole('link', { name: 'Open' })).toHaveAttribute(
       'href',
-      '/finance?tab=invoices&status=all&invoice=i1',
+      '/invoices/i1',
     );
     await user.click(within(dialog).getByRole('button', { name: /Full history of this invoice/ }));
     await waitFor(() => expect(router.state.location.search).toContain('record=i1'));

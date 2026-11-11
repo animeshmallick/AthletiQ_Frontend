@@ -77,7 +77,6 @@ import {
 } from '@/lib/queries';
 import type { StudentDetail } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { InvoiceSheet } from '../invoices/sheet';
 import {
   LeaveDialog,
   MakeupDialog,
@@ -363,7 +362,7 @@ function AttendanceTab({ id }: { id: string }) {
 
 function InvoicesTab({ id }: { id: string }) {
   const q = useInvoices({ studentId: id, pageSize: 100 });
-  const [open, setOpen] = useState<string | null>(null);
+  const navigate = useNavigate();
   if (q.isPending) return <ListSkeleton rows={4} />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
   if (!q.data.data.length)
@@ -379,7 +378,7 @@ function InvoicesTab({ id }: { id: string }) {
         {q.data.data.map((inv) => (
           <button
             key={inv.id}
-            onClick={() => setOpen(inv.id)}
+            onClick={() => void navigate(`/invoices/${inv.id}`)}
             className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/40"
           >
             <div className="min-w-0 flex-1">
@@ -395,7 +394,6 @@ function InvoicesTab({ id }: { id: string }) {
           </button>
         ))}
       </Card>
-      <InvoiceSheet id={open} onOpenChange={(o) => !o && setOpen(null)} />
     </>
   );
 }
@@ -642,7 +640,8 @@ export function StudentDetailPage() {
         />
       </div>
 
-      <Tabs defaultValue="overview">
+      {/* ?tab=invoices (e.g. from an invoice's "more unpaid" link) opens that tab. */}
+      <Tabs defaultValue={new URLSearchParams(window.location.search).get('tab') ?? 'overview'}>
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="progress">Progress</TabsTrigger>

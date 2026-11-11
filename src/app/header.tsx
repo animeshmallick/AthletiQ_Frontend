@@ -63,6 +63,8 @@ function useScreenTitle(): string {
     .sort((a, b) => b.to.length - a.to.length)[0];
   if (match) return match.label;
   if (pathname.startsWith('/account')) return 'Account';
+  // Detail screens that aren't in the menu.
+  if (pathname.startsWith('/invoices/')) return 'Invoice';
   return 'AthletiQ';
 }
 
@@ -75,6 +77,8 @@ function useBackTarget(): string | null {
   const { pathname, search } = useLocation();
   const user = useUser();
   if (pathname === '/') return null;
+  // An invoice goes back to the invoice list (under Finance).
+  if (pathname.startsWith('/invoices/')) return '/finance?tab=invoices';
   if (pathname.split('/').filter(Boolean).length > 1) return parentPath(pathname);
   return activeItem(tabsFor(user.role), pathname, search) ? null : '/';
 }

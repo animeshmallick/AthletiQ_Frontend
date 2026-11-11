@@ -15,6 +15,7 @@ const m6 = () => import('@/pages/feedback/board');
 const m7 = () => import('@/pages/feedback/form');
 const m8 = () => import('@/pages/students/list');
 const m9 = () => import('@/pages/students/detail');
+const invoiceModule = () => import('@/pages/invoices/detail');
 const m11 = () => import('@/pages/finance-hub');
 const m12 = () => import('@/pages/batches');
 const m13 = () => import('@/pages/admin/coaches');
@@ -45,6 +46,7 @@ export const FeedbackPage = page(m6, 'FeedbackPage');
 export const FeedbackFormPage = page(m7, 'FeedbackFormPage');
 export const StudentsPage = page(m8, 'StudentsPage');
 export const StudentDetailPage = page(m9, 'StudentDetailPage');
+export const InvoiceDetailPage = page(invoiceModule, 'InvoiceDetailPage');
 export const MakeupsPage = page(() => import('@/pages/admin/makeups'), 'MakeupsPage');
 const calendarModule = () => import('@/pages/calendar');
 export const CalendarPage = page(calendarModule, 'CalendarPage');
@@ -79,6 +81,7 @@ const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/students$/, m8],
   [/^\/students\/[^/]+$/, m9],
   [/^\/finance$/, m11],
+  [/^\/invoices\/[^/]+$/, invoiceModule],
   [/^\/batches$/, m12],
   [/^\/batches\/[^/]+$/, m12],
   [/^\/coaches$/, m13],

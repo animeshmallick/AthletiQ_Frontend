@@ -793,9 +793,7 @@ function StudentDialog({
               </div>
               {s.fees.unpaidInvoiceId && (
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/finance?tab=invoices&invoice=${s.fees.unpaidInvoiceId}`}>
-                    Invoice
-                  </Link>
+                  <Link to={`/invoices/${s.fees.unpaidInvoiceId}`}>Invoice</Link>
                 </Button>
               )}
             </Card>

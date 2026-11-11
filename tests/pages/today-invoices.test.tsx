@@ -261,7 +261,8 @@ describe('InvoicesPage', () => {
     expect(api.find('GET /invoices')[0]!.query.get('sort')).toBe('dueDateAsc');
 
     await user.click(screen.getByRole('button', { name: /Anya Rao/ }));
-    expect(await screen.findByRole('dialog')).toHaveTextContent('ATQ/2025-26/00001');
+    // Opens as a page with every detail.
+    expect((await screen.findAllByText('ATQ/2025-26/00001')).length).toBeGreaterThan(0);
     // Coaches cannot cancel invoices.
     expect(screen.queryByRole('button', { name: 'Cancel invoice' })).not.toBeInTheDocument();
 

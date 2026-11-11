@@ -5,8 +5,7 @@
 import { Accordion } from 'radix-ui';
 import { ChevronDown, ChevronRight, Layers, MapPin } from 'lucide-react';
 import { useState } from 'react';
-import { InvoiceStatusBadge } from '@/components/common';
-import { formatDate, formatShortDate, money, plural } from '@/lib/format';
+import { formatMonth, formatShortDate, money, plural, today } from '@/lib/format';
 import type { Invoice } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -23,10 +22,14 @@ const NONE = '__none__';
 function groupInvoices(list: Invoice[], by: InvoiceGroupBy): Group[] {
   const map = new Map<string, Group>();
   for (const inv of list) {
-    const id = (by === 'batch' ? inv.batchId : inv.location?.id) ?? NONE;
+    // Group key and name always come from the same field, so a group never borrows another
+    // batch's name. A batch since deleted (no id) still groups by its name on the invoice.
+    const id =
+      by === 'batch'
+        ? (inv.batchId ?? (inv.batchName ? `name:${inv.batchName}` : NONE))
+        : (inv.location?.id ?? NONE);
     const name =
-      (by === 'batch' ? inv.batchName : inv.location?.name) ??
-      (by === 'batch' ? 'No batch' : 'No place');
+      by === 'batch' ? (inv.batchName ?? 'No batch') : (inv.location?.name ?? 'No place');
     const g = map.get(id) ?? { id, name, invoices: [] };
     g.invoices.push(inv);
     map.set(id, g);
@@ -55,37 +58,67 @@ function insights(list: Invoice[]) {
   };
 }
 
+const ROW_TONE: Record<Invoice['displayStatus'], { bar: string; text: string }> = {
+  overdue: { bar: 'bg-destructive', text: 'text-destructive' },
+  due: { bar: 'bg-warning', text: 'text-warning-foreground dark:text-warning' },
+  paid: { bar: 'bg-success', text: 'text-success' },
+  refunded: { bar: 'bg-muted-foreground/40', text: 'text-muted-foreground' },
+  cancelled: { bar: 'bg-muted-foreground/30', text: 'text-muted-foreground' },
+};
+
+/** Where the invoice stands, in a few words: "Overdue 12d", "Due 5 Mar", "Paid 2 Mar". */
+function standing(inv: Invoice) {
+  switch (inv.displayStatus) {
+    case 'overdue': {
+      const days = Math.max(
+        1,
+        Math.round((Date.parse(today()) - Date.parse(inv.dueDate)) / 86_400_000),
+      );
+      return `Overdue ${days}d`;
+    }
+    case 'due':
+      return `Due ${formatShortDate(inv.dueDate)}`;
+    case 'paid':
+      return inv.paidAt ? `Paid ${formatShortDate(inv.paidAt.slice(0, 10))}` : 'Paid';
+    case 'refunded':
+      return 'Refunded';
+    default:
+      return 'Cancelled';
+  }
+}
+
+/** One invoice, two compact lines: who and how much; month, batch, number and where it stands. */
 export function InvoiceRow({ inv, onOpen }: { inv: Invoice; onOpen: () => void }) {
+  const tone = ROW_TONE[inv.displayStatus];
   return (
     <button
       onClick={onOpen}
-      className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/40"
+      className="group flex w-full cursor-pointer items-stretch gap-2 py-1.5 pr-2 pl-1.5 text-left transition-colors hover:bg-muted/40"
     >
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] leading-tight font-medium">{inv.student.fullName}</p>
-        <p className="truncate text-[11px] text-muted-foreground">
-          <span className="font-mono">{inv.number}</span> · {formatShortDate(inv.periodStart)} –{' '}
-          {formatShortDate(inv.periodEnd)}
-          {/* A student in several batches has an invoice per batch. */}
-          {inv.batchName ? ` · ${inv.batchName}` : ''}
-        </p>
-      </div>
-      <div className="hidden text-right text-xs text-muted-foreground sm:block">
-        <p>Due</p>
-        <p
-          className={cn(
-            'font-medium',
-            inv.displayStatus === 'overdue' ? 'text-destructive' : 'text-foreground',
-          )}
-        >
-          {formatDate(inv.dueDate)}
-        </p>
-      </div>
-      <span className="tabular w-20 text-right text-[14px] font-semibold">
-        {money(inv.totalAmount)}
+      <span aria-hidden className={cn('w-1 shrink-0 rounded-full', tone.bar)} />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline justify-between gap-2">
+          <span
+            className={cn(
+              'truncate text-[13.5px] leading-tight font-semibold',
+              inv.displayStatus === 'cancelled' && 'text-muted-foreground line-through',
+            )}
+          >
+            {inv.student.fullName}
+          </span>
+          <span className="tabular shrink-0 text-[13.5px] font-bold">{money(inv.totalAmount)}</span>
+        </span>
+        <span className="mt-0.5 flex items-center justify-between gap-2 text-[11px]">
+          <span className="min-w-0 truncate text-muted-foreground">
+            {formatMonth(inv.periodStart.slice(0, 7))}
+            {/* A student in several batches has an invoice per batch. */}
+            {inv.batchName ? ` · ${inv.batchName}` : ''} ·{' '}
+            <span className="font-mono text-[10.5px]">{inv.number}</span>
+          </span>
+          <span className={cn('shrink-0 font-semibold', tone.text)}>{standing(inv)}</span>
+        </span>
       </span>
-      <InvoiceStatusBadge status={inv.displayStatus} />
-      <ChevronRight className="hidden size-4 text-muted-foreground sm:block" />
+      <ChevronRight className="size-4 shrink-0 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </button>
   );
 }

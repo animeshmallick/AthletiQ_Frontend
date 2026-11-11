@@ -11,21 +11,22 @@ import {
   RotateCcw,
   Undo2,
   Wallet,
+  AlertTriangle,
+  CalendarClock,
+  CalendarRange,
+  ChevronRight,
+  Layers,
+  MapPin,
+  MoreVertical,
+  ReceiptText,
   UserRound,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import { saveFile } from '@/app/share-file';
-import {
-  ConfirmDialog,
-  ErrorState,
-  Field,
-  InvoiceStatusBadge,
-  ListSkeleton,
-  MoneyInput,
-} from '@/components/common';
+import { Avatar, ConfirmDialog, Field, InvoiceStatusBadge, MoneyInput } from '@/components/common';
 import { PdfViewer, type PdfFile } from '@/components/pdf-viewer';
 import { SlideToConfirm } from '@/components/slide-to-confirm';
 import { Button } from '@/components/ui/button';
@@ -41,16 +42,24 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  SheetContent,
 } from '@/components/ui/overlays';
-import { Badge, Input, Select, Separator, Textarea } from '@/components/ui/primitives';
+import { Badge, Card, Input, Select, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage, requestBlob } from '@/lib/api';
-import { formatDate, formatInstant, money, PAYMENT_MODE_LABELS, today } from '@/lib/format';
+import {
+  formatDate,
+  formatInstant,
+  formatShortDate,
+  money,
+  PAYMENT_MODE_LABELS,
+  formatTimeRange,
+  plural,
+  today,
+  WEEKDAYS,
+} from '@/lib/format';
 import { nullIfEmpty } from '@/lib/forms';
 import {
   useAdjustInvoice,
   useCancelInvoice,
-  useInvoice,
   useMarkPaid,
   useReversePayment,
   useShareInvoice,
@@ -405,7 +414,55 @@ function PaymentRow({
   );
 }
 
-function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
+/** One line of the details card: icon, small label, the value and an optional note. */
+function DetailRow({
+  icon,
+  label,
+  value,
+  sub,
+  subTone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+  sub?: string;
+  subTone?: string;
+}) {
+  return (
+    <li className="flex items-start gap-2.5 px-3.5 py-2">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground [&_svg]:size-3.5">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block text-[10.5px] font-medium text-muted-foreground">{label}</span>
+        <span className="mt-0.5 block text-[13.5px] font-semibold">{value}</span>
+        {sub && (
+          <span className={cn('mt-0.5 block text-[11px] text-muted-foreground', subTone)}>
+            {sub}
+          </span>
+        )}
+      </span>
+    </li>
+  );
+}
+
+const HERO_TINT: Record<InvoiceDetail['displayStatus'], string> = {
+  overdue: 'from-destructive/10',
+  due: 'from-warning/14',
+  paid: 'from-success/10',
+  refunded: 'from-muted',
+  cancelled: 'from-muted',
+};
+const STANDING_TONE: Record<InvoiceDetail['displayStatus'], string> = {
+  overdue: 'text-destructive',
+  due: 'text-warning-foreground dark:text-warning',
+  paid: 'text-success',
+  refunded: 'text-muted-foreground',
+  cancelled: 'text-muted-foreground',
+};
+
+/** The invoice page's content: amount and status up top with the actions, then the details. */
+export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
   const user = useUser();
   const isAdmin = user.role === 'admin';
   const share = useShareInvoice();
@@ -437,174 +494,354 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
     try {
       const res = await share.mutateAsync(inv.id);
       if (win) win.location.href = res.whatsappUrl;
-      else window.location.href = res.whatsappUrl;
+      else window.location.assign(res.whatsappUrl);
     } catch (err) {
       win?.close();
       toast.error('Could not create share link', { description: errorMessage(err) });
     }
   }
 
+  const days =
+    inv.displayStatus === 'overdue'
+      ? Math.max(1, Math.round((Date.parse(today()) - Date.parse(inv.dueDate)) / 86_400_000))
+      : 0;
+  const standing =
+    inv.displayStatus === 'overdue'
+      ? `Overdue by ${plural(days, 'day')} · was due ${formatDate(inv.dueDate)}`
+      : inv.displayStatus === 'due'
+        ? `Due ${formatDate(inv.dueDate)}`
+        : inv.displayStatus === 'paid'
+          ? `Paid${inv.paidAt ? ` on ${formatDate(inv.paidAt.slice(0, 10))}` : ''}`
+          : inv.displayStatus === 'refunded'
+            ? 'Refunded'
+            : 'Cancelled';
+  const paidSoFar = inv.payments
+    .filter((p) => p.status === 'completed')
+    .reduce((n, p) => n + p.amount, 0);
+  const balance = inv.status === 'due' ? Math.max(inv.totalAmount - paidSoFar, 0) : 0;
+  const tiles = [
+    inv.status !== 'cancelled' && {
+      key: 'wa',
+      label: 'WhatsApp',
+      icon: <MessageCircle />,
+      tone: 'text-success bg-success/10',
+      loading: share.isPending,
+      onClick: () => void whatsapp(),
+    },
+    {
+      key: 'view',
+      label: 'View PDF',
+      icon: <FileText />,
+      tone: 'text-primary bg-primary/10',
+      loading: downloading,
+      onClick: () => void openPdf(false),
+    },
+    {
+      key: 'dl',
+      label: 'Download',
+      icon: <Download />,
+      tone: 'text-primary bg-primary/10',
+      onClick: () => void openPdf(true),
+    },
+    isAdmin &&
+      inv.status === 'due' && {
+        key: 'adjust',
+        label: 'Adjust',
+        icon: <Percent />,
+        tone: 'text-info bg-info/10',
+        onClick: () => setAdjusting(true),
+      },
+    isAdmin &&
+      inv.status === 'due' && {
+        key: 'cancel',
+        label: 'Cancel',
+        icon: <Ban />,
+        tone: 'text-destructive bg-destructive/10',
+        onClick: () => setCancelling(true),
+        aria: 'Cancel invoice',
+      },
+  ].filter(Boolean) as {
+    key: string;
+    label: string;
+    icon: ReactNode;
+    tone: string;
+    loading?: boolean;
+    onClick: () => void;
+    aria?: string;
+  }[];
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain">
-      <div className="border-b p-5 pr-14">
-        <div className="flex items-center gap-2">
-          <p className="font-mono text-sm text-muted-foreground">{inv.number}</p>
-          <InvoiceStatusBadge status={inv.displayStatus} />
-        </div>
-        <p className="tabular mt-2 text-3xl font-semibold tracking-tight">
-          {money(inv.totalAmount)}
-        </p>
-        <Link
-          to={`/students/${inv.student.id}`}
-          className="mt-1 inline-block text-sm font-medium hover:underline"
+    <div className="space-y-2">
+      {/* Hero: amount, where it stands, who it's for, and what to do. */}
+      <Card className="overflow-hidden">
+        <div
+          className={cn(
+            'bg-gradient-to-b to-transparent px-3.5 pt-3 pb-3',
+            HERO_TINT[inv.displayStatus],
+          )}
         >
-          {inv.student.fullName}{' '}
-          <span className="font-normal text-muted-foreground">· {inv.student.code}</span>
-        </Link>
-      </div>
-
-      <div className="flex-1 space-y-4 p-5">
-        <div className="grid grid-cols-2 gap-y-4 text-sm">
-          <div>
-            <p className="text-xs text-muted-foreground">Billing period</p>
-            <p className="font-medium">
-              {formatDate(inv.periodStart)} – {formatDate(inv.periodEnd)}
-            </p>
+          <div className="flex items-center justify-between gap-2">
+            <span className="leading-tight">
+              <span className="block text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                Invoice
+              </span>
+              <span className="block font-mono text-[12px] font-medium tracking-tight">
+                {inv.number}
+              </span>
+            </span>
+            <InvoiceStatusBadge status={inv.displayStatus} />
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Cycle</p>
-            <p className="font-medium">Month {inv.cycleNumber}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Issued</p>
-            <p className="font-medium">{formatDate(inv.issueDate)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Due</p>
-            <p className={cn('font-medium', inv.displayStatus === 'overdue' && 'text-destructive')}>
-              {formatDate(inv.dueDate)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Batch</p>
-            <p className="font-medium">{inv.batchName ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Plan</p>
-            <p className="font-medium">{inv.feePlanName}</p>
-          </div>
-        </div>
-
-        <div className="space-y-2 rounded-xl border p-4 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Coaching fee</span>
-            <span className="tabular">{money(inv.baseAmount)}</span>
-          </div>
-          {inv.discountAmount > 0 && (
-            <div className="flex justify-between text-success">
-              <span>Discount</span>
-              <span className="tabular">− {money(inv.discountAmount)}</span>
-            </div>
-          )}
-          <Separator />
-          <div className="flex justify-between font-semibold">
-            <span>Total</span>
-            <span className="tabular">{money(inv.totalAmount)}</span>
-          </div>
-        </div>
-
-        {inv.cancelledReason && (
-          <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-            Cancelled: {inv.cancelledReason}
+          <p className="tabular mt-2 text-[34px] leading-none font-bold tracking-tight">
+            {money(inv.totalAmount)}
           </p>
-        )}
-
-        <div>
-          <h3 className="mb-2 text-sm font-semibold">Payment history</h3>
-          {inv.payments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {inv.payments.map((p) => (
-                <PaymentRow key={p.id} p={p} invoiceId={inv.id} canReverse={isAdmin} />
-              ))}
-            </ul>
+          <p className={cn('mt-1.5 text-[12.5px] font-medium', STANDING_TONE[inv.displayStatus])}>
+            {standing}
+          </p>
+          <Link
+            to={`/students/${inv.student.id}`}
+            className="group mt-3 flex items-center gap-2 rounded-xl border bg-card/80 p-1.5 pr-2 backdrop-blur transition-colors hover:bg-muted/50"
+          >
+            <Avatar name={inv.student.fullName} className="size-8 text-[11px]" />
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-[13.5px] font-semibold">
+                {inv.student.fullName}
+              </span>
+              <span className="block truncate text-[11px] text-muted-foreground">
+                {inv.student.code}
+                {inv.student.guardianName ? ` · ${inv.student.guardianName}` : ''} ·{' '}
+                {inv.student.phone}
+              </span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
+        {/* One compact row: the main action, then icon buttons (admin extras in a menu). */}
+        <div className="flex items-center gap-1.5 border-t p-2">
+          {inv.status === 'due' && (
+            <Button
+              variant="success"
+              className="h-9 min-w-0 flex-1 gap-1.5 px-3 text-[13px]"
+              aria-label="I have received the payment"
+              onClick={() => setPaying(true)}
+            >
+              <Wallet /> <span className="truncate">Received payment</span>
+            </Button>
+          )}
+          {tiles
+            .filter((t) => t.key !== 'adjust' && t.key !== 'cancel')
+            .map((t) =>
+              inv.status === 'due' ? (
+                <Button
+                  key={t.key}
+                  variant="outline"
+                  size="icon"
+                  className={cn('size-9 shrink-0 rounded-lg [&_svg]:size-4', t.tone.split(' ')[0])}
+                  aria-label={t.label}
+                  title={t.label}
+                  loading={t.loading}
+                  onClick={t.onClick}
+                >
+                  {!t.loading && t.icon}
+                </Button>
+              ) : (
+                <Button
+                  key={t.key}
+                  variant="outline"
+                  className="h-9 min-w-0 flex-1 gap-1.5 px-2 text-[12.5px]"
+                  loading={t.loading}
+                  onClick={t.onClick}
+                >
+                  {!t.loading && <span className={t.tone.split(' ')[0]}>{t.icon}</span>}
+                  {t.label}
+                </Button>
+              ),
+            )}
+          {isAdmin && inv.status === 'due' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-9 shrink-0 rounded-lg"
+                  aria-label="More actions"
+                >
+                  <MoreVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setAdjusting(true)}>
+                  <Percent /> Adjust amount
+                </DropdownMenuItem>
+                <DropdownMenuItem destructive onSelect={() => setCancelling(true)}>
+                  <Ban /> Cancel invoice
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
+      </Card>
+      <PdfViewer file={viewing} onClose={() => setViewing(null)} />
 
-        {(inv.split?.length ?? 0) > 0 && (
-          <div>
-            <h3 className="mb-2 text-sm font-semibold">
-              {isAdmin ? 'Where this fee went' : 'Your share of this fee'}
-            </h3>
-            <ul className="divide-y rounded-xl border">
-              {inv.split!.map((l, i) => (
-                <li key={`${l.label}-${i}`} className="flex items-center gap-2 px-3 py-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate">
-                    {l.label}
-                    <span className="text-muted-foreground"> → {l.name}</span>
-                  </span>
-                  <span className="tabular font-semibold">{money(l.amount)}</span>
-                </li>
-              ))}
-            </ul>
+      {inv.cancelledReason && (
+        <p className="rounded-xl border bg-muted/60 px-3 py-2 text-[13px] text-muted-foreground">
+          <b className="font-semibold text-foreground">Cancelled:</b> {inv.cancelledReason}
+        </p>
+      )}
+
+      {/* Details: what this invoice covers, for whom, where and when. */}
+      <Card className="overflow-hidden">
+        <h3 className="px-3.5 pt-2.5 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          Details
+        </h3>
+        <ul className="divide-y">
+          <DetailRow
+            icon={<CalendarRange />}
+            label="Billing period"
+            value={`${formatShortDate(inv.periodStart)} – ${formatDate(inv.periodEnd)}`}
+            sub={`Month ${inv.cycleNumber} of billing`}
+          />
+          <DetailRow
+            icon={<CalendarClock />}
+            label="Issued · Due"
+            value={
+              <>
+                {formatShortDate(inv.issueDate)} ·{' '}
+                <span className={cn(inv.displayStatus === 'overdue' && 'text-destructive')}>
+                  {formatDate(inv.dueDate)}
+                </span>
+              </>
+            }
+            sub={inv.displayStatus === 'overdue' ? `${plural(days, 'day')} overdue` : undefined}
+            subTone={inv.displayStatus === 'overdue' ? 'text-destructive' : undefined}
+          />
+          <DetailRow
+            icon={<Layers />}
+            label="Batch"
+            value={inv.batchName ?? '—'}
+            sub={[
+              inv.about?.startTime && inv.about.endTime
+                ? formatTimeRange(inv.about.startTime, inv.about.endTime)
+                : null,
+              inv.about?.trainingDays?.length
+                ? inv.about.trainingDays
+                    .map((d) => WEEKDAYS.find((w) => w.value === d)?.short)
+                    .join(', ')
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          />
+          {(inv.about?.locationName || inv.about?.coachName) && (
+            <DetailRow
+              icon={<MapPin />}
+              label="Venue · Coach"
+              value={inv.about.locationName ?? '—'}
+              sub={inv.about.coachName ? `Coach ${inv.about.coachName}` : undefined}
+            />
+          )}
+          <DetailRow icon={<ReceiptText />} label="Fee plan" value={inv.feePlanName} />
+          {inv.student.joiningDate && (
+            <DetailRow
+              icon={<UserRound />}
+              label="Student since"
+              value={formatDate(inv.student.joiningDate)}
+              sub={inv.student.status === 'active' ? undefined : `Status: ${inv.student.status}`}
+            />
+          )}
+        </ul>
+        {/* Anything else this student owes. */}
+        {(inv.about?.otherDue.count ?? 0) > 0 && (
+          <Link
+            to={`/students/${inv.student.id}?tab=invoices`}
+            className="flex items-center gap-2 border-t bg-warning/10 px-3.5 py-2 text-[12.5px] transition-colors hover:bg-warning/15"
+          >
+            <AlertTriangle className="size-4 shrink-0 text-warning-foreground dark:text-warning" />
+            <span className="min-w-0 flex-1">
+              <b className="font-semibold">
+                {plural(inv.about!.otherDue.count, 'more unpaid invoice')}
+              </b>{' '}
+              · {money(inv.about!.otherDue.amount)}
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+          </Link>
+        )}
+      </Card>
+
+      {/* Amount */}
+      <Card className="space-y-1.5 px-3.5 py-2.5 text-[13px]">
+        <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          Amount
+        </h3>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Coaching fee</span>
+          <span className="tabular">{money(inv.baseAmount)}</span>
+        </div>
+        {inv.discountAmount > 0 && (
+          <div className="flex justify-between text-success">
+            <span>Discount</span>
+            <span className="tabular">− {money(inv.discountAmount)}</span>
           </div>
         )}
-      </div>
-
-      <div className="sticky bottom-0 z-10 space-y-2 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="flex flex-wrap gap-2">
-          {inv.status === 'due' && (
-            <Button variant="success" className="flex-1" onClick={() => setPaying(true)}>
-              <Wallet /> I have received the payment
-            </Button>
-          )}
-          {inv.status !== 'cancelled' && (
-            <Button
-              variant="outline"
-              className="flex-1"
-              loading={share.isPending}
-              onClick={() => void whatsapp()}
-            >
-              <MessageCircle className="text-success" /> WhatsApp
-            </Button>
-          )}
-          <Button asChild variant="outline" className="flex-1">
-            <Link to={`/students/${inv.student.id}`}>
-              <UserRound /> Student
-            </Link>
-          </Button>
+        <Separator />
+        <div className="flex justify-between font-semibold">
+          <span>Total</span>
+          <span className="tabular">{money(inv.totalAmount)}</span>
         </div>
-        <PdfViewer file={viewing} onClose={() => setViewing(null)} />
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            loading={downloading}
-            onClick={() => void openPdf(false)}
+        {paidSoFar > 0 && (
+          <div className="flex justify-between text-success">
+            <span>Paid</span>
+            <span className="tabular">{money(paidSoFar)}</span>
+          </div>
+        )}
+        {balance > 0 && (
+          <div
+            className={cn(
+              'flex justify-between rounded-lg px-2 py-1 font-semibold',
+              inv.displayStatus === 'overdue'
+                ? 'bg-destructive/8 text-destructive'
+                : 'bg-warning/12 text-warning-foreground dark:text-warning',
+            )}
           >
-            {!downloading && <FileText />} View PDF
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => void openPdf(true)}>
-            <Download /> Download PDF
-          </Button>
-          {isAdmin && inv.status === 'due' && (
-            <Button variant="outline" size="sm" onClick={() => setAdjusting(true)}>
-              <Percent /> Adjust amount
-            </Button>
-          )}
-          {isAdmin && inv.status === 'due' && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => setCancelling(true)}
-            >
-              <Ban /> Cancel invoice
-            </Button>
-          )}
-        </div>
-      </div>
+            <span>Balance due</span>
+            <span className="tabular">{money(balance)}</span>
+          </div>
+        )}
+      </Card>
+
+      {/* Payments */}
+      <Card className="px-3.5 py-2.5">
+        <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          Payments{inv.payments.length ? ` · ${inv.payments.length}` : ''}
+        </h3>
+        {inv.payments.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">No payments recorded yet.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {inv.payments.map((p) => (
+              <PaymentRow key={p.id} p={p} invoiceId={inv.id} canReverse={isAdmin} />
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {(inv.split?.length ?? 0) > 0 && (
+        <Card className="px-3.5 py-2.5">
+          <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+            {isAdmin ? 'Where this fee went' : 'Your share of this fee'}
+          </h3>
+          <ul className="divide-y">
+            {inv.split!.map((l, i) => (
+              <li key={`${l.label}-${i}`} className="flex items-center gap-2 py-1.5 text-[13px]">
+                <span className="min-w-0 flex-1 truncate">
+                  {l.label}
+                  <span className="text-muted-foreground"> → {l.name}</span>
+                </span>
+                <span className="tabular font-semibold">{money(l.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <MarkPaidDialog invoice={inv} open={paying} onOpenChange={setPaying} />
       {adjusting && <AdjustDialog invoice={inv} onClose={() => setAdjusting(false)} />}
@@ -628,33 +865,5 @@ function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
         }
       />
     </div>
-  );
-}
-
-/** Side drawer showing one invoice with all actions. Pass `id = null` to close. */
-export function InvoiceSheet({
-  id,
-  onOpenChange,
-}: {
-  id: string | null;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const q = useInvoice(id);
-  return (
-    <Dialog open={id !== null} onOpenChange={onOpenChange}>
-      <SheetContent title="Invoice" className="p-0">
-        {q.isPending ? (
-          <div className="p-5">
-            <ListSkeleton rows={4} />
-          </div>
-        ) : q.isError ? (
-          <div className="p-5">
-            <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-          </div>
-        ) : (
-          <InvoiceBody inv={q.data} />
-        )}
-      </SheetContent>
-    </Dialog>
   );
 }

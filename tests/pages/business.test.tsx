@@ -256,7 +256,8 @@ describe('invoice adjustment', () => {
       route: '/invoices?invoice=i1',
       user: adminUser,
     });
-    await user.click(await screen.findByRole('button', { name: 'Adjust amount' }));
+    await user.click(await screen.findByRole('button', { name: 'More actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Adjust amount/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Adjust invoice' });
     const save = screen.getByRole('button', { name: 'Save adjustment' });
     expect(save).toBeDisabled();
@@ -290,7 +291,7 @@ describe('invoice adjustment', () => {
     expect(
       await screen.findByRole('button', { name: /i have received the payment/i }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Adjust amount' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument();
   });
 });
 

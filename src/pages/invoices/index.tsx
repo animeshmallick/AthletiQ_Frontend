@@ -1,5 +1,5 @@
 import { IndianRupee, Layers, List, MapPin, Play } from 'lucide-react';
-import { useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import { EmptyState, ErrorState, ListSkeleton, PageHeader, Pagination } from '@/components/common';
@@ -10,7 +10,6 @@ import { money, plural } from '@/lib/format';
 import { useInvoices, useRunInvoiceJob } from '@/lib/queries';
 import { Segmented } from '@/components/ui/controls';
 import { InvoiceGroups, InvoiceRow, type InvoiceGroupBy } from './grouped';
-import { InvoiceSheet } from './sheet';
 import { defaultSort, filterQuery, InvoiceFilters, INVOICE_FILTERS } from './filters';
 
 export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) {
@@ -19,7 +18,9 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
   const status = params.get('status') ?? 'open';
   const search = params.get('q') ?? '';
   const page = Number(params.get('page') ?? 1);
-  const openId = params.get('invoice');
+  const navigate = useNavigate();
+  // Old links (?invoice=…, e.g. from notifications) now open the invoice page.
+  const legacyId = params.get('invoice');
   // Grouped by batch or place, or one flat list. Coaches start grouped by batch, admins on the list.
   const defaultGroup = user.role === 'admin' ? 'none' : 'batch';
   const group = (params.get('group') ?? defaultGroup) as InvoiceGroupBy | 'none';
@@ -41,9 +42,11 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
       if (v) p.set(k, v);
       else p.delete(k);
     }
-    if (!('page' in patch) && !('invoice' in patch)) p.delete('page');
-    setParams(p, { replace: !('invoice' in patch) });
+    if (!('page' in patch)) p.delete('page');
+    setParams(p, { replace: true });
   };
+  const open = (id: string) => void navigate(`/invoices/${id}`);
+  if (legacyId) return <Navigate to={`/invoices/${legacyId}`} replace />;
 
   return (
     <div>
@@ -134,15 +137,11 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
           {group === 'none' ? (
             <Card className="divide-y">
               {q.data.data.map((inv) => (
-                <InvoiceRow key={inv.id} inv={inv} onOpen={() => set({ invoice: inv.id })} />
+                <InvoiceRow key={inv.id} inv={inv} onOpen={() => open(inv.id)} />
               ))}
             </Card>
           ) : (
-            <InvoiceGroups
-              invoices={q.data.data}
-              by={group}
-              onOpen={(id) => set({ invoice: id })}
-            />
+            <InvoiceGroups invoices={q.data.data} by={group} onOpen={open} />
           )}
           {q.data.meta && (
             <Pagination
@@ -154,8 +153,6 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
           )}
         </>
       )}
-
-      <InvoiceSheet id={openId} onOpenChange={(o) => !o && set({ invoice: null })} />
     </div>
   );
 }

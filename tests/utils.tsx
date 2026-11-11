@@ -1,3 +1,4 @@
+import { InvoiceDetailPage } from '@/pages/invoices/detail';
 import { QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -140,6 +141,21 @@ export async function renderPage(
       { path, element: user ? <SignedIn>{element}</SignedIn> : element },
       { path: '/login', element: <div>Login screen</div> },
       ...extraRoutes,
+      // Invoices open as their own page from anywhere.
+      ...(path === '/invoices/:id'
+        ? []
+        : [
+            {
+              path: '/invoices/:id',
+              element: user ? (
+                <SignedIn>
+                  <InvoiceDetailPage />
+                </SignedIn>
+              ) : (
+                <InvoiceDetailPage />
+              ),
+            },
+          ]),
       { path: '*', element: <div>Other route</div> },
     ],
     { initialEntries: [route] },
