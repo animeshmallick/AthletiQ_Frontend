@@ -14,9 +14,6 @@ import {
   AlertTriangle,
   Banknote,
   CircleEllipsis,
-  CreditCard,
-  Landmark,
-  ScrollText,
   Smartphone,
   CalendarClock,
   CalendarRange,
@@ -137,12 +134,10 @@ function ReceiveAsNotice({
   );
 }
 
+/** How a payment can be taken (older records may show bank / card / cheque). */
 const PAY_MODES = [
   { value: 'upi', label: 'UPI', icon: Smartphone },
   { value: 'cash', label: 'Cash', icon: Banknote },
-  { value: 'bank_transfer', label: 'Bank', icon: Landmark },
-  { value: 'card', label: 'Card', icon: CreditCard },
-  { value: 'cheque', label: 'Cheque', icon: ScrollText },
   { value: 'other', label: 'Other', icon: CircleEllipsis },
 ] as const;
 
