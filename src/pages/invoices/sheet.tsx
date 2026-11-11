@@ -429,17 +429,18 @@ function DetailRow({
   subTone?: string;
 }) {
   return (
-    <li className="flex items-start gap-2.5 px-3.5 py-2">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground [&_svg]:size-3.5">
+    // Compact: label on the left, the value (and its note) on the right.
+    <li className="flex items-start gap-2 px-3 py-1.5">
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground [&_svg]:size-3">
         {icon}
       </span>
-      <span className="min-w-0 flex-1 leading-tight">
-        <span className="block text-[10.5px] font-medium text-muted-foreground">{label}</span>
-        <span className="mt-0.5 block text-[13.5px] font-semibold">{value}</span>
+      <span className="w-[5.75rem] shrink-0 pt-px text-[11px] leading-tight text-muted-foreground">
+        {label}
+      </span>
+      <span className="min-w-0 flex-1 text-right leading-tight">
+        <span className="block text-[13px] font-semibold">{value}</span>
         {sub && (
-          <span className={cn('mt-0.5 block text-[11px] text-muted-foreground', subTone)}>
-            {sub}
-          </span>
+          <span className={cn('block text-[10.5px] text-muted-foreground', subTone)}>{sub}</span>
         )}
       </span>
     </li>
@@ -690,7 +691,7 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
 
       {/* Details: what this invoice covers, for whom, where and when. */}
       <Card className="overflow-hidden">
-        <h3 className="px-3.5 pt-2.5 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        <h3 className="px-3 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           Details
         </h3>
         <ul className="divide-y">
@@ -766,7 +767,7 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
         {(inv.about?.otherDue.count ?? 0) > 0 && (
           <Link
             to={`/students/${inv.student.id}?tab=invoices`}
-            className="flex items-center gap-2 border-t bg-warning/10 px-3.5 py-2 text-[12.5px] transition-colors hover:bg-warning/15"
+            className="flex items-center gap-2 border-t bg-warning/10 px-3 py-1.5 text-[12px] transition-colors hover:bg-warning/15"
           >
             <AlertTriangle className="size-4 shrink-0 text-warning-foreground dark:text-warning" />
             <span className="min-w-0 flex-1">
