@@ -5,7 +5,7 @@
  * batch is picked).
  */
 import { Accordion } from 'radix-ui';
-import { CalendarX2, ChevronDown, Layers, Repeat } from 'lucide-react';
+import { CalendarX2, ChevronDown, Layers, MapPin, Repeat } from 'lucide-react';
 import { useState } from 'react';
 import { useBlocker, useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
@@ -22,7 +22,16 @@ import {
   DialogTitle,
 } from '@/components/ui/overlays';
 import { timesOn } from '@/lib/batch-times';
-import { addDays, formatShortDate, formatTimeRange, isoWeekday, plural, today } from '@/lib/format';
+import {
+  addDays,
+  formatShortDate,
+  formatTime,
+  formatTimeRange,
+  isoWeekday,
+  plural,
+  today,
+} from '@/lib/format';
+import { batchTone } from '../calendar-meta';
 import { useBatches, usePlanOverview, useSessionPlan } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -284,7 +293,8 @@ export function LessonPlansPage() {
             key={`${b.id}:${date}`}
             b={b}
             date={date}
-            time={formatTimeRange(bt.startTime, bt.endTime)}
+            start={bt.startTime}
+            end={bt.endTime}
             showCoach={!isCoach}
             onEditingChange={(on) => markEditing(`${b.id}:${date}`, on)}
             onOpenPlan={
@@ -301,14 +311,16 @@ export function LessonPlansPage() {
 function BatchDay({
   b,
   date,
-  time,
+  start,
+  end,
   showCoach,
   onEditingChange,
   onOpenPlan,
 }: {
   b: Batch;
   date: string;
-  time: string;
+  start: string;
+  end: string;
   showCoach: boolean;
   onEditingChange: (on: boolean) => void;
   onOpenPlan?: () => void;
@@ -325,14 +337,28 @@ function BatchDay({
         )
       }
     >
-      <Accordion.Item value={b.id} className="overflow-hidden rounded-xl border bg-card shadow-e1">
+      <Accordion.Item
+        value={b.id}
+        className={cn(
+          'overflow-hidden rounded-xl border border-l-4 bg-card shadow-e1',
+          batchTone(b.id),
+        )}
+      >
         <Accordion.Header>
-          <Accordion.Trigger className="group flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left hover:bg-muted/40">
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[14px] font-semibold">{b.name}</span>
-              <span className="block truncate text-[11px] text-muted-foreground">
-                {time} · {b.location.name}
-                {showCoach ? ` · ${b.coach.name}` : ''}
+          {/* Same shape as the attendance cards: when | what | open. */}
+          <Accordion.Trigger className="group grid w-full cursor-pointer grid-cols-[3.75rem_minmax(0,1fr)_auto] items-center gap-x-2 px-2 py-1.5 text-left hover:bg-muted/40">
+            <span className="tabular leading-tight">
+              <span className="block text-[12.5px] font-bold">{formatTime(start)}</span>
+              <span className="block text-[10px] text-muted-foreground">to {formatTime(end)}</span>
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-[13.5px] font-semibold">{b.name}</span>
+              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+                <MapPin className="size-3 shrink-0" />
+                <span className="truncate">
+                  {b.location.name}
+                  {showCoach ? ` · ${b.coach.name}` : ''}
+                </span>
               </span>
             </span>
             <ChevronDown
@@ -342,7 +368,7 @@ function BatchDay({
             />
           </Accordion.Trigger>
         </Accordion.Header>
-        <Accordion.Content className="border-t bg-muted/15 p-1.5">
+        <Accordion.Content className="border-t bg-muted/15 p-1">
           <SessionPlan
             batchId={b.id}
             date={date}
