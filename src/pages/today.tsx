@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   CalendarCheck2,
+  CalendarClock,
   CheckCircle2,
   ChevronRight,
   ClipboardList,
@@ -22,6 +23,7 @@ import {
   addDays,
   formatClock,
   formatLongDate,
+  formatShortDate,
   formatTime,
   money,
   plural,
@@ -155,6 +157,15 @@ function CoachSessionCard({
         >
           {statusLabel(status, statusIn)}
         </FloatBadge>,
+        item.origin && item.origin.kind !== 'regular' ? (
+          <FloatBadge key="o" tone="muted" icon={<CalendarClock />}>
+            {item.origin.kind === 'extra'
+              ? 'Extra session'
+              : item.origin.originalDate && item.origin.originalDate !== today()
+                ? `Moved from ${formatShortDate(item.origin.originalDate)}`
+                : 'New time'}
+          </FloatBadge>
+        ) : null,
         item.asSubstitute ? (
           <FloatBadge key="s" tone="primary" icon={<Repeat />}>
             Substitute

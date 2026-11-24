@@ -787,6 +787,7 @@ const makeupSchema = z.object({
   date: z.string().min(1, 'Pick a date'),
   missedDate: z.string().optional(),
   reason: z.string().max(500).optional(),
+  homeBatchId: z.string().optional(),
 });
 
 export function MakeupDialog({
@@ -802,7 +803,7 @@ export function MakeupDialog({
   const batches = useBatches({ active: 'true' });
   const form = useForm<z.infer<typeof makeupSchema>>({
     resolver: zodResolver(makeupSchema),
-    defaultValues: { batchId: '', date: today(), missedDate: '', reason: '' },
+    defaultValues: { batchId: '', date: today(), missedDate: '', reason: '', homeBatchId: '' },
   });
   const { control, register, handleSubmit, formState, setError } = form;
   const [selectedBatchId, date] = useWatch({ control, name: ['batchId', 'date'] });
@@ -818,11 +819,14 @@ export function MakeupDialog({
     !!batch &&
     student.memberships.length > 0 &&
     !student.memberships.some((m) => m.coachId === batch.coach.id);
+  // Not one of its usual days: fine only if a session was moved there or added (the server checks).
   const runs = !batch || !date || batch.weekdays.includes(isoWeekday(date));
+  // Several batches: which one this makeup counts for (towards its course).
+  const homes = student.memberships.filter((m) => m.batchId !== selectedBatchId);
 
   const onSubmit = handleSubmit(async (v) => {
-    if (!runs) {
-      setError('date', { message: `${batch?.name} doesn’t run on that day` });
+    if (homes.length > 1 && !v.homeBatchId) {
+      setError('homeBatchId', { message: 'Choose which batch this makes up for' });
       return;
     }
     try {
@@ -831,6 +835,7 @@ export function MakeupDialog({
         date: v.date,
         missedDate: v.missedDate || null,
         reason: nullIfEmpty(v.reason),
+        homeBatchId: homes.length > 1 ? v.homeBatchId : undefined,
       });
       toast.success(isAdmin ? 'Makeup session booked' : 'Makeup requested', {
         description: isAdmin ? undefined : 'An admin will approve it. You’ll get a notification.',
@@ -886,9 +891,11 @@ export function MakeupDialog({
             <Field
               label="Makeup date"
               required
-              error={
-                formState.errors.date?.message ??
-                (!runs ? `${batch?.name} doesn’t run that day` : undefined)
+              error={formState.errors.date?.message}
+              hint={
+                !runs
+                  ? `Not one of ${batch?.name}’s usual days: only if a session was moved there or added.`
+                  : undefined
               }
             >
               <Input type="date" {...register('date')} />
@@ -897,6 +904,29 @@ export function MakeupDialog({
               <Input type="date" {...register('missedDate')} />
             </Field>
           </div>
+          {homes.length > 1 && (
+            <Field
+              label="Makes up for"
+              required
+              error={formState.errors.homeBatchId?.message}
+              hint="It counts towards this batch’s course."
+            >
+              <Controller
+                control={control}
+                name="homeBatchId"
+                render={({ field }) => (
+                  <Select {...field}>
+                    <option value="">Select a batch…</option>
+                    {homes.map((m) => (
+                      <option key={m.batchId} value={m.batchId}>
+                        {m.batchName}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              />
+            </Field>
+          )}
           <Field label="Reason">
             <Input placeholder="e.g. Exam on Tuesday" {...register('reason')} />
           </Field>

@@ -72,6 +72,13 @@ export const SportsPage = page(sportsModule, 'SportsPage');
 const shareModule = () => import('@/pages/public/share');
 export const ShareReportPage = page(shareModule, 'ShareReportPage');
 export const ShareInvoicePage = page(shareModule, 'ShareInvoicePage');
+export const ShareCertificatePage = page(shareModule, 'ShareCertificatePage');
+const sessionChangesModule = () => import('@/pages/session-changes');
+export const SessionChangesPage = page(sessionChangesModule, 'SessionChangesPage');
+const coursesModule = () => import('@/pages/courses');
+export const CoursesPage = page(coursesModule, 'CoursesPage');
+const deliveryModule = () => import('@/pages/delivery');
+export const DeliveryPage = page(deliveryModule, 'DeliveryPage');
 
 const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/$/, () => Promise.all([dashboardModule(), m3()])],
@@ -96,6 +103,9 @@ const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/account$/, m20],
   [/^\/skills$/, skillsModule],
   [/^\/sports$/, sportsModule],
+  [/^\/session-changes$/, sessionChangesModule],
+  [/^\/courses$/, coursesModule],
+  [/^\/delivery$/, deliveryModule],
 ];
 
 const started = new Set<() => Promise<unknown>>();

@@ -15,6 +15,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
+import { StudentCourseCard } from '../course-parts';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
   CartesianGrid,
@@ -131,6 +132,12 @@ function Overview({
     <div className="grid gap-3 lg:grid-cols-3">
       <div className="space-y-3 lg:col-span-2">
         <BatchCards s={s} isAdmin={isAdmin} canManage={canManage} />
+        <StudentCourseCard
+          studentId={s.id}
+          studentName={s.fullName}
+          phone={s.phone}
+          isAdmin={isAdmin}
+        />
 
         {s.upcomingMakeups.length > 0 && (
           <Card>

@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  CalendarClock,
   CalendarCheck2,
   CheckCircle2,
   ClipboardList,
@@ -9,7 +10,13 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import {
+  notStarted,
+  OriginBadge,
+  SessionChangeDialog,
+  UndoChangeButton,
+} from '@/components/session-change';
 import { Link } from 'react-router';
 import { ATTENDANCE_META, SectionDivider } from '@/components/common';
 import { Button } from '@/components/ui/button';
@@ -150,6 +157,10 @@ function Body({
   const plan = day.data && day.data.source !== 'none' ? day.data : undefined;
   const fits = plan ? plan.totalMinutes === plan.minutes : false;
   const rel = relativeDay(date, todayDate);
+  const [moving, setMoving] = useState(false);
+  // Sessions that haven't started, weren't cancelled and have nothing recorded can move.
+  const movable =
+    !s.cancelled && !s.marked && !s.coachSession && notStarted(date, s.batch.startTime);
 
   return (
     <>
@@ -162,6 +173,7 @@ function Body({
           </span>
         </DialogDescription>
         <div className="flex flex-wrap gap-1 pt-0.5">
+          <OriginBadge origin={s.origin} date={date} />
           {live && <Badge variant={live === 'Live now' ? 'success' : 'default'}>{live}</Badge>}
           {s.cancelled && (
             <Badge variant="muted">
@@ -300,6 +312,29 @@ function Body({
           </div>
         )}
       </section>
+
+      {movable && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button size="sm" variant="tonal" onClick={() => setMoving(true)}>
+            <CalendarClock /> Move session
+          </Button>
+          {s.origin?.changeId && s.origin.kind !== 'regular' && (
+            <UndoChangeButton changeId={s.origin.changeId} kind={s.origin.kind} />
+          )}
+        </div>
+      )}
+      {moving && (
+        <SessionChangeDialog
+          batch={s.batch}
+          session={{
+            date,
+            startTime: s.batch.startTime,
+            endTime: s.batch.endTime,
+            origin: s.origin,
+          }}
+          onClose={() => setMoving(false)}
+        />
+      )}
 
       {/* One row on every screen: two quick actions and the batch. */}
       <div className="flex gap-1.5 border-t pt-2 *:flex-1">

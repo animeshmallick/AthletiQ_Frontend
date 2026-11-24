@@ -3,6 +3,7 @@
  * they type the student's registration number; wrong numbers are limited on the server.
  *  - /share/report/:token
  *  - /share/invoice/:id?e=…&s=…
+ *  - /share/certificate/:roundId?e=…&s=…
  */
 import { useQuery } from '@tanstack/react-query';
 import { Download, Eye, FileText, KeyRound, Lock, ShieldCheck } from 'lucide-react';
@@ -16,22 +17,27 @@ import { api, ApiError, errorMessage, requestBlobPost } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 
 interface ShareInfo {
-  kind: 'report' | 'invoice';
+  kind: 'report' | 'invoice' | 'certificate';
   academy: string;
   title: string;
   student: string;
   expiresAt: string;
 }
 
-export function SharePage({ kind }: { kind: 'report' | 'invoice' }) {
+export function SharePage({ kind }: { kind: 'report' | 'invoice' | 'certificate' }) {
   const { token = '', id = '' } = useParams();
   const [params] = useSearchParams();
   const e = params.get('e') ?? '';
   const s = params.get('s') ?? '';
-  const infoPath = kind === 'report' ? `/public/reports/${token}` : `/public/invoices/${id}`;
+  const infoPath =
+    kind === 'report'
+      ? `/public/reports/${token}`
+      : kind === 'certificate'
+        ? `/public/certificates/${id}`
+        : `/public/invoices/${id}`;
   const info = useQuery({
     queryKey: ['share', kind, token || id],
-    queryFn: () => api.get<ShareInfo>(infoPath, kind === 'invoice' ? { e, s } : undefined),
+    queryFn: () => api.get<ShareInfo>(infoPath, kind === 'report' ? undefined : { e, s }),
     retry: false,
   });
 
@@ -53,7 +59,7 @@ export function SharePage({ kind }: { kind: 'report' | 'invoice' }) {
       const blob =
         kind === 'report'
           ? await requestBlobPost(`/public/reports/${token}/pdf`, { registrationNo: regNo.trim() })
-          : await requestBlobPost(`/public/invoices/${id}/pdf`, {
+          : await requestBlobPost(`${infoPath}/pdf`, {
               e,
               s,
               registrationNo: regNo.trim(),
@@ -168,4 +174,7 @@ export function ShareReportPage() {
 }
 export function ShareInvoicePage() {
   return <SharePage kind="invoice" />;
+}
+export function ShareCertificatePage() {
+  return <SharePage kind="certificate" />;
 }

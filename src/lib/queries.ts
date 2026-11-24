@@ -13,6 +13,7 @@ import {
 } from '@tanstack/react-query';
 import { api, type PageMeta, type Session, ApiError } from './api';
 import type {
+  SessionOrigin,
   AcademySettings,
   AttendanceSheet,
   AttendanceStatus,
@@ -256,7 +257,9 @@ export function useSaveBatch() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id?: string } & Record<string, unknown>) =>
       id ? api.patch<Batch>(`/batches/${id}`, body) : api.post<Batch>('/batches', body),
-    onSuccess: () => invalidate(['batches'], ['users'], ['locations']),
+    // A course change can complete students and set up rounds.
+    onSuccess: () =>
+      invalidate(['batches'], ['users'], ['locations'], ['courses'], ['me', 'tasks'], ['delivery']),
   });
 }
 
@@ -364,6 +367,8 @@ export function useBookMakeup(studentId: string) {
       date: string;
       missedDate?: string | null;
       reason?: string | null;
+      /** Which of the student's batches it counts for (when they have several). */
+      homeBatchId?: string;
     }) => api.post(`/students/${studentId}/makeups`, body),
     onSuccess: () => invalidate(keys.student(studentId), ['attendance'], ['batches']),
   });
@@ -1604,6 +1609,8 @@ export interface BatchSessionInfo {
   checkedIn: boolean;
   onTime: boolean | null;
   hasPlan: boolean;
+  /** Regular, moved here from another day/time, or an extra session. */
+  origin?: SessionOrigin;
 }
 
 export interface BatchRosterEntry {

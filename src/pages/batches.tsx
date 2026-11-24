@@ -59,6 +59,7 @@ import {
   useUsers,
 } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
+import { courseHint } from '@/lib/courses';
 import { cn } from '@/lib/utils';
 import { BATCH_REPORT_INCLUDES, ReportDialog, slug } from '@/components/report-dialog';
 import { FilterField, FilterMenu } from '@/components/filters';
@@ -86,6 +87,12 @@ const schema = z
       .regex(/^\d+$/, 'Whole number')
       .refine((v) => Number(v) >= 1 && Number(v) <= 1000, 'Between 1 and 1000'),
     isActive: z.boolean(),
+    /** Whole months; empty only for an existing batch that has no course yet. */
+    courseMonths: z
+      .string()
+      .trim()
+      .regex(/^\d*$/, 'Whole months')
+      .refine((v) => v === '' || (Number(v) >= 1 && Number(v) <= 60), 'Between 1 and 60 months'),
   })
   .refine((v) => v.endTime > v.startTime, {
     path: ['endTime'],
@@ -140,6 +147,7 @@ export function BatchDialog({
           ),
           capacity: String(batch.capacity),
           isActive: batch.isActive,
+          courseMonths: batch.courseMonths ? String(batch.courseMonths) : '',
         }
       : {
           name: '',
@@ -154,6 +162,7 @@ export function BatchDialog({
           dayTimes: {},
           capacity: '',
           isActive: true,
+          courseMonths: '',
         },
   });
   const { register, control, handleSubmit, formState, reset } = form;
@@ -166,6 +175,7 @@ export function BatchDialog({
   const watchedPlan = useWatch({ control, name: 'feePlanId' });
   const watchedStart = useWatch({ control, name: 'startTime' });
   const watchedEnd = useWatch({ control, name: 'endTime' });
+  const watchedMonths = useWatch({ control, name: 'courseMonths' });
   // Plans priced for as many days a week as the batch runs (plus the current one), and the
   // built-in free plan, which fits any days.
   const fitting = (plans.data ?? []).filter(
@@ -179,10 +189,17 @@ export function BatchDialog({
     !!batch && [...watchedDays].sort().join() !== [...batch.weekdays].sort().join();
 
   const onSubmit = handleSubmit(async (v) => {
+    // New batches must have a course; a course, once set, can be changed but not removed.
+    if (!v.courseMonths && (!batch || batch.courseMonths)) {
+      form.setError('courseMonths', { message: 'Choose the course length in months' });
+      return;
+    }
+    const { courseMonths, ...rest } = v;
     try {
       await save.mutateAsync({
         id: batch?.id,
-        ...v,
+        ...rest,
+        ...(courseMonths ? { courseMonths: Number(courseMonths) } : {}),
         // Only days the batch still runs (the server also drops ones equal to the usual time).
         dayTimes: Object.fromEntries(
           Object.entries(v.dayTimes).filter(([d]) => v.weekdays.includes(Number(d))),
@@ -352,6 +369,14 @@ export function BatchDialog({
             hint="Most students this batch can take."
           >
             <Input inputMode="numeric" {...register('capacity')} />
+          </Field>
+          <Field
+            label="Course length (months)"
+            required={!batch || !!batch.courseMonths}
+            error={e.courseMonths?.message}
+            hint={courseHint(watchedDays.length, watchedMonths, batch)}
+          >
+            <Input inputMode="numeric" placeholder="e.g. 3" {...register('courseMonths')} />
           </Field>
           {batch && (
             <Field label="Active">

@@ -39,6 +39,10 @@ import {
   PeoplePage,
   PayeesPage,
   MakeupsPage,
+  ShareCertificatePage,
+  SessionChangesPage,
+  CoursesPage,
+  DeliveryPage,
 } from './pages';
 
 function FullScreenLoader() {
@@ -186,6 +190,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: '/share/certificate/:id',
+        element: (
+          <Suspense fallback={<FullScreenLoader />}>
+            <ShareCertificatePage />
+          </Suspense>
+        ),
+      },
+      {
         path: '/register',
         element: (
           <Suspense fallback={<FullScreenLoader />}>
@@ -215,6 +227,11 @@ export const router = createBrowserRouter([
           { path: 'coach-sessions', element: <CoachSessionsPage /> },
           { path: 'account', element: <AccountPage /> },
           { path: 'substitutions', element: <SubstitutionsPage /> },
+          { path: 'session-changes', element: <SessionChangesPage /> },
+          { path: 'delivery', element: <DeliveryPage /> },
+          { path: 'courses', element: admin(<CoursesPage />) },
+          // Older links (notifications) to the decisions list.
+          { path: 'courses/decisions', element: <Navigate to="/courses" replace /> },
           { path: 'people', element: admin(<PeoplePage />) },
           { path: 'payees', element: admin(<PayeesPage />) },
           { path: 'coaches', element: admin(<CoachesPage />) },

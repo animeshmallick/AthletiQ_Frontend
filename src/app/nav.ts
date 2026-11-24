@@ -1,4 +1,7 @@
 import {
+  CalendarClock,
+  Gauge,
+  GraduationCap,
   CalendarPlus,
   CalendarCheck2,
   ClipboardList,
@@ -128,6 +131,30 @@ export const NAV: NavItem[] = [
     icon: LayoutGrid,
     roles: ['coach', 'admin'],
     group: 'manage',
+  },
+  {
+    to: '/delivery',
+    label: 'Session delivery',
+    short: 'Delivery',
+    icon: Gauge,
+    roles: ['coach', 'admin'],
+    group: 'main',
+  },
+  {
+    to: '/session-changes',
+    label: 'Session changes',
+    short: 'Changes',
+    icon: CalendarClock,
+    roles: ['coach', 'admin'],
+    group: 'approvals',
+  },
+  {
+    to: '/courses',
+    label: 'Course decisions',
+    short: 'Courses',
+    icon: GraduationCap,
+    roles: ['admin'],
+    group: 'approvals',
   },
   {
     to: '/substitutions',

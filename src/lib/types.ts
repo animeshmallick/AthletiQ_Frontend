@@ -206,6 +206,8 @@ export interface Batch {
   memberCount: number;
   /** Set when you only cover this batch as a substitute coach (current or upcoming days). */
   substitution?: { id: string; fromDate: string; toDate: string } | null;
+  /** Course length in whole months (null: not set up yet). */
+  courseMonths?: number | null;
 }
 
 export interface BatchMember {
@@ -339,6 +341,8 @@ export interface AttendanceSheet {
   batch: { id: string; name: string; startTime: string; endTime: string };
   date: string;
   isScheduledDay: boolean;
+  /** Regular, moved here, or an extra session (null when the batch doesn't run that day). */
+  origin?: SessionOrigin | null;
   cancelled: { reason: string; cancelledAt: string } | null;
   editable: boolean;
   /** Coach hasn't checked in to this session yet (attendance stays locked until they do). */
@@ -383,6 +387,14 @@ export interface CoachSession {
   scheduledEnd: string;
 }
 
+/** Where a session came from: its regular day, moved from another day/time, or an extra one. */
+export interface SessionOrigin {
+  kind: 'regular' | 'moved' | 'extra';
+  /** For a moved session, the regular day it replaces. */
+  originalDate: string | null;
+  changeId: string | null;
+}
+
 export interface DayOverviewSession {
   batch: {
     id: string;
@@ -407,6 +419,7 @@ export interface DayOverviewSession {
   cancelled: string | null;
   /** Substitute coach covering this session, if any. */
   substitute?: { id: string; name: string } | null;
+  origin?: SessionOrigin;
 }
 
 export interface TodaySession {
@@ -421,6 +434,7 @@ export interface TodaySession {
   };
   session: CoachSession | null;
   cancelled: string | null;
+  origin?: SessionOrigin;
   /** You're covering this batch today as a substitute. */
   asSubstitute?: boolean;
   substitute?: { id: string; name: string } | null;

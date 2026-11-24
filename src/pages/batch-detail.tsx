@@ -7,6 +7,7 @@
 import {
   CalendarCheck2,
   CalendarClock,
+  CalendarPlus,
   CheckCircle2,
   ClipboardList,
   Clock,
@@ -59,6 +60,14 @@ import type { BatchDetail } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { LevelBadge } from './skills/ui';
 import { BatchDialog } from './batches';
+import { CourseSection } from './course-parts';
+import {
+  notStarted,
+  OriginBadge,
+  SessionChangeDialog,
+  UndoChangeButton,
+} from '@/components/session-change';
+import { useBatchSessionChanges } from '@/lib/courses';
 
 const phoneDigits = (p: string) => p.replace(/\D/g, '');
 const whatsapp = (p: string) => `https://wa.me/${phoneDigits(p)}`;
@@ -140,7 +149,8 @@ export function BatchDetailPage() {
             <SkillsMix d={d} />
           </div>
           <Students roster={d.roster} isAdmin={isAdmin} onOpen={setOpenStudent} />
-          <Sessions batchId={b.id} upcoming={d.upcoming} recent={d.recent} />
+          <CourseSection batch={b} />
+          <Sessions batch={b} upcoming={d.upcoming} recent={d.recent} />
         </>
       )}
 
@@ -806,63 +816,90 @@ function StudentDialog({
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
-function SessionRow({ s, batchId, past }: { s: BatchSessionInfo; batchId: string; past: boolean }) {
+function SessionRow({
+  s,
+  batchId,
+  past,
+  onMove,
+}: {
+  s: BatchSessionInfo;
+  batchId: string;
+  past: boolean;
+  onMove?: (s: BatchSessionInfo) => void;
+}) {
+  const movable = !past && !s.cancelled && !!onMove && notStarted(s.date, s.startTime);
   return (
-    <Link
-      to={`/attendance?batch=${batchId}&date=${s.date}`}
-      className={cn(
-        'flex items-center gap-2.5 px-3 py-2 hover:bg-muted/40',
-        s.cancelled && 'opacity-60',
-      )}
+    <div
+      className={cn('flex items-center gap-1 pr-2 hover:bg-muted/40', s.cancelled && 'opacity-60')}
     >
-      <span className="w-32 shrink-0">
-        <span className="block text-[13px] font-semibold">{relativeDay(s.date)}</span>
-        <span className="block text-[11px] text-muted-foreground">
-          {formatTimeRange(s.startTime, s.endTime)}
+      <Link
+        to={`/attendance?batch=${batchId}&date=${s.date}`}
+        className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2"
+      >
+        <span className="w-32 shrink-0">
+          <span className="block text-[13px] font-semibold">{relativeDay(s.date)}</span>
+          <span className="block text-[11px] text-muted-foreground">
+            {formatTimeRange(s.startTime, s.endTime)}
+          </span>
         </span>
-      </span>
-      <span className="min-w-0 flex-1 text-[12px]">
-        {s.cancelled ? (
-          <Badge variant="muted">Cancelled · {s.cancelled}</Badge>
-        ) : past ? (
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted-foreground">
-            <span className={cn(s.marked === 0 && 'text-warning-foreground dark:text-warning')}>
-              {s.marked ? `${s.present}/${s.marked} present` : 'Attendance not marked'}
+        <span className="min-w-0 flex-1 text-[12px]">
+          {s.cancelled ? (
+            <Badge variant="muted">Cancelled · {s.cancelled}</Badge>
+          ) : past ? (
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted-foreground">
+              <span className={cn(s.marked === 0 && 'text-warning-foreground dark:text-warning')}>
+                {s.marked ? `${s.present}/${s.marked} present` : 'Attendance not marked'}
+              </span>
+              <span className="inline-flex items-center gap-0.5">
+                {s.checkedIn ? (
+                  <CheckCircle2
+                    className={cn('size-3.5', s.onTime ? 'text-success' : 'text-warning')}
+                  />
+                ) : (
+                  <XCircle className="size-3.5 text-destructive" />
+                )}
+                {s.checkedIn ? (s.onTime ? 'On time' : 'Late check-in') : 'No check-in'}
+              </span>
+              {s.hasPlan && <span>Plan ✓</span>}
             </span>
-            <span className="inline-flex items-center gap-0.5">
-              {s.checkedIn ? (
-                <CheckCircle2
-                  className={cn('size-3.5', s.onTime ? 'text-success' : 'text-warning')}
-                />
-              ) : (
-                <XCircle className="size-3.5 text-destructive" />
-              )}
-              {s.checkedIn ? (s.onTime ? 'On time' : 'Late check-in') : 'No check-in'}
+          ) : (
+            <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+              <OriginBadge origin={s.origin} date={s.date} />
+              {s.substitute ? `Substitute: ${s.substitute}` : 'Regular coach'}
+              {s.hasPlan ? ' · plan ready' : ''}
             </span>
-            {s.hasPlan && <span>Plan ✓</span>}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">
-            {s.substitute ? `Substitute: ${s.substitute}` : 'Regular coach'}
-            {s.hasPlan ? ' · plan ready' : ''}
-          </span>
-        )}
-      </span>
-      {s.substitute && !s.cancelled && <Badge variant="muted">Sub</Badge>}
-    </Link>
+          )}
+        </span>
+        {s.substitute && !s.cancelled && <Badge variant="muted">Sub</Badge>}
+      </Link>
+      {movable && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Move the ${formatShortDate(s.date)} session`}
+          title="Move session"
+          onClick={() => onMove(s)}
+        >
+          <CalendarClock />
+        </Button>
+      )}
+    </div>
   );
 }
 
 function Sessions({
-  batchId,
+  batch,
   upcoming,
   recent,
 }: {
-  batchId: string;
+  batch: BatchDetail;
   upcoming: BatchSessionInfo[];
   recent: BatchSessionInfo[];
 }) {
+  const batchId = batch.id;
   const [tab, setTab] = useState<'upcoming' | 'recent'>('upcoming');
+  const [moving, setMoving] = useState<BatchSessionInfo | null>(null);
+  const [adding, setAdding] = useState(false);
   const list = tab === 'upcoming' ? upcoming : recent;
   return (
     <section className="space-y-2" aria-label="Sessions">
@@ -870,6 +907,9 @@ function Sessions({
         <h2 className="flex items-center gap-1.5 text-[15px] font-semibold">
           <CalendarClock className="size-4" /> Sessions
         </h2>
+        <Button size="sm" variant="tonal" className="ml-auto" onClick={() => setAdding(true)}>
+          <CalendarPlus /> Extra session
+        </Button>
         <Segmented
           ariaLabel="Sessions"
           value={tab}
@@ -887,10 +927,60 @@ function Sessions({
       ) : (
         <Card className="divide-y overflow-hidden">
           {list.map((s) => (
-            <SessionRow key={s.date} s={s} batchId={batchId} past={tab === 'recent'} />
+            <SessionRow
+              key={s.date}
+              s={s}
+              batchId={batchId}
+              past={tab === 'recent'}
+              onMove={setMoving}
+            />
           ))}
         </Card>
       )}
+      <ChangesList batchId={batchId} />
+      {moving && (
+        <SessionChangeDialog batch={batch} session={moving} onClose={() => setMoving(null)} />
+      )}
+      {adding && <SessionChangeDialog batch={batch} onClose={() => setAdding(false)} />}
     </section>
+  );
+}
+
+/** Upcoming moved / extra sessions and requests waiting for approval, with undo. */
+function ChangesList({ batchId }: { batchId: string }) {
+  const q = useBatchSessionChanges(batchId);
+  const now = today();
+  const live = (q.data ?? []).filter(
+    (c) => ['pending', 'approved'].includes(c.status) && c.date >= now,
+  );
+  if (!live.length) return null;
+  return (
+    <div className="space-y-1">
+      <p className="text-[12px] font-semibold text-muted-foreground">Changes to the timetable</p>
+      <Card className="divide-y overflow-hidden">
+        {live.map((c) => (
+          <div key={c.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[13px]">
+            <span className="min-w-0 flex-1">
+              {c.kind === 'extra' ? (
+                <>
+                  <b className="font-semibold">Extra</b> · {formatShortDate(c.date)}{' '}
+                  {formatTimeRange(c.startTime, c.endTime)}
+                </>
+              ) : (
+                <>
+                  <b className="font-semibold">Moved</b> · {formatShortDate(c.from?.date ?? c.date)}{' '}
+                  → {formatShortDate(c.date)} {formatTimeRange(c.startTime, c.endTime)}
+                </>
+              )}
+              {c.reason ? <span className="text-muted-foreground"> · {c.reason}</span> : null}
+            </span>
+            {c.status === 'pending' && <Badge variant="warning">Awaiting approval</Badge>}
+            {notStarted(c.date, c.startTime) && (
+              <UndoChangeButton changeId={c.id} kind={c.kind === 'extra' ? 'extra' : 'moved'} />
+            )}
+          </div>
+        ))}
+      </Card>
+    </div>
   );
 }

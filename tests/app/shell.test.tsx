@@ -88,7 +88,7 @@ describe('navigation', () => {
       navFor('admin')
         .filter((n) => n.group === 'approvals')
         .map((n) => n.to),
-    ).toEqual(['/substitutions', '/registrations', '/makeups']);
+    ).toEqual(['/session-changes', '/courses', '/substitutions', '/registrations', '/makeups']);
     expect(matches({ to: '/people', also: ['/students'] }, '/students/abc')).toBe(true);
     expect(matches({ to: '/people', also: ['/students'] }, '/studentsx')).toBe(false);
     // A tab with a query (Unpaid) wins over its plain screen (Finance).
