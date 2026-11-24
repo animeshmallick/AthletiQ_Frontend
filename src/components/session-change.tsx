@@ -1,22 +1,22 @@
 /**
- * Moving a session (another day and/or time) or adding an extra one, with a live check: what
- * blocks it, what to confirm, and whether an admin has to approve (less than 24 hours' notice).
- * Also the badge that shows where a session came from, and undoing a change.
+ * Rescheduling a missed session (a calendar of the next 30 days, with a switch that highlights the
+ * days suiting every student's billing month), and, for admins, moving a session in advance or
+ * adding an extra one. Also the badge that shows where a session came from, and undoing a change.
  */
 import {
   AlertTriangle,
   CalendarClock,
   CalendarPlus,
   CircleAlert,
-  Clock3,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
-import { Field } from '@/components/common';
+import { Field, ListSkeleton } from '@/components/common';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/controls';
+import { Checkbox, Switch } from '@/components/ui/controls';
 import {
   Dialog,
   DialogContent,
@@ -30,14 +30,26 @@ import { ApiError, errorMessage } from '@/lib/api';
 import {
   previewChange,
   useCreateChange,
-  useReviewChange,
+  useSmartDates,
+  useUndoChange,
   type ChangeInput,
   type ChangePreview,
-} from '@/lib/courses';
-import { addDays, formatLongDate, formatShortDate, formatTimeRange, today } from '@/lib/format';
+  type ChangeWarning,
+  type SmartDates,
+} from '@/lib/cycles';
+import {
+  addDays,
+  formatLongDate,
+  formatShortDate,
+  formatTimeRange,
+  isoWeekday,
+  plural,
+  today,
+  WEEKDAYS,
+} from '@/lib/format';
+import { hhmm } from '@/lib/session-origin';
 import type { SessionOrigin } from '@/lib/types';
-
-const hhmm = (t: string) => t.slice(0, 5);
+import { cn } from '@/lib/utils';
 
 /** "Moved from Wed, 11 Mar" / "New time" / "Extra session". */
 export function OriginBadge({
@@ -50,20 +62,74 @@ export function OriginBadge({
   className?: string;
 }) {
   if (!origin || origin.kind === 'regular') return null;
-  if (origin.kind === 'extra')
-    return (
-      <Badge variant="default" className={className}>
-        <CalendarPlus /> Extra session
-      </Badge>
-    );
-  const sameDay = origin.originalDate === date;
+  const extra = origin.kind === 'extra';
   return (
-    <Badge variant="warning" className={className}>
-      <CalendarClock />
-      {sameDay || !origin.originalDate
-        ? 'New time'
-        : `Moved from ${formatShortDate(origin.originalDate)}`}
+    <Badge variant={extra ? 'default' : 'warning'} className={className}>
+      {extra ? <CalendarPlus /> : <CalendarClock />}
+      {extra
+        ? 'Extra session'
+        : !origin.originalDate || origin.originalDate === date
+          ? 'New time'
+          : `Moved from ${formatShortDate(origin.originalDate)}`}
     </Badge>
+  );
+}
+
+/** The days a missed session can go to, Monday first; smart ones highlighted when asked. */
+function DayGrid({
+  data,
+  value,
+  smart,
+  onPick,
+}: {
+  data: SmartDates;
+  value: string;
+  smart: boolean;
+  onPick: (date: string) => void;
+}) {
+  if (!data.days.length) return null;
+  const lead = isoWeekday(data.days[0]!.date) - 1;
+  return (
+    <div className="grid grid-cols-7 gap-1" role="group" aria-label="Choose a day">
+      {WEEKDAYS.map((w) => (
+        <span key={w.value} className="text-center text-[10px] font-medium text-muted-foreground">
+          {w.min}
+        </span>
+      ))}
+      {Array.from({ length: lead }, (_, i) => (
+        <span key={`lead-${i}`} />
+      ))}
+      {data.days.map((d) => {
+        const marked = smart && d.smart;
+        return (
+          <button
+            key={d.date}
+            type="button"
+            disabled={!!d.blocked}
+            aria-pressed={d.date === value}
+            aria-label={`${formatLongDate(d.date)}${marked ? ', suits every student' : ''}`}
+            title={
+              d.blocked ??
+              (d.outside.length ? `After the billing month of ${d.outside.join(', ')}` : undefined)
+            }
+            onClick={() => onPick(d.date)}
+            className={cn(
+              'flex h-10 flex-col items-center justify-center rounded-lg border text-[13px] leading-none font-medium transition-colors',
+              'disabled:border-transparent disabled:text-muted-foreground/40',
+              marked && 'border-success bg-success/15 text-success',
+              d.date === value && 'border-primary bg-primary text-primary-foreground',
+            )}
+          >
+            {Number(d.date.slice(8))}
+            <span className="mt-0.5 text-[8.5px] font-normal opacity-70">
+              {formatShortDate(d.date)
+                .replace(/[^A-Za-z]/g, '')
+                .slice(0, 3)}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -71,113 +137,98 @@ export interface SessionRef {
   date: string;
   startTime: string;
   endTime: string;
-  origin?: SessionOrigin | null;
 }
 
 /**
- * Reschedule `session` of the batch, or (without a session) add an extra session. Closes itself
- * once the change is saved.
+ * `missed` reschedules a missed session; `session` alone moves one in advance (admin); neither
+ * adds an extra session (admin).
  */
 export function SessionChangeDialog({
   batch,
   session,
-  defaultDate,
+  missed = false,
   onClose,
-  onSaved,
 }: {
   batch: { id: string; name: string; startTime: string; endTime: string };
   session?: SessionRef | null;
-  /** For a new extra session. */
-  defaultDate?: string;
+  missed?: boolean;
   onClose: () => void;
-  onSaved?: (change: { id: string; status: string }) => void;
 }) {
-  const me = useUser();
-  const isAdmin = me.role === 'admin';
+  const isAdmin = useUser().role === 'admin';
   const extra = !session;
-  const [date, setDate] = useState(session?.date ?? defaultDate ?? addDays(today(), 1));
+  const [date, setDate] = useState(missed ? '' : (session?.date ?? addDays(today(), 1)));
   const [startTime, setStart] = useState(hhmm(session?.startTime ?? batch.startTime));
   const [endTime, setEnd] = useState(hhmm(session?.endTime ?? batch.endTime));
   const [reason, setReason] = useState('');
+  const [smart, setSmart] = useState(false);
+  const days = useSmartDates(batch.id, session?.date ?? '', missed);
+  /** The choice whose warnings were confirmed. */
   const [confirmed, setConfirmed] = useState<string | null>(null);
   /** The latest check, with the inputs it was made for (a stale one is never shown). */
   const [result, setResult] = useState<{ key: string; preview: ChangePreview } | null>(null);
   const create = useCreateChange(batch.id);
   const unchanged =
     !!session &&
+    !missed &&
     date === session.date &&
     startTime === hhmm(session.startTime) &&
     endTime === hhmm(session.endTime);
   const canCheck = !!date && !!startTime && !!endTime && !unchanged;
   const key = [date, startTime, endTime].join('|');
   const check = canCheck && result?.key === key ? result.preview : null;
-  const checking = canCheck && !check;
+  const sessionDate = session?.date;
 
-  const body: ChangeInput = {
-    sessionDate: session?.date,
-    date,
-    startTime,
-    endTime,
-    reason: reason.trim() || null,
-  };
-
-  // Live check, a moment after the last edit.
   useEffect(() => {
     if (!canCheck) return;
     let live = true;
     const t = setTimeout(() => {
-      const fail = (err: unknown): ChangePreview => ({
-        ok: false,
-        errors: [errorMessage(err)],
-        warnings: [],
-        kind: session ? 'reschedule' : 'extra',
-        originalDate: null,
-        needsApproval: false,
-        noticeHours: null,
-      });
-      previewChange(batch.id, { sessionDate: session?.date, date, startTime, endTime })
-        .catch(fail)
+      previewChange(batch.id, { sessionDate, date, startTime, endTime })
+        .catch((err: unknown): ChangePreview => ({
+          ok: false,
+          errors: [errorMessage(err)],
+          warnings: [],
+        }))
         .then((preview) => live && setResult({ key, preview }));
     }, 350);
     return () => {
       live = false;
       clearTimeout(t);
     };
-  }, [batch.id, session, date, startTime, endTime, canCheck, key]);
+  }, [batch.id, sessionDate, date, startTime, endTime, canCheck, key]);
 
   const needsConfirm = !!check?.warnings.length;
-  // Confirming covers the warnings of this exact choice only.
   const isConfirmed = confirmed === key;
   const canSave = !!check?.ok && (!needsConfirm || isConfirmed);
 
   async function save() {
+    const body: ChangeInput = {
+      sessionDate,
+      date,
+      startTime,
+      endTime,
+      reason: reason.trim() || null,
+      confirm: needsConfirm && isConfirmed,
+    };
     try {
-      const saved = await create.mutateAsync({ ...body, confirm: needsConfirm && isConfirmed });
+      const saved = await create.mutateAsync(body);
       toast.success(
-        saved.status === 'pending'
-          ? 'Sent for approval'
-          : extra
-            ? 'Extra session added'
-            : 'Session moved',
+        extra ? 'Extra session added' : missed ? 'Session rescheduled' : 'Session moved',
         {
-          description:
-            saved.status === 'pending'
-              ? 'Less than 24 hours’ notice, so an admin approves it. You’ll be notified.'
-              : `${formatLongDate(saved.date)} · ${formatTimeRange(saved.startTime, saved.endTime)}. Everyone involved is notified.`,
+          description: `${formatLongDate(saved.date)} · ${formatTimeRange(saved.startTime, saved.endTime)}`,
         },
       );
-      onSaved?.(saved);
       onClose();
     } catch (err) {
-      // Someone else changed things meanwhile: show the fresh warnings to confirm.
+      // Something changed meanwhile: show the fresh warnings to confirm.
       const warnings =
-        (err instanceof ApiError &&
-          (err.details as { warnings?: ChangePreview['warnings'] } | undefined)?.warnings) ||
-        null;
-      if (warnings && check) setResult({ key, preview: { ...check, warnings } });
-      toast.error(extra ? 'Could not add the session' : 'Could not move the session', {
-        description: errorMessage(err),
-      });
+        err instanceof ApiError
+          ? (err.details as { warnings?: ChangeWarning[] } | undefined)?.warnings
+          : undefined;
+      if (warnings) {
+        setResult({ key, preview: { ok: true, errors: [], warnings } });
+        setConfirmed(null);
+      }
+      toast.error('Could not save', { description: errorMessage(err) });
     }
   }
 
@@ -185,37 +236,78 @@ export function SessionChangeDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{extra ? 'Add an extra session' : 'Move this session'}</DialogTitle>
+          <DialogTitle>
+            {extra
+              ? 'Add an extra session'
+              : missed
+                ? 'Reschedule missed session'
+                : 'Move this session'}
+          </DialogTitle>
           <DialogDescription>
             {extra
-              ? `A one-off ${batch.name} session on a day it doesn’t usually run. Every student of the batch is expected.`
-              : `${batch.name} · ${formatLongDate(session.date)} · ${formatTimeRange(session.startTime, session.endTime)}. Its students, makeups and lesson plan move with it.`}
+              ? `A one-off ${batch.name} session on a day it doesn’t usually run. Every student is expected.`
+              : `${batch.name} · ${formatLongDate(session.date)} · ${formatTimeRange(session.startTime, session.endTime)}. Same place; its students attend free of extra charge.`}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2.5">
-          <Field
-            label={extra ? 'Day' : 'New day'}
-            hint={
-              extra
-                ? 'Up to 60 days ahead, on a day the batch doesn’t run.'
-                : 'Same day for a new time, or a day the batch doesn’t run (within 14 days).'
-            }
-          >
-            <Input
-              type="date"
-              aria-label="Day"
-              value={date}
-              min={today()}
-              onChange={(e) => e.target.value && setDate(e.target.value)}
-            />
-          </Field>
+        <div className="space-y-3">
+          {missed && (
+            <>
+              <label className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2">
+                <span className="text-[13px]">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Sparkles className="size-4 text-success" /> Smart dates
+                  </span>
+                  <span className="text-[12px] text-muted-foreground">
+                    Highlight days inside every student’s billing month
+                  </span>
+                </span>
+                <Switch checked={smart} onCheckedChange={setSmart} aria-label="Smart dates" />
+              </label>
+              {days.isPending ? (
+                <ListSkeleton rows={3} />
+              ) : days.isError ? (
+                <p role="alert" className="text-[13px] text-destructive">
+                  {errorMessage(days.error)}
+                </p>
+              ) : (
+                <>
+                  {smart && days.data.message && (
+                    <p role="status" className="rounded-lg bg-warning/12 px-2.5 py-2 text-[12.5px]">
+                      {days.data.message}
+                    </p>
+                  )}
+                  <DayGrid data={days.data} value={date} smart={smart} onPick={setDate} />
+                  <p className="text-[12px] text-muted-foreground">
+                    {plural(days.data.students, 'student')} affected.{' '}
+                    {days.data.days.length
+                      ? 'Greyed-out days aren’t available.'
+                      : 'The 30 days are over.'}
+                  </p>
+                </>
+              )}
+            </>
+          )}
+          {(!missed || isAdmin) && (
+            <Field
+              label={extra ? 'Day' : missed ? 'Or another day' : 'New day'}
+              hint={missed ? 'Admins can go past the 30 days.' : undefined}
+            >
+              <Input
+                type="date"
+                aria-label="Day"
+                value={date}
+                min={today()}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </Field>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <Field label="Starts">
               <Input
                 type="time"
                 aria-label="Starts"
                 value={startTime}
-                onChange={(e) => e.target.value && setStart(e.target.value)}
+                onChange={(e) => setStart(e.target.value)}
               />
             </Field>
             <Field label="Ends">
@@ -223,7 +315,7 @@ export function SessionChangeDialog({
                 type="time"
                 aria-label="Ends"
                 value={endTime}
-                onChange={(e) => e.target.value && setEnd(e.target.value)}
+                onChange={(e) => setEnd(e.target.value)}
               />
             </Field>
           </div>
@@ -234,16 +326,16 @@ export function SessionChangeDialog({
               maxLength={300}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={extra ? 'e.g. Make up the rain-out' : 'e.g. Ground booked for an event'}
             />
           </Field>
-
           <div aria-live="polite" className="space-y-1.5">
-            {unchanged ? (
-              <p className="text-[12px] text-muted-foreground">Pick a new day or time.</p>
-            ) : checking ? (
+            {!canCheck ? (
+              <p className="text-[12px] text-muted-foreground">
+                {unchanged ? 'Pick a new day or time.' : 'Pick a day.'}
+              </p>
+            ) : !check ? (
               <p className="text-[12px] text-muted-foreground">Checking…</p>
-            ) : check ? (
+            ) : (
               <>
                 {check.errors.map((m) => (
                   <p
@@ -265,16 +357,12 @@ export function SessionChangeDialog({
                     </p>
                     {w.students && (
                       <p className="mt-0.5 text-muted-foreground">
-                        {w.students
-                          .slice(0, 5)
-                          .map((s) => `${s.fullName} (${s.batchName})`)
-                          .join(', ')}
-                        {w.students.length > 5 ? ` and ${w.students.length - 5} more` : ''}
+                        {w.students.map((s) => `${s.fullName} (${s.detail})`).join(', ')}
                       </p>
                     )}
                   </div>
                 ))}
-                {needsConfirm && check.ok && (
+                {check.ok && needsConfirm && (
                   <label className="flex items-center gap-2 text-[13px]">
                     <Checkbox
                       checked={isConfirmed}
@@ -285,17 +373,12 @@ export function SessionChangeDialog({
                   </label>
                 )}
                 {check.ok && (
-                  <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                    <Clock3 className="size-3.5" />
-                    {check.needsApproval
-                      ? 'Less than 24 hours’ notice: an admin approves it first.'
-                      : isAdmin
-                        ? 'Takes effect straight away.'
-                        : 'Takes effect straight away; admins are told.'}
+                  <p className="text-[12px] text-muted-foreground">
+                    Takes effect straight away{isAdmin ? '.' : '; admins are told.'}
                   </p>
                 )}
               </>
-            ) : null}
+            )}
           </div>
         </div>
         <DialogFooter>
@@ -303,7 +386,7 @@ export function SessionChangeDialog({
             Cancel
           </Button>
           <Button loading={create.isPending} disabled={!canSave} onClick={() => void save()}>
-            {check?.needsApproval ? 'Ask for approval' : extra ? 'Add session' : 'Move session'}
+            {extra ? 'Add session' : missed ? 'Reschedule' : 'Move session'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -311,46 +394,68 @@ export function SessionChangeDialog({
   );
 }
 
-/** Puts a moved session back (or drops an extra one), before it starts. */
-export function UndoChangeButton({
-  changeId,
-  kind,
-}: {
-  changeId: string;
-  kind: 'moved' | 'extra';
-}) {
-  const review = useReviewChange();
+/** Puts a rescheduled session back (or drops an extra one), before it starts. */
+export function UndoChangeButton({ changeId, extra }: { changeId: string; extra: boolean }) {
+  const undo = useUndoChange();
   return (
     <Button
       variant="ghost"
       size="sm"
       className="text-muted-foreground"
-      loading={review.isPending}
+      loading={undo.isPending}
       onClick={() =>
-        review.mutate(
-          { id: changeId, action: 'cancel' },
-          {
-            onSuccess: () =>
-              toast.success(kind === 'extra' ? 'Extra session removed' : 'Back to its usual time'),
-            onError: (e) => toast.error('Could not undo', { description: errorMessage(e) }),
-          },
-        )
+        undo.mutate(changeId, {
+          onSuccess: () => toast.success(extra ? 'Extra session removed' : 'Reschedule undone'),
+          onError: (e) => toast.error('Could not undo', { description: errorMessage(e) }),
+        })
       }
     >
-      <RotateCcw /> {kind === 'extra' ? 'Remove extra session' : 'Undo move'}
+      <RotateCcw /> {extra ? 'Remove' : 'Undo'}
     </Button>
   );
 }
 
-/** True until the session's start (IST wall clock, like the rest of the app). */
-export function notStarted(date: string, startTime: string, now: Date = new Date()) {
-  const d = today(now);
-  if (date !== d) return date > d;
-  const ist = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(now);
-  return hhmm(startTime) > ist;
+/**
+ * Actions for one session in a calendar sheet: reschedule when missed (anyone who runs it), move
+ * in advance or undo (admins; coaches undo through the missed-sessions page).
+ */
+export function SessionActions({
+  batch,
+  session,
+  origin,
+  cancelled,
+  canMove,
+}: {
+  batch: { id: string; name: string; startTime: string; endTime: string };
+  session: SessionRef;
+  origin?: SessionOrigin | null;
+  cancelled: boolean;
+  /** Not started and nothing recorded. */
+  canMove: boolean;
+}) {
+  const isAdmin = useUser().role === 'admin';
+  const [open, setOpen] = useState(false);
+  const movable = cancelled ? isAdmin || origin?.kind !== 'extra' : isAdmin && canMove;
+  const changed = origin?.changeId && origin.kind !== 'regular' ? origin.changeId : null;
+  if (!movable && !(changed && isAdmin && canMove)) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {movable && (
+        <Button size="sm" variant="tonal" onClick={() => setOpen(true)}>
+          <CalendarClock /> {cancelled ? 'Reschedule' : 'Move session'}
+        </Button>
+      )}
+      {changed && isAdmin && canMove && (
+        <UndoChangeButton changeId={changed} extra={origin?.kind === 'extra'} />
+      )}
+      {open && (
+        <SessionChangeDialog
+          batch={batch}
+          session={session}
+          missed={cancelled}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
 }

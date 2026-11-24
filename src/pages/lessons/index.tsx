@@ -21,7 +21,7 @@ import {
 import { timesOn } from '@/lib/batch-times';
 import { addDays, formatTime, isoWeekday, plural, today } from '@/lib/format';
 import { batchTone } from '../calendar-meta';
-import { useBatches, useSessionPlan } from '@/lib/queries';
+import { useBatches, useSessionPlan, useAttendanceOverview } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { LessonInsightsButton } from './insights';
@@ -96,9 +96,14 @@ export function LessonPlansPage() {
     set({ date: d, batch: '' });
   };
 
+  // The day as it really runs (moved, extra and cancelled sessions); by weekday until loaded.
+  const overview = useAttendanceOverview(date);
   const day = (batches.data ?? [])
-    .filter((b) => runsOn(b, date, isCoach))
-    .map((b) => ({ b, t: timesOn(b, date) }))
+    .flatMap((b) => {
+      if (!overview.data) return runsOn(b, date, isCoach) ? [{ b, t: timesOn(b, date) }] : [];
+      const s = overview.data.sessions.find((x) => x.batch.id === b.id);
+      return s ? [{ b, t: s.batch }] : [];
+    })
     .sort((x, y) => x.t.startTime.localeCompare(y.t.startTime));
 
   return (

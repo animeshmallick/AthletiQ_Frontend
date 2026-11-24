@@ -139,7 +139,7 @@ export function CoachSessionsPage() {
     <div>
       <PageHeader
         title="Coach check-ins"
-        description="GPS-verified session attendance. Readings outside the location radius are flagged for review."
+        description="GPS-verified session attendance. Check-ins outside the location radius, or outside 30 minutes before the start to the end, are flagged for review."
       />
 
       <FilterBar>

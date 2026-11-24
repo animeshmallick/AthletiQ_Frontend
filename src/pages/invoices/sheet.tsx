@@ -64,6 +64,7 @@ import { nullIfEmpty } from '@/lib/forms';
 import {
   useAdjustInvoice,
   useCancelInvoice,
+  useRestoreLost,
   useMarkPaid,
   useReversePayment,
   useShareInvoice,
@@ -556,6 +557,7 @@ const HERO_TINT: Record<InvoiceDetail['displayStatus'], string> = {
   paid: 'from-success/10',
   refunded: 'from-muted',
   cancelled: 'from-muted',
+  lost: 'from-muted',
 };
 const STANDING_TONE: Record<InvoiceDetail['displayStatus'], string> = {
   overdue: 'text-destructive',
@@ -563,6 +565,7 @@ const STANDING_TONE: Record<InvoiceDetail['displayStatus'], string> = {
   paid: 'text-success',
   refunded: 'text-muted-foreground',
   cancelled: 'text-muted-foreground',
+  lost: 'text-muted-foreground',
 };
 
 /** The invoice page's content: amount and status up top with the actions, then the details. */
@@ -573,6 +576,8 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
   const cancel = useCancelInvoice(inv.id);
   const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const restoreLost = useRestoreLost(inv.id);
   const [adjusting, setAdjusting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [viewing, setViewing] = useState<PdfFile | null>(null);
@@ -618,20 +623,23 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
           ? `Paid${inv.paidAt ? ` on ${formatDate(inv.paidAt.slice(0, 10))}` : ''}`
           : inv.displayStatus === 'refunded'
             ? 'Refunded'
-            : 'Cancelled';
+            : inv.displayStatus === 'lost'
+              ? 'Written off as lost'
+              : 'Cancelled';
   const paidSoFar = inv.payments
     .filter((p) => p.status === 'completed')
     .reduce((n, p) => n + p.amount, 0);
   const balance = inv.status === 'due' ? Math.max(inv.totalAmount - paidSoFar, 0) : 0;
   const tiles = [
-    inv.status !== 'cancelled' && {
-      key: 'wa',
-      label: 'WhatsApp',
-      icon: <MessageCircle />,
-      tone: 'text-success bg-success/10',
-      loading: share.isPending,
-      onClick: () => void whatsapp(),
-    },
+    inv.status !== 'cancelled' &&
+      inv.status !== 'lost' && {
+        key: 'wa',
+        label: 'WhatsApp',
+        icon: <MessageCircle />,
+        tone: 'text-success bg-success/10',
+        loading: share.isPending,
+        onClick: () => void whatsapp(),
+      },
     {
       key: 'view',
       label: 'View PDF',
@@ -785,6 +793,18 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
       </Card>
       <PdfViewer file={viewing} onClose={() => setViewing(null)} />
 
+      {inv.status === 'lost' && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted/60 px-3 py-1.5 text-[13px] text-muted-foreground">
+          <p>
+            <b className="font-semibold text-foreground">Lost:</b> {inv.lostReason ?? 'written off'}
+          </p>
+          {isAdmin && (
+            <Button size="sm" variant="outline" onClick={() => setRestoring(true)}>
+              Collect again
+            </Button>
+          )}
+        </div>
+      )}
       {inv.cancelledReason && (
         <p className="rounded-xl border bg-muted/60 px-3 py-1 text-[13px] text-muted-foreground">
           <b className="font-semibold text-foreground">Cancelled:</b> {inv.cancelledReason}
@@ -961,6 +981,24 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
 
       <MarkPaidDialog invoice={inv} open={paying} onOpenChange={setPaying} />
       {adjusting && <AdjustDialog invoice={inv} onClose={() => setAdjusting(false)} />}
+      <ConfirmDialog
+        open={restoring}
+        onOpenChange={setRestoring}
+        title="Collect this invoice again?"
+        description="It becomes due and counts as outstanding again."
+        confirmLabel="Make it due"
+        requireReason
+        loading={restoreLost.isPending}
+        onConfirm={(reason) =>
+          restoreLost.mutate(reason, {
+            onSuccess: () => {
+              toast.success('Invoice is due again');
+              setRestoring(false);
+            },
+            onError: (e) => toast.error(errorMessage(e)),
+          })
+        }
+      />
       <ConfirmDialog
         open={cancelling}
         onOpenChange={setCancelling}

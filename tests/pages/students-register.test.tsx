@@ -141,7 +141,23 @@ describe('StudentDetailPage', () => {
     });
     expect(await screen.findByRole('heading', { name: 'Anya Rao' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Manage' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^makeup$/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Batches' })).toBeInTheDocument();
+  });
+
+  it('shows a planned last day, which an admin can call off', async () => {
+    const base = studentDetail as unknown as { memberships: object[] };
+    const m = { ...base.memberships[0], enrollmentId: 'e9', plannedEndOn: '2099-04-01' };
+    const api = mockApi({
+      'GET /students/s1': () => ({ ...base, memberships: [m] }),
+      'POST /renewals/e9/restore': () => ({ restored: true }),
+    });
+    const { user } = await renderPage(<StudentDetailPage />, {
+      path: '/students/:id',
+      route: '/students/s1',
+      user: adminUser,
+    });
+    await user.click(await screen.findByRole('button', { name: 'Call off' }));
+    await waitFor(() => expect(api.find('POST /renewals/e9/restore')).toHaveLength(1));
   });
 });
 

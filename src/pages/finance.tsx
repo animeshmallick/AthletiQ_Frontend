@@ -127,7 +127,10 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
               icon={<IndianRupee />}
               loading={q.isPending}
               value={t ? money(t.billed) : ''}
-              hint={t && plural(t.invoicesIssued, 'invoice')}
+              hint={
+                t &&
+                `${plural(t.invoicesIssued, 'invoice')}${t.lost ? ` · ${money(t.lost)} lost` : ''}`
+              }
             />
             <StatCard
               label="Collected"

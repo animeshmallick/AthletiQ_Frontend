@@ -4,7 +4,7 @@ export type Role = 'admin' | 'coach';
 import type { DayTimes } from './batch-times';
 export type UserStatus = 'invited' | 'active' | 'disabled';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
-export type InvoiceStatus = 'due' | 'paid' | 'refunded' | 'cancelled';
+export type InvoiceStatus = 'due' | 'paid' | 'refunded' | 'cancelled' | 'lost';
 export type InvoiceDisplayStatus = InvoiceStatus | 'overdue';
 export type PaymentMode = 'cash' | 'upi' | 'bank_transfer' | 'card' | 'cheque' | 'other';
 
@@ -291,6 +291,8 @@ export interface Membership {
   endTime: string;
   dayTimes?: DayTimes;
   since: string;
+  /** Last day, when leaving or a stopped renewal is planned. */
+  plannedEndOn?: string | null;
   plan: { id: string; name: string; monthlyFee: number; daysPerWeek: number };
   customMonthlyFee: number | null;
   monthlyDiscount: number;
@@ -644,6 +646,8 @@ export interface InvoiceDetail extends Omit<Invoice, 'student'> {
   baseAmount: number;
   discountAmount: number;
   cancelledReason: string | null;
+  /** Written off when the student exited. */
+  lostReason?: string | null;
   student: {
     id: string;
     code: string;
@@ -679,6 +683,9 @@ export interface FinanceSummary {
     collected: number;
     paymentsReceived: number;
     refunded: number;
+    /** Written off in the period (students who exited). */
+    lost?: number;
+    lostCount?: number;
     due: number;
     dueCount: number;
     overdue: number;

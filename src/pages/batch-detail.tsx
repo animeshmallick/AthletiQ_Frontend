@@ -60,14 +60,10 @@ import type { BatchDetail } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { LevelBadge } from './skills/ui';
 import { BatchDialog } from './batches';
-import { CourseSection } from './course-parts';
-import {
-  notStarted,
-  OriginBadge,
-  SessionChangeDialog,
-  UndoChangeButton,
-} from '@/components/session-change';
-import { useBatchSessionChanges } from '@/lib/courses';
+import { BatchCyclesSection } from './cycle-parts';
+import { OriginBadge, SessionChangeDialog, UndoChangeButton } from '@/components/session-change';
+import { notStarted } from '@/lib/session-origin';
+import { useBatchSessionChanges } from '@/lib/cycles';
 
 const phoneDigits = (p: string) => p.replace(/\D/g, '');
 const whatsapp = (p: string) => `https://wa.me/${phoneDigits(p)}`;
@@ -149,7 +145,7 @@ export function BatchDetailPage() {
             <SkillsMix d={d} />
           </div>
           <Students roster={d.roster} isAdmin={isAdmin} onOpen={setOpenStudent} />
-          <CourseSection batch={b} />
+          <BatchCyclesSection batch={b} />
           <Sessions batch={b} upcoming={d.upcoming} recent={d.recent} />
         </>
       )}
@@ -827,7 +823,13 @@ function SessionRow({
   past: boolean;
   onMove?: (s: BatchSessionInfo) => void;
 }) {
-  const movable = !past && !s.cancelled && !!onMove && notStarted(s.date, s.startTime);
+  // Anyone who runs it reschedules a cancelled session; only admins move one in advance.
+  const isAdmin = useUser().role === 'admin';
+  const movable =
+    !!onMove &&
+    (s.cancelled
+      ? isAdmin || s.origin?.kind !== 'extra'
+      : isAdmin && !past && notStarted(s.date, s.startTime));
   return (
     <div
       className={cn('flex items-center gap-1 pr-2 hover:bg-muted/40', s.cancelled && 'opacity-60')}
@@ -876,8 +878,8 @@ function SessionRow({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`Move the ${formatShortDate(s.date)} session`}
-          title="Move session"
+          aria-label={`${s.cancelled ? 'Reschedule' : 'Move'} the ${formatShortDate(s.date)} session`}
+          title={s.cancelled ? 'Reschedule' : 'Move session'}
           onClick={() => onMove(s)}
         >
           <CalendarClock />
@@ -897,6 +899,7 @@ function Sessions({
   recent: BatchSessionInfo[];
 }) {
   const batchId = batch.id;
+  const isAdmin = useUser().role === 'admin';
   const [tab, setTab] = useState<'upcoming' | 'recent'>('upcoming');
   const [moving, setMoving] = useState<BatchSessionInfo | null>(null);
   const [adding, setAdding] = useState(false);
@@ -907,9 +910,11 @@ function Sessions({
         <h2 className="flex items-center gap-1.5 text-[15px] font-semibold">
           <CalendarClock className="size-4" /> Sessions
         </h2>
-        <Button size="sm" variant="tonal" className="ml-auto" onClick={() => setAdding(true)}>
-          <CalendarPlus /> Extra session
-        </Button>
+        {isAdmin && (
+          <Button size="sm" variant="tonal" className="ml-auto" onClick={() => setAdding(true)}>
+            <CalendarPlus /> Extra session
+          </Button>
+        )}
         <Segmented
           ariaLabel="Sessions"
           value={tab}
@@ -939,20 +944,24 @@ function Sessions({
       )}
       <ChangesList batchId={batchId} />
       {moving && (
-        <SessionChangeDialog batch={batch} session={moving} onClose={() => setMoving(null)} />
+        <SessionChangeDialog
+          batch={batch}
+          session={moving}
+          missed={!!moving.cancelled}
+          onClose={() => setMoving(null)}
+        />
       )}
       {adding && <SessionChangeDialog batch={batch} onClose={() => setAdding(false)} />}
     </section>
   );
 }
 
-/** Upcoming moved / extra sessions and requests waiting for approval, with undo. */
+/** Upcoming moved / extra sessions, with undo (coaches: their reschedules). */
 function ChangesList({ batchId }: { batchId: string }) {
   const q = useBatchSessionChanges(batchId);
   const now = today();
-  const live = (q.data ?? []).filter(
-    (c) => ['pending', 'approved'].includes(c.status) && c.date >= now,
-  );
+  const isAdmin = useUser().role === 'admin';
+  const live = (q.data ?? []).filter((c) => c.date >= now);
   if (!live.length) return null;
   return (
     <div className="space-y-1">
@@ -974,9 +983,8 @@ function ChangesList({ batchId }: { batchId: string }) {
               )}
               {c.reason ? <span className="text-muted-foreground"> · {c.reason}</span> : null}
             </span>
-            {c.status === 'pending' && <Badge variant="warning">Awaiting approval</Badge>}
-            {notStarted(c.date, c.startTime) && (
-              <UndoChangeButton changeId={c.id} kind={c.kind === 'extra' ? 'extra' : 'moved'} />
+            {notStarted(c.date, c.startTime) && (isAdmin || c.kind === 'reschedule') && (
+              <UndoChangeButton changeId={c.id} extra={c.kind === 'extra'} />
             )}
           </div>
         ))}

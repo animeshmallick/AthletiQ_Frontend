@@ -38,11 +38,9 @@ import {
   SubstitutionsPage,
   PeoplePage,
   PayeesPage,
-  MakeupsPage,
   ShareCertificatePage,
-  SessionChangesPage,
-  CoursesPage,
-  DeliveryPage,
+  MissedSessionsPage,
+  RenewalsPage,
 } from './pages';
 
 function FullScreenLoader() {
@@ -227,16 +225,12 @@ export const router = createBrowserRouter([
           { path: 'coach-sessions', element: <CoachSessionsPage /> },
           { path: 'account', element: <AccountPage /> },
           { path: 'substitutions', element: <SubstitutionsPage /> },
-          { path: 'session-changes', element: <SessionChangesPage /> },
-          { path: 'delivery', element: <DeliveryPage /> },
-          { path: 'courses', element: admin(<CoursesPage />) },
-          // Older links (notifications) to the decisions list.
-          { path: 'courses/decisions', element: <Navigate to="/courses" replace /> },
+          { path: 'missed-sessions', element: <MissedSessionsPage /> },
+          { path: 'renewals', element: <RenewalsPage /> },
           { path: 'people', element: admin(<PeoplePage />) },
           { path: 'payees', element: admin(<PayeesPage />) },
           { path: 'coaches', element: admin(<CoachesPage />) },
           { path: 'registrations', element: admin(<RegistrationsPage />) },
-          { path: 'makeups', element: admin(<MakeupsPage />) },
           { path: 'locations', element: admin(<LocationsPage />) },
           { path: 'fee-plans', element: admin(<FeePlansPage />) },
           { path: 'settings', element: admin(<SettingsPage />) },

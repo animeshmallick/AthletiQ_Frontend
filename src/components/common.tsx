@@ -546,6 +546,7 @@ const INVOICE_STATUS: Record<InvoiceDisplayStatus, { label: string; variant: Bad
   paid: { label: 'Paid', variant: 'success' },
   refunded: { label: 'Refunded', variant: 'muted' },
   cancelled: { label: 'Cancelled', variant: 'muted' },
+  lost: { label: 'Lost', variant: 'muted' },
 };
 
 export function InvoiceStatusBadge({ status }: { status: InvoiceDisplayStatus }) {

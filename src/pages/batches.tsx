@@ -57,9 +57,10 @@ import {
   useLocations,
   useSaveBatch,
   useUsers,
+  useAttendanceOverview,
 } from '@/lib/queries';
-import type { Batch } from '@/lib/types';
-import { courseHint } from '@/lib/courses';
+import type { Batch, DayOverviewSession } from '@/lib/types';
+import { courseHint } from '@/lib/cycles';
 import { cn } from '@/lib/utils';
 import { BATCH_REPORT_INCLUDES, ReportDialog, slug } from '@/components/report-dialog';
 import { FilterField, FilterMenu } from '@/components/filters';
@@ -175,6 +176,8 @@ export function BatchDialog({
   const watchedPlan = useWatch({ control, name: 'feePlanId' });
   const watchedStart = useWatch({ control, name: 'startTime' });
   const watchedEnd = useWatch({ control, name: 'endTime' });
+  // Cycles run on the days and the length: both are fixed while there are students.
+  const fixed = !!batch?.courseMonths && batch.memberCount > 0;
   const watchedMonths = useWatch({ control, name: 'courseMonths' });
   // Plans priced for as many days a week as the batch runs (plus the current one), and the
   // built-in free plan, which fits any days.
@@ -190,11 +193,12 @@ export function BatchDialog({
 
   const onSubmit = handleSubmit(async (v) => {
     // New batches must have a course; a course, once set, can be changed but not removed.
-    if (!v.courseMonths && (!batch || batch.courseMonths)) {
+    if (!v.courseMonths && !fixed && (!batch || batch.courseMonths)) {
       form.setError('courseMonths', { message: 'Choose the course length in months' });
       return;
     }
-    const { courseMonths, ...rest } = v;
+    const { courseMonths: entered, ...rest } = v;
+    const courseMonths = fixed ? String(batch.courseMonths) : entered;
     try {
       await save.mutateAsync({
         id: batch?.id,
@@ -374,9 +378,18 @@ export function BatchDialog({
             label="Course length (months)"
             required={!batch || !!batch.courseMonths}
             error={e.courseMonths?.message}
-            hint={courseHint(watchedDays.length, watchedMonths, batch)}
+            hint={
+              fixed
+                ? 'Fixed, like the training days, while the batch has students.'
+                : courseHint(watchedDays.length, watchedMonths, batch)
+            }
           >
-            <Input inputMode="numeric" placeholder="e.g. 3" {...register('courseMonths')} />
+            <Input
+              inputMode="numeric"
+              placeholder="e.g. 3"
+              disabled={fixed}
+              {...register('courseMonths')}
+            />
           </Field>
           {batch && (
             <Field label="Active">
@@ -537,10 +550,13 @@ const toMin = (t: string) => {
 };
 
 /** "Live now" while today's session runs, "Today" before it, otherwise nothing. */
-function todayStatus(b: Batch, now: Date) {
+function todayStatus(b: Batch, now: Date, sessions?: DayOverviewSession[]) {
+  if (!b.isActive) return null;
   const day = today(now);
-  if (!b.isActive || !b.weekdays.includes(isoWeekday(day))) return null;
-  const t = timesOn(b, day);
+  // The day as it really runs (moved, extra and cancelled sessions) once loaded.
+  const s = sessions?.find((x) => x.batch.id === b.id);
+  if (sessions ? !s || s.cancelled : !b.weekdays.includes(isoWeekday(day))) return null;
+  const t = s?.batch ?? timesOn(b, day);
   const mins = toMin(istClock.format(now));
   if (mins >= toMin(t.startTime) && mins < toMin(t.endTime)) return 'live' as const;
   if (mins < toMin(t.startTime)) return 'today' as const;
@@ -714,6 +730,7 @@ const BATCH_FILTERS = [
 type BatchFilter = (typeof BATCH_FILTERS)[number];
 
 export function BatchesPage() {
+  const sessions = useAttendanceOverview(today()).data?.sessions;
   const user = useUser();
   const isAdmin = user.role === 'admin';
   // Filters live in the URL (bookmarkable, survive refresh).
@@ -769,7 +786,7 @@ export function BatchesPage() {
       (!f('plan') || b.feePlan.id === f('plan')) &&
       (!f('day') || b.weekdays.includes(Number(f('day')))) &&
       (!f('seats') || (f('seats') === 'full' ? isFull(b) : !isFull(b))) &&
-      (f('today') !== '1' || todayStatus(b, now) !== null) &&
+      (f('today') !== '1' || todayStatus(b, now, sessions) !== null) &&
       (!needle ||
         [b.name, b.coach.name, b.location.name, b.sport.name].some((v) =>
           v.toLowerCase().includes(needle),
@@ -823,7 +840,7 @@ export function BatchesPage() {
           b={b}
           isAdmin={isAdmin}
           attendanceRate={dash.data ? (rates.get(b.id) ?? null) : undefined}
-          status={todayStatus(b, now)}
+          status={todayStatus(b, now, sessions)}
         />
       ))}
     </div>
@@ -833,7 +850,7 @@ export function BatchesPage() {
   const students = active.reduce((n, b) => n + b.memberCount, 0);
   const capacity = active.reduce((n, b) => n + (b.capacity ?? 0), 0);
   const capped = active.reduce((n, b) => n + (b.capacity ? b.memberCount : 0), 0);
-  const liveNow = active.filter((b) => todayStatus(b, now) === 'live').length;
+  const liveNow = active.filter((b) => todayStatus(b, now, sessions) === 'live').length;
 
   return (
     <div>
@@ -1113,8 +1130,12 @@ export function BatchesPage() {
               {groups.map((g) => {
                 const members = g.batches.reduce((n, b) => n + b.memberCount, 0);
                 const seats = g.batches.reduce((n, b) => n + (b.capacity ?? 0), 0);
-                const live = g.batches.filter((b) => todayStatus(b, now) === 'live').length;
-                const todayCount = g.batches.filter((b) => todayStatus(b, now) !== null).length;
+                const live = g.batches.filter(
+                  (b) => todayStatus(b, now, sessions) === 'live',
+                ).length;
+                const todayCount = g.batches.filter(
+                  (b) => todayStatus(b, now, sessions) !== null,
+                ).length;
                 return (
                   <Accordion.Item
                     key={g.id}

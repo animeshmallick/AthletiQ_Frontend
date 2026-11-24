@@ -34,6 +34,7 @@ export const STATUSES = [
   { value: 'open', label: 'Unpaid' },
   { value: 'overdue', label: 'Overdue' },
   { value: 'paid', label: 'Paid' },
+  { value: 'lost', label: 'Lost' },
   { value: 'all', label: 'All' },
 ] as const;
 

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, ArrowRightLeft, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -16,11 +16,10 @@ import {
 } from '@/components/ui/overlays';
 import { Input, Select, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { isoWeekday, money, today } from '@/lib/format';
+import { formatDate, money, today } from '@/lib/format';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema, phoneSchema } from '@/lib/forms';
 import {
   useBatches,
-  useBookMakeup,
   useCreateStudent,
   useJoinBatch,
   useLeaveBatch,
@@ -32,7 +31,6 @@ import {
   type BatchPick,
 } from '@/lib/queries';
 import type { Batch, Membership, StudentDetail } from '@/lib/types';
-import { useUser } from '@/app/auth';
 import { scheduleLabel, timeLabel } from '@/lib/batch-times';
 
 // ─── Picking batches ─────────────────────────────────────────────────────────
@@ -780,170 +778,6 @@ export function MembershipFeeDialog({
   );
 }
 
-// ─── Makeup ──────────────────────────────────────────────────────────────────
-
-const makeupSchema = z.object({
-  batchId: z.string().min(1, 'Pick a batch'),
-  date: z.string().min(1, 'Pick a date'),
-  missedDate: z.string().optional(),
-  reason: z.string().max(500).optional(),
-  homeBatchId: z.string().optional(),
-});
-
-export function MakeupDialog({
-  student,
-  open,
-  onOpenChange,
-}: {
-  student: StudentDetail;
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-}) {
-  const book = useBookMakeup(student.id);
-  const batches = useBatches({ active: 'true' });
-  const form = useForm<z.infer<typeof makeupSchema>>({
-    resolver: zodResolver(makeupSchema),
-    defaultValues: { batchId: '', date: today(), missedDate: '', reason: '', homeBatchId: '' },
-  });
-  const { control, register, handleSubmit, formState, setError } = form;
-  const [selectedBatchId, date] = useWatch({ control, name: ['batchId', 'date'] });
-  const me = useUser();
-  const isAdmin = me.role === 'admin';
-  // Coaches book only in batches they coach; admins in any batch.
-  const bookable = (batches.data ?? []).filter((b) => isAdmin || b.coach.id === me.id);
-  const batch = batches.data?.find((b) => b.id === selectedBatchId);
-  // A batch whose coach isn't one of the student's own coaches.
-  const coaches = student.memberships.map((m) => m.coachName);
-  const otherCoach =
-    isAdmin &&
-    !!batch &&
-    student.memberships.length > 0 &&
-    !student.memberships.some((m) => m.coachId === batch.coach.id);
-  // Not one of its usual days: fine only if a session was moved there or added (the server checks).
-  const runs = !batch || !date || batch.weekdays.includes(isoWeekday(date));
-  // Several batches: which one this makeup counts for (towards its course).
-  const homes = student.memberships.filter((m) => m.batchId !== selectedBatchId);
-
-  const onSubmit = handleSubmit(async (v) => {
-    if (homes.length > 1 && !v.homeBatchId) {
-      setError('homeBatchId', { message: 'Choose which batch this makes up for' });
-      return;
-    }
-    try {
-      await book.mutateAsync({
-        batchId: v.batchId,
-        date: v.date,
-        missedDate: v.missedDate || null,
-        reason: nullIfEmpty(v.reason),
-        homeBatchId: homes.length > 1 ? v.homeBatchId : undefined,
-      });
-      toast.success(isAdmin ? 'Makeup session booked' : 'Makeup requested', {
-        description: isAdmin ? undefined : 'An admin will approve it. You’ll get a notification.',
-      });
-      onOpenChange(false);
-      form.reset();
-    } catch (err) {
-      applyServerErrors(err, setError, 'Could not book makeup');
-    }
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Book a makeup session</DialogTitle>
-          <DialogDescription>
-            {student.fullName} will appear on that batch’s attendance for one day only.
-            {!isAdmin && ' Requests are approved by an admin.'}
-          </DialogDescription>
-        </DialogHeader>
-        <form id="makeup-form" onSubmit={onSubmit} noValidate className="space-y-3">
-          <Field label="Batch" required error={formState.errors.batchId?.message}>
-            <Controller
-              control={control}
-              name="batchId"
-              render={({ field }) => (
-                <Select {...field}>
-                  <option value="">Select a batch…</option>
-                  {bookable.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} · {scheduleLabel(b)}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            />
-          </Field>
-          {otherCoach && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/12 px-3 py-2 text-[13px] leading-snug"
-            >
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-foreground dark:text-warning" />
-              <span>
-                <b className="font-semibold">Different coach.</b> This session is with{' '}
-                {batch!.coach.name}, not {student.fullName}’s usual coach ({coaches.join(', ')}).{' '}
-                {batch!.coach.name} will see them on the attendance list that day.
-              </span>
-            </div>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field
-              label="Makeup date"
-              required
-              error={formState.errors.date?.message}
-              hint={
-                !runs
-                  ? `Not one of ${batch?.name}’s usual days: only if a session was moved there or added.`
-                  : undefined
-              }
-            >
-              <Input type="date" {...register('date')} />
-            </Field>
-            <Field label="Missed session (optional)">
-              <Input type="date" {...register('missedDate')} />
-            </Field>
-          </div>
-          {homes.length > 1 && (
-            <Field
-              label="Makes up for"
-              required
-              error={formState.errors.homeBatchId?.message}
-              hint="It counts towards this batch’s course."
-            >
-              <Controller
-                control={control}
-                name="homeBatchId"
-                render={({ field }) => (
-                  <Select {...field}>
-                    <option value="">Select a batch…</option>
-                    {homes.map((m) => (
-                      <option key={m.batchId} value={m.batchId}>
-                        {m.batchName}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              />
-            </Field>
-          )}
-          <Field label="Reason">
-            <Input placeholder="e.g. Exam on Tuesday" {...register('reason')} />
-          </Field>
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" form="makeup-form" loading={formState.isSubmitting}>
-            Book makeup
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─── Leave ───────────────────────────────────────────────────────────────────
 
 export function LeaveDialog({
@@ -961,7 +795,11 @@ export function LeaveDialog({
   const onSubmit = form.handleSubmit(async (v) => {
     try {
       await leave.mutateAsync({ leftOn: v.leftOn, reason: nullIfEmpty(v.reason) });
-      toast.success(`${student.fullName} marked as left`);
+      toast.success(
+        v.leftOn > today()
+          ? `${student.fullName} leaves on ${formatDate(v.leftOn)}`
+          : `${student.fullName} marked as left`,
+      );
       onOpenChange(false);
     } catch (err) {
       toast.error('Could not update student', { description: errorMessage(err) });
@@ -974,9 +812,9 @@ export function LeaveDialog({
         <DialogHeader>
           <DialogTitle>Mark {student.fullName} as left</DialogTitle>
           <DialogDescription>
-            They’ll leave every batch after the last day and no further months are invoiced. Fees
-            are prepaid, so the current month is already billed — cancel, adjust or refund those
-            invoices if needed.
+            They leave every batch after the last day. Unpaid invoices for later months are
+            cancelled; paid ones are kept, with no refund or credit. With a future day they stay
+            active until then. To write off unpaid fees, use Exit now on the Renewals page.
           </DialogDescription>
         </DialogHeader>
         <form id="leave-form" onSubmit={onSubmit} className="space-y-3">

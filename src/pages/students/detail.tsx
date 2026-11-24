@@ -15,7 +15,8 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
-import { StudentCourseCard } from '../course-parts';
+import { StudentBatchesTab } from '../cycle-parts';
+import { useRenewalAction } from '@/lib/cycles';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
   CartesianGrid,
@@ -76,15 +77,9 @@ import {
   useStudent,
   useStudentAttendance,
 } from '@/lib/queries';
-import type { StudentDetail } from '@/lib/types';
+import type { Membership, StudentDetail } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import {
-  LeaveDialog,
-  MakeupDialog,
-  RejoinDialog,
-  StudentFormDialog,
-  AddBatchDialog,
-} from './forms';
+import { LeaveDialog, RejoinDialog, StudentFormDialog, AddBatchDialog } from './forms';
 import { ReportDialog, slug, STUDENT_REPORT_INCLUDES } from '@/components/report-dialog';
 import { ProgressTab } from './progress';
 import { BatchCards } from './batch-cards';
@@ -132,12 +127,6 @@ function Overview({
     <div className="grid gap-3 lg:grid-cols-3">
       <div className="space-y-3 lg:col-span-2">
         <BatchCards s={s} isAdmin={isAdmin} canManage={canManage} />
-        <StudentCourseCard
-          studentId={s.id}
-          studentName={s.fullName}
-          phone={s.phone}
-          isAdmin={isAdmin}
-        />
 
         {s.upcomingMakeups.length > 0 && (
           <Card>
@@ -296,6 +285,36 @@ function Overview({
           </Card>
         )}
       </div>
+    </div>
+  );
+}
+
+/** A planned last day in a batch, and (admins) calling it off. */
+function PlannedEnd({ m, isAdmin }: { m: Membership; isAdmin: boolean }) {
+  const act = useRenewalAction();
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-[13px]">
+      <span>
+        Last day in <b className="font-semibold">{m.batchName}</b>: {formatDate(m.plannedEndOn)}
+      </span>
+      {isAdmin && (
+        <Button
+          size="sm"
+          variant="outline"
+          loading={act.isPending}
+          onClick={() =>
+            act.mutate(
+              { id: m.enrollmentId, action: 'restore' },
+              {
+                onSuccess: () => toast.success('They stay in the batch'),
+                onError: (e) => toast.error(errorMessage(e)),
+              },
+            )
+          }
+        >
+          Call off
+        </Button>
+      )}
     </div>
   );
 }
@@ -507,9 +526,9 @@ export function StudentDetailPage() {
   const user = useUser();
   const isAdmin = user.role === 'admin';
   const q = useStudent(id);
-  const [dialog, setDialog] = useState<
-    'edit' | 'add-batch' | 'makeup' | 'leave' | 'rejoin' | 'delete' | null
-  >(null);
+  const [dialog, setDialog] = useState<'edit' | 'add-batch' | 'leave' | 'rejoin' | 'delete' | null>(
+    null,
+  );
   const deleteStudent = useDeleteStudent();
   const [reportOpen, setReportOpen] = useState(false);
   const navigate = useNavigate();
@@ -523,6 +542,7 @@ export function StudentDetailPage() {
     );
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
   const s = q.data;
+  const planned = s.memberships.filter((m) => m.plannedEndOn);
   const active = s.status === 'active';
 
   const batchesSeen = [
@@ -590,11 +610,8 @@ export function StudentDetailPage() {
         >
           <FileText />
         </Button>
-        {active && (
+        {active && isAdmin && (
           <div className="flex w-full gap-2 sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
-            <Button variant="tonal" onClick={() => setDialog('makeup')}>
-              <CalendarPlus /> Makeup
-            </Button>
             {isAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -627,6 +644,9 @@ export function StudentDetailPage() {
         )}
       </div>
 
+      {planned.map((m) => (
+        <PlannedEnd key={m.enrollmentId} m={m} isAdmin={isAdmin} />
+      ))}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Monthly fee" value={money(s.effectiveFee.total)} />
         <StatCard
@@ -651,6 +671,7 @@ export function StudentDetailPage() {
       <Tabs defaultValue={new URLSearchParams(window.location.search).get('tab') ?? 'overview'}>
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="batches">Batches</TabsTrigger>
           <TabsTrigger value="progress">Progress</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
@@ -658,6 +679,9 @@ export function StudentDetailPage() {
         </TabsList>
         <TabsContent value="overview">
           <Overview s={s} canManage={active} isAdmin={isAdmin} />
+        </TabsContent>
+        <TabsContent value="batches">
+          <StudentBatchesTab studentId={s.id} studentName={s.fullName} phone={s.phone} />
         </TabsContent>
         <TabsContent value="progress">
           <ProgressTab id={s.id} />
@@ -706,9 +730,6 @@ export function StudentDetailPage() {
           })
         }
       />
-      {dialog === 'makeup' && (
-        <MakeupDialog open onOpenChange={(o) => !o && setDialog(null)} student={s} />
-      )}
     </div>
   );
 }

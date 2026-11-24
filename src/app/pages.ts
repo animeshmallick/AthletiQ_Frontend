@@ -48,7 +48,6 @@ export const FeedbackFormPage = page(m7, 'FeedbackFormPage');
 export const StudentsPage = page(m8, 'StudentsPage');
 export const StudentDetailPage = page(m9, 'StudentDetailPage');
 export const InvoiceDetailPage = page(invoiceModule, 'InvoiceDetailPage');
-export const MakeupsPage = page(() => import('@/pages/admin/makeups'), 'MakeupsPage');
 const calendarModule = () => import('@/pages/calendar');
 export const CalendarPage = page(calendarModule, 'CalendarPage');
 export const FinanceHubPage = page(m11, 'FinanceHubPage');
@@ -73,12 +72,10 @@ const shareModule = () => import('@/pages/public/share');
 export const ShareReportPage = page(shareModule, 'ShareReportPage');
 export const ShareInvoicePage = page(shareModule, 'ShareInvoicePage');
 export const ShareCertificatePage = page(shareModule, 'ShareCertificatePage');
-const sessionChangesModule = () => import('@/pages/session-changes');
-export const SessionChangesPage = page(sessionChangesModule, 'SessionChangesPage');
-const coursesModule = () => import('@/pages/courses');
-export const CoursesPage = page(coursesModule, 'CoursesPage');
-const deliveryModule = () => import('@/pages/delivery');
-export const DeliveryPage = page(deliveryModule, 'DeliveryPage');
+const missedModule = () => import('@/pages/missed-sessions');
+export const MissedSessionsPage = page(missedModule, 'MissedSessionsPage');
+const renewalsModule = () => import('@/pages/renewals');
+export const RenewalsPage = page(renewalsModule, 'RenewalsPage');
 
 const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/$/, () => Promise.all([dashboardModule(), m3()])],
@@ -103,9 +100,8 @@ const ROUTES: [pattern: RegExp, load: () => Promise<unknown>][] = [
   [/^\/account$/, m20],
   [/^\/skills$/, skillsModule],
   [/^\/sports$/, sportsModule],
-  [/^\/session-changes$/, sessionChangesModule],
-  [/^\/courses$/, coursesModule],
-  [/^\/delivery$/, deliveryModule],
+  [/^\/missed-sessions$/, missedModule],
+  [/^\/renewals$/, renewalsModule],
 ];
 
 const started = new Set<() => Promise<unknown>>();

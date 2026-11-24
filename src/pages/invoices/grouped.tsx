@@ -46,7 +46,7 @@ function insights(list: Invoice[]) {
   const overdue = (i: Invoice) => i.displayStatus === 'overdue';
   const due = (i: Invoice) => i.displayStatus === 'due';
   const paid = (i: Invoice) => i.displayStatus === 'paid';
-  const billed = (i: Invoice) => i.displayStatus !== 'cancelled';
+  const billed = (i: Invoice) => i.displayStatus !== 'cancelled' && i.displayStatus !== 'lost';
   return {
     total: sum(billed),
     overdue: sum(overdue),
@@ -64,6 +64,7 @@ const ROW_TONE: Record<Invoice['displayStatus'], { bar: string; text: string }> 
   paid: { bar: 'bg-success', text: 'text-success' },
   refunded: { bar: 'bg-muted-foreground/40', text: 'text-muted-foreground' },
   cancelled: { bar: 'bg-muted-foreground/30', text: 'text-muted-foreground' },
+  lost: { bar: 'bg-muted-foreground/30', text: 'text-muted-foreground' },
 };
 
 /** Where the invoice stands, in a few words: "Overdue 12d", "Due 5 Mar", "Paid 2 Mar". */
@@ -82,6 +83,8 @@ function standing(inv: Invoice) {
       return inv.paidAt ? `Paid ${formatShortDate(inv.paidAt.slice(0, 10))}` : 'Paid';
     case 'refunded':
       return 'Refunded';
+    case 'lost':
+      return 'Lost';
     default:
       return 'Cancelled';
   }
@@ -101,7 +104,8 @@ export function InvoiceRow({ inv, onOpen }: { inv: Invoice; onOpen: () => void }
           <span
             className={cn(
               'truncate text-[13.5px] leading-tight font-semibold',
-              inv.displayStatus === 'cancelled' && 'text-muted-foreground line-through',
+              (inv.displayStatus === 'cancelled' || inv.displayStatus === 'lost') &&
+                'text-muted-foreground line-through',
             )}
           >
             {inv.student.fullName}

@@ -131,7 +131,7 @@ export async function registerPush(): Promise<'granted' | 'denied' | 'unavailabl
     {
       id: 'students',
       name: 'Students',
-      description: 'New students, leavers, moves and makeups',
+      description: 'New students, leavers and moves',
       importance: 4,
     },
     {
@@ -143,7 +143,7 @@ export async function registerPush(): Promise<'granted' | 'denied' | 'unavailabl
     {
       id: 'approvals',
       name: 'Approvals',
-      description: 'Sign-ups, substitute and makeup requests',
+      description: 'Sign-ups and substitute requests',
       importance: 4,
     },
     {

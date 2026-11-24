@@ -6,7 +6,6 @@
  */
 import { FloatBadge } from '@/components/floating-badge';
 import {
-  CalendarClock,
   CalendarDays,
   Car,
   ClipboardList,
@@ -21,12 +20,8 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useUser } from '@/app/auth';
 import { Avatar, EmptyState, ListSkeleton } from '@/components/common';
-import {
-  notStarted,
-  OriginBadge,
-  SessionChangeDialog,
-  UndoChangeButton,
-} from '@/components/session-change';
+import { OriginBadge, SessionActions } from '@/components/session-change';
+import { notStarted } from '@/lib/session-origin';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -319,7 +314,11 @@ function SessionTile({
                 'text-[10px] font-medium',
                 s.coachSession.flagged ? 'text-destructive' : 'text-foreground/70',
               )}
-              title={s.coachSession.flagged ? 'Checked in away from the venue' : 'Checked in'}
+              title={
+                s.coachSession.flagged
+                  ? 'Checked in away from the venue or outside the session time'
+                  : 'Checked in'
+              }
             >
               In {formatClock(s.coachSession.checkInAt)}
             </p>
@@ -415,9 +414,7 @@ function StudentsDialog({
   onClose: () => void;
 }) {
   const q = useRoster(s?.batch.id ?? '', date);
-  const [moving, setMoving] = useState(false);
-  const movable =
-    !!s && !s.cancelled && !s.marked && !s.coachSession && notStarted(date, s.batch.startTime);
+  const canMove = !!s && !s.marked && !s.coachSession && notStarted(date, s.batch.startTime);
   return (
     <Dialog open={!!s} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
@@ -449,31 +446,14 @@ function StudentsDialog({
                 </Button>
               )}
             </div>
-            {(movable || s.origin?.kind === 'moved' || s.origin?.kind === 'extra') && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <OriginBadge origin={s.origin} date={date} />
-                {movable && (
-                  <Button size="sm" variant="tonal" onClick={() => setMoving(true)}>
-                    <CalendarClock /> Move session
-                  </Button>
-                )}
-                {movable && s.origin?.changeId && s.origin.kind !== 'regular' && (
-                  <UndoChangeButton changeId={s.origin.changeId} kind={s.origin.kind} />
-                )}
-              </div>
-            )}
-            {moving && (
-              <SessionChangeDialog
-                batch={s.batch}
-                session={{
-                  date,
-                  startTime: s.batch.startTime,
-                  endTime: s.batch.endTime,
-                  origin: s.origin,
-                }}
-                onClose={() => setMoving(false)}
-              />
-            )}
+            <OriginBadge origin={s.origin} date={date} />
+            <SessionActions
+              batch={s.batch}
+              session={{ date, startTime: s.batch.startTime, endTime: s.batch.endTime }}
+              origin={s.origin}
+              cancelled={!!s.cancelled}
+              canMove={canMove}
+            />
             <p className="text-[12px] font-semibold text-muted-foreground">
               Expected · {q.data ? q.data.students.length : '…'}
             </p>

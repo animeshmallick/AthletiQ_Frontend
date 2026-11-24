@@ -257,9 +257,7 @@ export function useSaveBatch() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id?: string } & Record<string, unknown>) =>
       id ? api.patch<Batch>(`/batches/${id}`, body) : api.post<Batch>('/batches', body),
-    // A course change can complete students and set up rounds.
-    onSuccess: () =>
-      invalidate(['batches'], ['users'], ['locations'], ['courses'], ['me', 'tasks'], ['delivery']),
+    onSuccess: () => invalidate(['batches'], ['users'], ['locations'], ['cycles'], ['me', 'tasks']),
   });
 }
 
@@ -358,21 +356,6 @@ export const useStudentLeave = (id: string) =>
   useStudentMutation((body: { leftOn: string; reason?: string | null }) =>
     api.post<StudentDetail>(`/students/${id}/leave`, body),
   );
-
-export function useBookMakeup(studentId: string) {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: (body: {
-      batchId: string;
-      date: string;
-      missedDate?: string | null;
-      reason?: string | null;
-      /** Which of the student's batches it counts for (when they have several). */
-      homeBatchId?: string;
-    }) => api.post(`/students/${studentId}/makeups`, body),
-    onSuccess: () => invalidate(keys.student(studentId), ['attendance'], ['batches']),
-  });
-}
 
 export function useCancelMakeup(studentId: string) {
   const invalidate = useInvalidate();
@@ -852,6 +835,12 @@ export const useCancelInvoice = (id: string) =>
     api.post<InvoiceDetail>(`/invoices/${id}/cancel`, { reason }),
   );
 
+/** Admin: a written-off invoice is collected after all. */
+export const useRestoreLost = (id: string) =>
+  useInvoiceMutation((reason: string) =>
+    api.post<InvoiceDetail>(`/invoices/${id}/restore-lost`, { reason }),
+  );
+
 export const useShareInvoice = () =>
   useMutation({
     mutationFn: (id: string) =>
@@ -1226,7 +1215,15 @@ export function useCancelSession() {
     mutationFn: ({ batchId, date, reason }: { batchId: string; date: string; reason: string }) =>
       api.post(`/batches/${batchId}/cancellations`, { date, reason }),
     onSuccess: () =>
-      invalidate(['attendance'], ['coach-sessions'], ['lessons', 'session'], ['feedback']),
+      invalidate(
+        ['attendance'],
+        ['coach-sessions'],
+        ['lessons', 'session'],
+        ['feedback'],
+        ['session-changes'],
+        ['cycles'],
+        ['me', 'tasks'],
+      ),
   });
 }
 
@@ -1266,49 +1263,6 @@ export const useTasks = () =>
     refetchInterval: 60_000,
     staleTime: 20_000,
   });
-
-// ─── Makeup requests (admin) ────────────────────────────────────────────────
-
-export interface MakeupRequest {
-  id: string;
-  date: string;
-  missedDate: string | null;
-  reason: string | null;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
-  reviewedAt: string | null;
-  reviewNote: string | null;
-  student: { id: string; code: string; fullName: string };
-  batch: { id: string; name: string; startTime: string; endTime: string };
-  batchCoach: { id: string; name: string };
-  homeBatch: { id: string | null; name: string | null } | null;
-  homeCoach: { id: string | null; name: string | null } | null;
-  requestedBy: { id: string | null; name: string | null } | null;
-  /** The session is with a different coach than the student's regular one. */
-  otherCoach: boolean;
-}
-
-export const useMakeupRequests = (status: string) =>
-  useQuery({
-    queryKey: ['makeups', status] as const,
-    queryFn: () => api.get<MakeupRequest[]>('/makeups', { status }),
-  });
-
-export function useReviewMakeup() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: ({
-      id,
-      action,
-      reason,
-    }: {
-      id: string;
-      action: 'approve' | 'reject';
-      reason?: string;
-    }) => api.post(`/makeups/${id}/${action}`, action === 'reject' ? { reason } : undefined),
-    onSuccess: () => invalidate(['makeups'], ['me', 'tasks'], ['students'], ['attendance']),
-  });
-}
 
 // ─── Dashboard insights ─────────────────────────────────────────────────────
 

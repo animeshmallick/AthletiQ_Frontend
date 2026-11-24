@@ -204,8 +204,8 @@ function SubstituteDialog({ onClose }: { onClose: () => void }) {
             <CalendarRange className="size-3.5" />
             {batch
               ? days
-                ? `${plural(days, 'session')} of ${batch.name} in these dates`
-                : `${batch.name} has no sessions in these dates`
+                ? `${plural(days, 'regular session')} of ${batch.name} in these dates`
+                : `${batch.name} has no regular sessions in these dates`
               : 'Pick a batch'}
           </p>
           <Field label="Reason (optional)">
@@ -225,7 +225,7 @@ function SubstituteDialog({ onClose }: { onClose: () => void }) {
           </Button>
           <Button
             loading={create.isPending}
-            disabled={!batch || !substituteId || !days}
+            disabled={!batch || !substituteId}
             onClick={() => void submit()}
           >
             {admin ? 'Assign' : 'Send request'}
