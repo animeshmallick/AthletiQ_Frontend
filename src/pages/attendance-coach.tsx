@@ -41,14 +41,7 @@ import { toast } from 'sonner';
 import { haptic } from '@/app/native';
 import { CheckInButton } from '@/components/check-in-button';
 import { CancelSessionButton } from '@/components/cancel-session';
-import {
-  ATTENDANCE_META,
-  Avatar,
-  EmptyState,
-  ErrorState,
-  ListSkeleton,
-  PageHeader,
-} from '@/components/common';
+import { ATTENDANCE_META, Avatar, EmptyState, ErrorState, ListSkeleton } from '@/components/common';
 import { PeriodStepper } from '@/components/date-nav';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,7 +76,13 @@ import {
   useCoachToday,
   useMarkAttendance,
 } from '@/lib/queries';
-import { rememberSort, savedSort, sortStudents } from '@/lib/attendance-sort';
+import {
+  rate30Now,
+  rememberSort,
+  savedSort,
+  sortStudents,
+  type AttendanceSort,
+} from '@/lib/attendance-sort';
 import { mayCancelOn } from '@/lib/session-origin';
 import type { AttendanceSheet, AttendanceStatus, DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -91,6 +90,21 @@ import { CancelledBanner } from './attendance-parts';
 import { batchTone, minutes, useIstMinutes } from './calendar-meta';
 
 type Student = AttendanceSheet['students'][number];
+
+/** Sorts by the attendance shown when the list opened, so nobody moves while being marked. */
+function useStudentOrder(sort: AttendanceSort) {
+  const [order, setOrder] = useState<{ key: string; ids: string[] }>({ key: '', ids: [] });
+  return (list: Student[]) => {
+    const key = `${sort}|${list
+      .map((s) => s.studentId)
+      .sort()
+      .join()}`;
+    const ids = order.key === key ? order.ids : sortStudents(list, sort).map((s) => s.studentId);
+    if (order.key !== key) setOrder({ key, ids });
+    const at = new Map(ids.map((id, i) => [id, i]));
+    return [...list].sort((a, b) => at.get(a.studentId)! - at.get(b.studentId)!);
+  };
+}
 
 /** The live session, else the next one, else the last that started, else the first. */
 function pickDefault(sessions: DayOverviewSession[], now: number, isToday: boolean) {
@@ -152,12 +166,6 @@ export function AttendanceDay() {
 
   return (
     <div className="space-y-1.5">
-      <PageHeader
-        className="mb-0.5 sm:mb-2"
-        title="Attendance"
-        description="Tap P, A, L or E for each student. Every tap saves."
-      />
-
       <PeriodStepper
         label={relativeDay(date)}
         sublabel={
@@ -332,6 +340,7 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
   const [noteFor, setNoteFor] = useState<Student | null>(null);
   const [filter, setFilter] = useState<AttendanceFilter>('all');
   const [sort, setSort] = useState(savedSort);
+  const inOrder = useStudentOrder(sort);
 
   if (sheet.isPending) return <ListSkeleton rows={6} />;
   if (sheet.isError) return <ErrorState error={sheet.error} onRetry={() => void sheet.refetch()} />;
@@ -391,10 +400,7 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
     );
 
   const counts = countMarks(data.students.map((s) => s.status));
-  const rows = sortStudents(
-    data.students.filter((s) => matchesFilter(s.status, filter)),
-    sort,
-  );
+  const rows = inOrder(data.students).filter((s) => matchesFilter(s.status, filter));
   const flipSort = () => {
     const next = sort === 'name' ? 'rate' : 'name';
     setSort(next);
@@ -519,6 +525,7 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
           <StudentRow
             key={s.studentId}
             s={s}
+            date={date}
             editable={editable}
             onSet={(st) => setStatus(s, st)}
             onNote={() => setNoteFor(s)}
@@ -542,13 +549,21 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
   );
 }
 
+/** The last sessions with this one's mark as the newest. */
+const withToday = (s: Student, date: string) =>
+  s.status && !s.isMakeup
+    ? [{ date, status: s.status }, ...(s.recent ?? [])].slice(0, 5)
+    : s.recent;
+
 function StudentRow({
   s,
+  date,
   editable,
   onSet,
   onNote,
 }: {
   s: Student;
+  date: string;
   editable: boolean;
   onSet: (st: AttendanceStatus | null) => void;
   onNote: () => void;
@@ -580,7 +595,7 @@ function StudentRow({
           )}
         </p>
         <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <AttendanceTrail recent={s.recent} rate30={s.rate30} />
+          <AttendanceTrail recent={withToday(s, date)} rate30={rate30Now(s)} />
           {s.note && (
             <span className="flex min-w-0 items-center gap-0.5 text-primary">
               <StickyNote className="size-3 shrink-0" />

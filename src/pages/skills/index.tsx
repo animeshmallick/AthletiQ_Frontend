@@ -8,7 +8,7 @@ import { BarChart3, ClipboardCheck, Settings2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
-import { EmptyState, PageHeader } from '@/components/common';
+import { EmptyState, ErrorState, ListSkeleton, PageHeader } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
 import { Select } from '@/components/ui/primitives';
@@ -28,7 +28,9 @@ export function SkillsPage() {
   const month = /^\d{4}-\d{2}-01$/.test(params.get('month') ?? '')
     ? params.get('month')!
     : thisMonth;
-  const tab: Tab = (params.get('tab') as Tab) ?? (admin ? 'insights' : 'assess');
+  const rawTab = params.get('tab');
+  const tab: Tab =
+    rawTab === 'assess' || rawTab === 'insights' ? rawTab : admin ? 'insights' : 'assess';
 
   const batchesQ = useBatches({ active: true });
   // Coaches assess only the batches they run (not ones they cover as a substitute).
@@ -38,6 +40,9 @@ export function SkillsPage() {
   );
   const batchParam = params.get('batch') ?? '';
   const batchId = batches.some((b) => b.id === batchParam) ? batchParam : (batches[0]?.id ?? '');
+
+  // Insights: one of these batches, or all of them.
+  const insightsBatch = batchesQ.isPending || batchId === batchParam ? batchParam : '';
 
   const set = (patch: Record<string, string | null>) =>
     setParams(
@@ -106,7 +111,7 @@ export function SkillsPage() {
             compact
             aria-label="Batch"
             className="w-auto max-w-56"
-            value={tab === 'insights' ? batchParam : batchId}
+            value={tab === 'insights' ? insightsBatch : batchId}
             onChange={(e) => set({ batch: e.target.value || null })}
           >
             {tab === 'insights' && <option value="">All batches</option>}
@@ -121,8 +126,12 @@ export function SkillsPage() {
       </div>
 
       {tab === 'insights' ? (
-        <InsightsTab month={month} batchId={batchParam || undefined} admin={admin} />
-      ) : batchesQ.isPending ? null : batchId ? (
+        <InsightsTab month={month} batchId={insightsBatch || undefined} admin={admin} />
+      ) : batchesQ.isPending ? (
+        <ListSkeleton rows={4} />
+      ) : batchesQ.isError ? (
+        <ErrorState error={batchesQ.error} onRetry={() => void batchesQ.refetch()} />
+      ) : batchId ? (
         <AssessTab batchId={batchId} month={month} />
       ) : (
         <EmptyState

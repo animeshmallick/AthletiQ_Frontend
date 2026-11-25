@@ -243,6 +243,10 @@
 }
 
 @layer base {
+  /* A long name never widens a grid past the screen: its items may shrink (and truncate or wrap). */
+  .grid:not([class^='grid-cols-[']):not([class*=' grid-cols-[']) > * {
+    min-width: 0;
+  }
   * {
     @apply border-border outline-ring/50;
   }

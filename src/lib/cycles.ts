@@ -45,6 +45,8 @@ export interface ChangePreview {
   ok: boolean;
   errors: string[];
   warnings: ChangeWarning[];
+  /** Students booked to make it up elsewhere. */
+  booked?: number;
 }
 
 export interface ChangeInput {
@@ -54,6 +56,8 @@ export interface ChangeInput {
   endTime: string;
   reason?: string | null;
   confirm?: boolean;
+  /** Students booked to make it up elsewhere come to this session instead. */
+  releaseMakeups?: boolean;
 }
 
 export interface SmartDay {
@@ -113,7 +117,14 @@ export interface MissedSession {
   originalDate: string;
   startTime: string;
   endTime: string;
+  /** Still to have it: to make up, or booked. */
   students: number;
+  pending?: number;
+  booked?: number;
+  madeUp?: number;
+  excused?: number;
+  /** Rescheduled and held; only some students still need a makeup. */
+  makeupOnly?: boolean;
   reason: string | null;
   missed: boolean;
   coachUntil: string;
@@ -143,6 +154,76 @@ export function useResolveMissed() {
       reason?: string;
     }) => api.post(`/session-changes/missed/${action}`, body),
     onSuccess: () => invalidate(...SCHEDULE_KEYS),
+  });
+}
+
+// ─── Makeups of a missed session ─────────────────────────────────────────────
+
+type Missed = { batchId: string; originalDate: string };
+
+export interface MissedStudent {
+  id: string;
+  fullName: string;
+  state: 'pending' | 'booked' | 'made-up' | 'excused';
+  /** Their makeup was cancelled or never held. */
+  lapsed: boolean;
+  reason: string | null;
+  makeup: {
+    id: string;
+    batchName: string;
+    date: string;
+    startTime: string | null;
+    endTime: string | null;
+    mark: 'present' | 'late' | 'absent' | 'excused' | null;
+  } | null;
+}
+
+export interface MakeupOption {
+  batch: { id: string; name: string; coachName: string };
+  date: string;
+  startTime: string;
+  endTime: string;
+  expected: number;
+  capacity: number;
+  full: boolean;
+  blocked: string | null;
+}
+
+export const useMissedStudents = (m: Missed) =>
+  useQuery({
+    queryKey: ['session-changes', 'missed', 'students', m] as const,
+    queryFn: () =>
+      api.get<{ students: MissedStudent[] }>('/session-changes/missed/students', { ...m }),
+  });
+
+export const useMakeupOptions = (m: Missed, studentId: string) =>
+  useQuery({
+    queryKey: ['session-changes', 'missed', 'options', m, studentId] as const,
+    queryFn: () => api.get<MakeupOption[]>('/session-changes/missed/options', { ...m, studentId }),
+    staleTime: 0,
+  });
+
+type MakeupAction =
+  | ({
+      action: 'book';
+      studentId: string;
+      toBatchId: string;
+      toDate: string;
+      confirm?: boolean;
+    } & Missed)
+  | ({ action: 'excuse'; studentId: string; reason: string } & Missed)
+  | ({ action: 'unexcuse'; studentId: string } & Missed)
+  | { action: 'cancel'; id: string };
+
+export function useMakeupAction() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (a: MakeupAction): Promise<unknown> => {
+      if (a.action === 'cancel') return api.delete(`/session-changes/missed/makeups/${a.id}`);
+      const { action, ...body } = a;
+      return api.post(`/session-changes/missed/${action === 'book' ? 'makeups' : action}`, body);
+    },
+    onSuccess: () => invalidate(...SCHEDULE_KEYS, ['students']),
   });
 }
 
@@ -190,6 +271,8 @@ export interface CycleSession {
   state: 'held' | 'missed' | 'closed' | 'unconfirmed' | 'upcoming';
   reason: string | null;
   mark: 'present' | 'late' | 'absent' | 'excused' | null;
+  /** Made up (or to be) in another batch. */
+  makeup?: { batchName: string; date: string } | null;
 }
 
 export interface CycleInvoice {

@@ -434,6 +434,8 @@ export function TodoList({ hideSessionTasks = false }: { hideSessionTasks?: bool
     <Panel title={`To-dos${items.length ? ` · ${items.length}` : ''}`} icon={<CheckCircle2 />}>
       {q.isPending ? (
         <Skeleton className="h-16 rounded-xl" />
+      ) : !q.data ? (
+        <Failed retry={() => void q.refetch()} />
       ) : items.length === 0 ? (
         <p className="flex items-center justify-center gap-1.5 py-3 text-[13px] text-success">
           <CheckCircle2 className="size-4" /> All caught up
@@ -482,6 +484,18 @@ export function TodoList({ hideSessionTasks = false }: { hideSessionTasks?: bool
   );
 }
 
+/** Loading failed: never shown as "nothing to do". */
+function Failed({ retry }: { retry: () => void }) {
+  return (
+    <p className="py-3 text-center text-[13px] text-muted-foreground">
+      Couldn’t load this.{' '}
+      <button type="button" onClick={retry} className="cursor-pointer font-medium text-primary">
+        Try again
+      </button>
+    </p>
+  );
+}
+
 // ─── Follow-ups ──────────────────────────────────────────────────────────────
 
 function LinkRow({ to, children, aside }: { to: string; children: ReactNode; aside?: ReactNode }) {
@@ -507,7 +521,8 @@ export function AdminFollowUps() {
   const unreviewed = flagged.data?.summary.unreviewedFlagged ?? 0;
   const overdue = finance.data?.topOverdue ?? [];
   const low = dash.data?.needsAttention ?? [];
-  const birthdays = dash.data?.birthdays ?? [];
+  const birthdays = (dash.data?.birthdays ?? []).filter((b) => b.inDays <= 1);
+  const parts = [regs, flagged, dash];
   return (
     <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
       <Panel
@@ -524,6 +539,8 @@ export function AdminFollowUps() {
       >
         {finance.isPending ? (
           <Skeleton className="h-20 rounded-xl" />
+        ) : !finance.data ? (
+          <Failed retry={() => void finance.refetch()} />
         ) : overdue.length === 0 ? (
           <Empty>No overdue fees.</Empty>
         ) : (
@@ -568,16 +585,20 @@ export function AdminFollowUps() {
               Low attendance · {s.fullName}
             </LinkRow>
           ))}
-          {birthdays
-            .filter((b) => b.inDays <= 1)
-            .map((b) => (
-              <LinkRow key={b.studentId} to={`/students/${b.studentId}`} aside="🎂">
-                {b.fullName} · birthday {b.inDays === 0 ? `today (${b.turning})` : 'tomorrow'}
-              </LinkRow>
-            ))}
+          {birthdays.map((b) => (
+            <LinkRow key={b.studentId} to={`/students/${b.studentId}`} aside="🎂">
+              {b.fullName} · birthday {b.inDays === 0 ? `today (${b.turning})` : 'tomorrow'}
+            </LinkRow>
+          ))}
         </ul>
-        {pendingRegs === 0 && unreviewed === 0 && low.length === 0 && (
-          <Empty>Nothing needs attention.</Empty>
+        {parts.some((p) => p.isPending) ? (
+          <Skeleton className="h-8 rounded-xl" />
+        ) : parts.some((p) => !p.data) ? (
+          <Failed retry={() => parts.forEach((p) => !p.data && void p.refetch())} />
+        ) : (
+          pendingRegs + unreviewed + low.length + birthdays.length === 0 && (
+            <Empty>Nothing needs attention.</Empty>
+          )
         )}
       </Panel>
     </div>
@@ -604,6 +625,8 @@ export function CoachFollowUps() {
       >
         {overdue.isPending ? (
           <Skeleton className="h-16 rounded-xl" />
+        ) : !overdue.data ? (
+          <Failed retry={() => void overdue.refetch()} />
         ) : list.length === 0 ? (
           <Empty>No overdue fees.</Empty>
         ) : (
@@ -646,7 +669,13 @@ export function CoachFollowUps() {
             </LinkRow>
           ))}
         </ul>
-        {low.length === 0 && birthdays.length === 0 && <Empty>Everyone is doing well.</Empty>}
+        {dash.isPending ? (
+          <Skeleton className="h-8 rounded-xl" />
+        ) : !dash.data ? (
+          <Failed retry={() => void dash.refetch()} />
+        ) : (
+          low.length === 0 && birthdays.length === 0 && <Empty>Everyone is doing well.</Empty>
+        )}
       </Panel>
     </div>
   );
@@ -758,6 +787,8 @@ export function PeriodOverview({ isAdmin }: { isAdmin: boolean }) {
       </div>
       {cal.isPending ? (
         <Skeleton className="h-20 rounded-2xl" />
+      ) : !cal.data ? (
+        <Failed retry={() => void cal.refetch()} />
       ) : (
         <div className="grid grid-cols-2 gap-1.5 rounded-2xl border bg-card p-1.5 shadow-e1 sm:grid-cols-3 lg:grid-cols-6">
           {tiles.map((x) => (

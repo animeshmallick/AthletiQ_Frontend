@@ -23,6 +23,8 @@ export async function renderPdf(
   const task = getDocument({ data });
   const doc = await task.promise;
   const ratio = Math.min(window.devicePixelRatio || 1, 3);
+  // A newer render owns the container now: leave its pages alone.
+  if (isCancelled()) return { pages: doc.numPages, destroy: () => void task.destroy() };
   container.replaceChildren();
   for (let n = 1; n <= doc.numPages && !isCancelled(); n++) {
     const page = await doc.getPage(n);

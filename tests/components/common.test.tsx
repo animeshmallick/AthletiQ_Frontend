@@ -141,6 +141,23 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).toHaveBeenCalledWith('Family moved');
   });
 
+  it('never carries a reason over to the next time it opens', () => {
+    const dialog = (open: boolean) => (
+      <ConfirmDialog
+        open={open}
+        onOpenChange={() => undefined}
+        title="Reverse?"
+        requireReason
+        onConfirm={() => undefined}
+      />
+    );
+    const { rerender } = render(dialog(true));
+    fireEvent.change(screen.getByLabelText(/reason/i), { target: { value: 'Wrong amount' } });
+    rerender(dialog(false));
+    rerender(dialog(true));
+    expect(screen.getByLabelText(/reason/i)).toHaveValue('');
+  });
+
   it('cancels', async () => {
     const onOpenChange = jest.fn();
     render(
@@ -178,6 +195,34 @@ describe('inputs', () => {
     expect(onChange).toHaveBeenCalledWith('ravi');
     fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
     expect(onChange).toHaveBeenLastCalledWith('');
+  });
+
+  it('SearchInput keeps a space being typed when the page trims the value', () => {
+    jest.useFakeTimers();
+    const onChange = jest.fn();
+    function Page() {
+      const [q, setQ] = useState('ravi');
+      return (
+        <SearchInput
+          value={q}
+          onChange={(v) => {
+            onChange(v);
+            setQ(v.trim());
+          }}
+        />
+      );
+    }
+    render(<Page />);
+    const box = screen.getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'ravi ' } });
+    act(() => jest.advanceTimersByTime(2000));
+    expect(box).toHaveValue('ravi ');
+    expect(onChange).not.toHaveBeenCalled(); // nothing new to search for
+    fireEvent.change(box, { target: { value: 'ravi k ' } });
+    act(() => jest.advanceTimersByTime(2000));
+    expect(box).toHaveValue('ravi k ');
+    expect(onChange).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
   });
 
   it('WeekdayPicker toggles days and respects allowed days', async () => {

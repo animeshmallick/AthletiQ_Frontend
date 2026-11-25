@@ -57,8 +57,9 @@ function Viewer({ file, onClose }: { file: PdfFile; onClose: () => void }) {
         ]);
         const width = Math.min(box.clientWidth - 16, 900) * zoom;
         const out = await renderPdf(data, el, Math.max(240, width), () => cancelled);
-        destroy = out.destroy;
-        if (!cancelled) {
+        if (cancelled) out.destroy();
+        else {
+          destroy = out.destroy;
           setPages(out.pages);
           setState('ready');
         }

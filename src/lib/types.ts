@@ -358,6 +358,8 @@ export interface AttendanceSheet {
     recent?: { date: string; status: AttendanceStatus }[];
     /** Present + late share of marked sessions in the last 30 days. */
     rate30?: number | null;
+    /** The 29 days before this session: with this one's mark, the last 30 days. */
+    before30?: { marked: number; present: number };
   })[];
   summary: {
     total: number;
@@ -760,7 +762,12 @@ export interface AppTask {
     | 'feedback'
     | 'registrations'
     | 'flagged-check-ins'
-    | 'overdue-fees';
+    | 'overdue-fees'
+    | 'missed-sessions'
+    | 'unconfirmed-sessions'
+    | 'course-setup'
+    | 'substitute-requests'
+    | 'skill-assessments';
   severity: 'critical' | 'warning' | 'info';
   title: string;
   detail: string;

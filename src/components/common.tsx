@@ -404,11 +404,12 @@ export function SearchInput({
   const [prevValue, setPrevValue] = useState(value);
   if (value !== prevValue) {
     setPrevValue(value);
-    setLocal(value);
+    // Only spaces differ (the caller trims): keep what is being typed.
+    if (value.trim() !== local.trim()) setLocal(value);
   }
   // Debounce so typing does not fire a request per keystroke.
   useEffect(() => {
-    const t = setTimeout(() => local !== value && onChange(local), 300);
+    const t = setTimeout(() => local.trim() !== value.trim() && onChange(local), 300);
     return () => clearTimeout(t);
   }, [local, value, onChange]);
 
@@ -503,6 +504,12 @@ export function ConfirmDialog({
   onConfirm: (reason: string) => void;
 }) {
   const [reason, setReason] = useState('');
+  // However it closed (done, cancelled, dismissed), the next one starts empty.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setReason('');
+  }
   const id = useId();
   const invalid = requireReason && reason.trim().length < 3;
   return (

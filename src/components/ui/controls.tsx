@@ -17,8 +17,8 @@ const TRACK = 'rounded-[10px] bg-muted p-0.5 text-muted-foreground';
 const ITEM =
   'inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg font-medium whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] duration-150 outline-none select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0';
 const ITEM_SIZE = {
-  default: 'h-7 px-3 text-[12.5px] sm:h-8 sm:text-[13px]',
-  sm: 'h-6.5 px-2.5 text-[12px]',
+  default: 'h-7 px-1.5 min-[400px]:px-2.5 text-[12.5px] sm:h-8 sm:px-3 sm:text-[13px]',
+  sm: 'h-6.5 px-1.5 min-[400px]:px-2.5 text-[12px]',
 } as const;
 
 /**
@@ -115,7 +115,7 @@ export function Segmented<V extends string>({
           className={cn(
             ITEM,
             ITEM_SIZE[size],
-            'min-w-0 flex-1 truncate',
+            'min-w-0 flex-auto truncate',
             'data-[state=on]:bg-card data-[state=on]:font-semibold data-[state=on]:text-foreground data-[state=on]:shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.04)] dark:data-[state=on]:bg-background',
             o.className,
           )}

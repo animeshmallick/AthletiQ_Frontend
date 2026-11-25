@@ -16,6 +16,18 @@ describe('version check', () => {
     expect(reload).toHaveBeenCalled();
   });
 
+  it('never reloads by itself over unsaved work', async () => {
+    const { useHoldReload } = await import('@/app/version-check');
+    const { renderHook } = await import('@testing-library/react');
+    global.fetch = jest.fn(async () => new Response(page('/assets/index-NEW123.js'))) as never;
+    const reload = jest.fn();
+    const { unmount } = renderHook(() => useHoldReload(true));
+    expect(await reloadIfOutdated('/assets/index-OLD456.js', reload)).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
+    unmount();
+    expect(await reloadIfOutdated('/assets/index-OLD456.js', reload)).toBe(true);
+  });
+
   it('stays put when up to date, offline, or in development', async () => {
     const reload = jest.fn();
     global.fetch = jest.fn(async () => new Response(page('/assets/index-SAME.js'))) as never;

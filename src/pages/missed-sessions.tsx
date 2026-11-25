@@ -1,8 +1,9 @@
 /**
- * Missed sessions: ones to reschedule (students attend them free), and, for admins, sessions that
+ * Missed sessions: reschedule the whole session, or make it up student by student in other batches
+ * (free either way); it stays listed until every student has had it. And, for admins, sessions that
  * ended with no check-in and no attendance, to be confirmed as missed or marked as held.
  */
-import { CalendarCheck2, CalendarClock, CheckCircle2, X } from 'lucide-react';
+import { CalendarCheck2, CalendarClock, CheckCircle2, Users, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
@@ -14,6 +15,7 @@ import {
   ListSkeleton,
   PageHeader,
 } from '@/components/common';
+import { MakeupDialog } from '@/components/missed-makeups';
 import { SessionChangeDialog } from '@/components/session-change';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
@@ -30,6 +32,7 @@ export function MissedSessionsPage() {
   const tab = isAdmin && params.get('tab') === 'unconfirmed' ? 'unconfirmed' : 'open';
   const q = useMissedSessions();
   const resolve = useResolveMissed();
+  const [makingUp, setMakingUp] = useState<MissedSession | null>(null);
   const [moving, setMoving] = useState<MissedSession | null>(null);
   const [closing, setClosing] = useState<MissedSession | null>(null);
   const [confirming, setConfirming] = useState<MissedSession | null>(null);
@@ -42,11 +45,24 @@ export function MissedSessionsPage() {
     onError: (e: unknown) => toast.error(errorMessage(e)),
   });
 
+  /** Where each student stands, e.g. "2 to make up · 1 booked · 3 done". */
+  const progressOf = (m: MissedSession) => {
+    const done = (m.madeUp ?? 0) + (m.excused ?? 0);
+    const pending = m.pending ?? m.students;
+    return [
+      pending ? `${plural(pending, 'student')} to make up` : null,
+      m.booked ? `${m.booked} booked` : null,
+      done ? `${done} done` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  };
+
   return (
     <div>
       <PageHeader
         title="Missed sessions"
-        description="Cancelled or missed sessions wait here to be rescheduled. Students attend them free; nothing is refunded."
+        description="Reschedule the whole session, or book each student into another batch. Free of charge; nothing is refunded."
       />
       {isAdmin && (
         <Segmented
@@ -55,7 +71,7 @@ export function MissedSessionsPage() {
           onChange={(v) => setParams(v === 'open' ? {} : { tab: v }, { replace: true })}
           className="mb-3 w-full sm:w-auto"
           options={[
-            { value: 'open', label: `To reschedule${q.data ? ` · ${q.data.open.length}` : ''}` },
+            { value: 'open', label: `To make up${q.data ? ` · ${q.data.open.length}` : ''}` },
             {
               value: 'unconfirmed',
               label: `Unconfirmed${q.data ? ` · ${q.data.unconfirmed.length}` : ''}`,
@@ -70,7 +86,7 @@ export function MissedSessionsPage() {
       ) : !list.length ? (
         <EmptyState
           icon={<CheckCircle2 />}
-          title={tab === 'open' ? 'Nothing to reschedule' : 'Every session is accounted for'}
+          title={tab === 'open' ? 'Nothing to make up' : 'Every session is accounted for'}
         />
       ) : (
         <div className="grid gap-2.5 lg:grid-cols-2">
@@ -89,15 +105,22 @@ export function MissedSessionsPage() {
                   </p>
                 </div>
                 {tab === 'open' && (
-                  <Badge variant={m.overdue ? 'destructive' : 'warning'}>
-                    {m.overdue ? 'Past 30 days' : `By ${formatShortDate(m.coachUntil)}`}
+                  <Badge
+                    variant={m.overdue ? 'destructive' : m.pending === 0 ? 'default' : 'warning'}
+                  >
+                    {m.overdue
+                      ? 'Past 30 days'
+                      : m.pending === 0
+                        ? 'Makeups booked'
+                        : `By ${formatShortDate(m.coachUntil)}`}
                   </Badge>
                 )}
               </div>
               <p className="text-[12.5px] text-muted-foreground">
                 {isAdmin ? `${m.batch.coach.name} · ` : ''}
-                {plural(m.students, 'student')}
+                {tab === 'open' ? progressOf(m) : plural(m.students, 'student')}
                 {m.reason ? ` · ${m.reason}` : ''}
+                {m.makeupOnly ? ' · rescheduled and held; their makeup fell through' : ''}
                 {m.optional ? ' · optional: everyone gets the full count' : ''}
                 {m.originalDate !== m.date
                   ? ` · originally ${formatShortDate(m.originalDate)}`
@@ -106,14 +129,23 @@ export function MissedSessionsPage() {
               {tab === 'open' ? (
                 m.overdue && !isAdmin ? (
                   <p className="text-[12.5px] text-destructive">
-                    Past 30 days: ask an admin to reschedule it.
+                    Past 30 days: ask an admin to reschedule it or book makeups.
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => setMoving(m)}>
-                      <CalendarClock /> Reschedule
+                    {!m.makeupOnly && (
+                      <Button
+                        size="sm"
+                        variant={m.pending === 0 ? 'outline' : 'default'}
+                        onClick={() => setMoving(m)}
+                      >
+                        <CalendarClock /> Reschedule all
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => setMakingUp(m)}>
+                      <Users /> Student by student
                     </Button>
-                    {isAdmin && (
+                    {isAdmin && !m.makeupOnly && (
                       <Button size="sm" variant="ghost" onClick={() => setClosing(m)}>
                         <X /> Close
                       </Button>
@@ -136,6 +168,7 @@ export function MissedSessionsPage() {
           ))}
         </div>
       )}
+      {makingUp && <MakeupDialog session={makingUp} onClose={() => setMakingUp(null)} />}
       {moving && (
         <SessionChangeDialog
           batch={{ ...moving.batch, startTime: moving.startTime, endTime: moving.endTime }}

@@ -178,16 +178,12 @@ function Body({
       {d.weeks.length > 1 && (
         <>
           <SectionDivider>Week by week</SectionDivider>
-          <div
-            className="flex h-24 items-end gap-1"
-            role="img"
-            aria-label="Sessions filled in each week"
-          >
+          <div className="flex h-24 gap-1" role="img" aria-label="Sessions filled in each week">
             {d.weeks.map((w) => (
               <div key={w.start} className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
                 <div className="relative flex w-full flex-1 items-end">
                   <div
-                    className="w-full rounded-t-md bg-muted"
+                    className="flex w-full flex-col justify-end rounded-t-md bg-muted"
                     style={{ height: `${(w.sessions / maxWeek) * 100}%` }}
                     title={`${w.filled} of ${w.sessions} filled`}
                   >
@@ -195,7 +191,6 @@ function Body({
                       className="w-full rounded-t-md bg-primary"
                       style={{
                         height: `${w.sessions ? (w.filled / w.sessions) * 100 : 0}%`,
-                        marginTop: 'auto',
                       }}
                     />
                   </div>

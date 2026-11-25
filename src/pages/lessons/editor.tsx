@@ -229,6 +229,8 @@ function MinutesInput({
         inputMode="numeric"
         aria-label={`Minutes for ${label}`}
         value={value ?? ''}
+        // Typing replaces the number instead of adding digits to it.
+        onFocus={(e) => e.target.select()}
         placeholder={allowEmpty ? '–' : undefined}
         onChange={(e) => {
           const n = Number(e.target.value);

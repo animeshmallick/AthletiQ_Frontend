@@ -18,7 +18,8 @@ import { EditPayeeDialog, PAYEE_PERIODS, PayeeSheet } from './payee-sheet';
 
 export function PayeesPage() {
   const [params, setParams] = useSearchParams();
-  const period = (params.get('period') as PeriodKey | null) ?? 'fy';
+  const raw = params.get('period') as PeriodKey | null;
+  const period = raw && PAYEE_PERIODS.includes(raw) ? raw : 'fy';
   const openId = params.get('payee');
   const [search, setSearch] = useState('');
   const [showRetired, setShowRetired] = useState(false);

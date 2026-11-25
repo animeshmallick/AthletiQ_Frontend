@@ -8,6 +8,7 @@ import {
   UserRound,
   XCircle,
 } from 'lucide-react';
+import { copyText } from '@/lib/copy';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -228,8 +229,9 @@ export function RegistrationsPage() {
           <Button
             variant="outline"
             onClick={() => {
-              void navigator.clipboard.writeText(publicUrl);
-              toast.success('Registration link copied', { description: publicUrl });
+              void copyText(publicUrl).then(
+                (ok) => ok && toast.success('Registration link copied', { description: publicUrl }),
+              );
             }}
           >
             <Link2 /> Copy public link

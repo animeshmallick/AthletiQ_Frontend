@@ -1151,7 +1151,13 @@ export interface ClientErrorInsights {
 
 /** Client-side logs (crashes, freezes, failed calls…) for a period of up to 30 days. */
 export const useClientErrorInsights = (
-  r: { from: string; to: string; kind?: ClientEventKind; platform?: string },
+  r: {
+    from: string;
+    to: string;
+    since?: string;
+    kind?: ClientEventKind;
+    platform?: string;
+  },
   enabled = true,
 ) =>
   useQuery({

@@ -306,7 +306,7 @@ export function CountBadge({ n, className }: { n: number; className?: string }) 
         className,
       )}
     >
-      {n > 9 ? '9+' : n}
+      {n > 99 ? '99+' : n}
     </span>
   );
 }

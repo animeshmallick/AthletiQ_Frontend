@@ -189,7 +189,11 @@ function SessionList({ sessions }: { sessions: CycleSession[] }) {
                 : s.kind === 'extra'
                   ? ' · extra'
                   : ''}
-              {s.reason ? ` · ${s.reason}` : ''}
+              {s.makeup
+                ? ` · ${s.state === 'held' ? 'made up' : 'makeup booked'} in ${s.makeup.batchName} on ${formatShortDate(s.makeup.date)}`
+                : s.reason
+                  ? ` · ${s.reason}`
+                  : ''}
             </span>
           </span>
           {s.state === 'held' && s.mark ? (

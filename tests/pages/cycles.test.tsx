@@ -267,7 +267,7 @@ describe('MissedSessionsPage', () => {
     });
     expect(await screen.findByText(/ask an admin to reschedule/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Reschedule/ }));
+    await user.click(screen.getByRole('button', { name: /Reschedule all/ }));
     const d = await screen.findByRole('dialog', { name: 'Reschedule missed session' });
     const grid = await within(d).findByRole('group', { name: 'Choose a day' });
     expect(
@@ -290,6 +290,111 @@ describe('MissedSessionsPage', () => {
         date: '2099-03-14',
         confirm: true,
       }),
+    );
+  });
+
+  it('makes a missed session up student by student', async () => {
+    const student = (id: string, fullName: string, state: string, extra = {}) => ({
+      id,
+      fullName,
+      state,
+      lapsed: false,
+      reason: null,
+      makeup: null,
+      ...extra,
+    });
+    let booked = false;
+    const api = mockApi({
+      'GET /session-changes/missed': () => ({
+        open: [missed({ students: 2, pending: 1, booked: 1, madeUp: 1 })],
+        unconfirmed: [],
+      }),
+      'GET /session-changes/missed/students': () => ({
+        students: [
+          student('s1', 'Anya', booked ? 'booked' : 'pending', {
+            lapsed: !booked,
+            makeup: {
+              id: 'm1',
+              batchName: 'Evening',
+              date: '2099-03-14',
+              startTime: '17:00:00',
+              endTime: '18:00:00',
+              mark: null,
+            },
+          }),
+          student('s2', 'Bhavin', 'excused', { reason: 'Travelling' }),
+        ],
+      }),
+      'GET /session-changes/missed/options': () => [
+        {
+          batch: { id: 'b2', name: 'Evening', coachName: 'Ravi' },
+          date: '2099-03-17',
+          startTime: '17:00:00',
+          endTime: '18:00:00',
+          expected: 3,
+          capacity: 3,
+          full: true,
+          blocked: null,
+        },
+        {
+          batch: { id: 'b3', name: 'Late', coachName: 'Ravi' },
+          date: '2099-03-18',
+          startTime: '19:00:00',
+          endTime: '20:00:00',
+          expected: 1,
+          capacity: 3,
+          full: false,
+          blocked: 'Has Yoga then',
+        },
+      ],
+      'POST /session-changes/missed/makeups': (c) => {
+        if (!(c.body as { confirm?: boolean }).confirm)
+          return {
+            status: 409,
+            body: {
+              error: {
+                code: 'CONFLICT',
+                message: 'Evening is full that day (3 of 3). Add Anya anyway?',
+                details: { warnings: [{ code: 'full' }] },
+              },
+            },
+          };
+        booked = true;
+        return { status: 201, body: { data: {} } };
+      },
+      'POST /session-changes/missed/unexcuse': () => ({ excused: false }),
+      'DELETE /session-changes/missed/makeups/m1': () => ({ status: 204 }),
+    });
+    const { user } = await renderPage(<MissedSessionsPage />, {
+      path: '/missed-sessions',
+      route: '/missed-sessions',
+      user: coachUser,
+    });
+    expect(await screen.findByText(/1 student to make up · 1 booked · 1 done/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Student by student/ }));
+    const d = await screen.findByRole('dialog');
+    expect(await within(d).findByText(/wasn’t held: choose another/)).toBeInTheDocument();
+    expect(within(d).getByText('Travelling')).toBeInTheDocument();
+    await user.click(within(d).getByRole('button', { name: 'Bhavin needs it after all' }));
+    await waitFor(() => expect(api.find('POST /session-changes/missed/unexcuse')).toHaveLength(1));
+    await user.click(within(d).getByRole('button', { name: /Choose a session/ }));
+    expect(await within(d).findByText('Has Yoga then')).toBeInTheDocument();
+    expect(within(d).getByRole('button', { name: /^Book Late/ })).toBeDisabled();
+    await user.click(within(d).getByRole('button', { name: /^Book Evening/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add anyway' }));
+    await waitFor(() =>
+      expect(api.find('POST /session-changes/missed/makeups')[1]!.body).toEqual({
+        batchId: 'b1',
+        originalDate: '2099-03-11',
+        studentId: 's1',
+        toBatchId: 'b2',
+        toDate: '2099-03-17',
+        confirm: true,
+      }),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Cancel Anya’s booking' }));
+    await waitFor(() =>
+      expect(api.find('DELETE /session-changes/missed/makeups/m1')).toHaveLength(1),
     );
   });
 
@@ -338,7 +443,7 @@ describe('MissedSessionsPage', () => {
         date: '2099-03-13',
       }),
     );
-    await user.click(screen.getByRole('radio', { name: /To reschedule/ }));
+    await user.click(screen.getByRole('radio', { name: /To make up/ }));
     expect(await screen.findByText(/everyone gets the full count/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close' }));
     const d = await screen.findByRole('dialog', { name: 'Close without rescheduling?' });

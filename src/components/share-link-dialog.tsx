@@ -1,5 +1,6 @@
 import { Check, Copy, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
+import { copyText } from '@/lib/copy';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -47,9 +48,11 @@ export function ShareLinkDialog({
             variant="outline"
             className="shrink-0"
             onClick={() => {
-              void navigator.clipboard.writeText(link.url);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
+              void copyText(link.url).then((ok) => {
+                if (!ok) return;
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              });
             }}
           >
             {copied ? (

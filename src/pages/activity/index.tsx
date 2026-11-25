@@ -198,14 +198,14 @@ export function AuditLogPage() {
               />
             )}
           </div>
-          {(area || person || sensitive || record) && view === 'events' && (
+          {(person || ((area || sensitive || record) && view === 'events')) && (
             <div className="mb-2 flex flex-wrap gap-1.5">
-              {record && (
+              {record && view === 'events' && (
                 <FilterChip onClear={() => set({ record: null })}>
                   History of one {entityMeta(area).label.toLowerCase()}
                 </FilterChip>
               )}
-              {area && !record && (
+              {area && !record && view === 'events' && (
                 <FilterChip onClear={() => set({ area: null })}>
                   {entityMeta(area).label}
                 </FilterChip>
@@ -215,7 +215,7 @@ export function AuditLogPage() {
                   {personName ?? 'One person'}
                 </FilterChip>
               )}
-              {sensitive && (
+              {sensitive && view === 'events' && (
                 <FilterChip onClear={() => set({ sensitive: null })}>
                   Worth a second look
                 </FilterChip>
@@ -234,7 +234,9 @@ export function AuditLogPage() {
                 sensitive,
                 search,
               }}
-              onRecord={(t, id) => set({ area: t, record: id, person: null, q: null })}
+              onRecord={(t, id) =>
+                set({ area: t, record: id, person: null, sensitive: null, q: null })
+              }
             />
           ) : (
             <RequestFeed showActor={admin} filters={{ ...range, actorId: person }} />

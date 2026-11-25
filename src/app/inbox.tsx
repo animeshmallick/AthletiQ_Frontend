@@ -14,6 +14,7 @@ import { relativeTime } from '@/app/deployments';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
+import { istDate, today } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export interface InboxItem {
@@ -78,7 +79,7 @@ export function markNotificationRead(id: string) {
   void api.post('/me/notifications/read', { ids: [id] }).catch(() => {});
 }
 
-const dayOf = (iso: string) => new Date(iso).toDateString();
+const dayOf = (iso: string) => istDate(iso);
 
 /** The inbox list (inside the header bell). */
 export function InboxList({ onNavigate }: { onNavigate: () => void }) {
@@ -92,7 +93,18 @@ export function InboxList({ onNavigate }: { onNavigate: () => void }) {
         <Skeleton className="h-14 rounded-xl" />
       </div>
     );
-  const items = q.data?.items ?? [];
+  if (!q.data)
+    return (
+      <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+        <p className="text-[13px] text-muted-foreground">
+          Couldn’t load your notifications. Check your connection and try again.
+        </p>
+        <Button size="sm" variant="tonal" onClick={() => void q.refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
+  const items = q.data.items;
   if (!items.length)
     return (
       <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
@@ -105,7 +117,7 @@ export function InboxList({ onNavigate }: { onNavigate: () => void }) {
         </p>
       </div>
     );
-  const today = new Date().toDateString();
+  const now = today();
   return (
     <div>
       {(q.data?.unread ?? 0) > 0 && (
@@ -127,9 +139,10 @@ export function InboxList({ onNavigate }: { onNavigate: () => void }) {
             <li key={n.id}>
               {first && (
                 <p className="sticky top-0 z-10 bg-background/95 px-4 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur">
-                  {dayOf(n.createdAt) === today
+                  {dayOf(n.createdAt) === now
                     ? 'Today'
                     : new Date(n.createdAt).toLocaleDateString('en-IN', {
+                        timeZone: 'Asia/Kolkata',
                         weekday: 'short',
                         day: 'numeric',
                         month: 'short',
@@ -201,6 +214,7 @@ export function PushBanner() {
   const [current, setCurrent] = useState<IncomingPush | null>(null);
   const [leaving, setLeaving] = useState(false);
   const qc = useQueryClient();
+  const read = useMarkRead();
   const navigate = useNavigate();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startY = useRef<number | null>(null);
@@ -243,7 +257,7 @@ export function PushBanner() {
 
   if (!current) return null;
   const open = () => {
-    if (current.notificationId) markNotificationRead(current.notificationId);
+    if (current.notificationId) read.mutate([current.notificationId]);
     if (current.link?.startsWith('/')) void navigate(current.link);
     close();
   };

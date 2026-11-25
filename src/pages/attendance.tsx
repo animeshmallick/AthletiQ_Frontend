@@ -1,29 +1,60 @@
 /**
- * Attendance: the same day view for coaches and admins. Coaches see their own (and covered)
- * sessions; admins see every session of the day, with the coach's name. A batch's monthly
- * register has its own page (/attendance/register/:batchId).
+ * Attendance, in two sections: taking the day's attendance, and the monthly register of every
+ * batch (admins: all; coaches: their own). A batch's register has its own page
+ * (/attendance/register/:batchId).
  */
-import { useParams } from 'react-router';
+import { ClipboardCheck, TableProperties } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { PageHeader } from '@/components/common';
-import { useBatches } from '@/lib/queries';
+import { Segmented } from '@/components/ui/controls';
 import { AttendanceDay } from './attendance-coach';
-import { MonthlyRegister } from './attendance-parts';
+import { MonthlyRegisterPage } from './register';
+import { RegisterTiles } from './register/tiles';
 
 export function AttendancePage() {
-  return <AttendanceDay />;
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'register' ? 'register' : 'day';
+  return (
+    <div className="space-y-1.5">
+      <PageHeader
+        className="mb-0.5 sm:mb-2"
+        title="Attendance"
+        description={
+          tab === 'day'
+            ? 'Tap P, A, L or E for each student. Every tap saves.'
+            : 'Every batch’s month at a glance. Tap one for its register and insights.'
+        }
+      />
+      <Segmented
+        ariaLabel="Attendance section"
+        className="w-full sm:w-auto"
+        value={tab}
+        // Each section keeps its own day or month, so switching starts clean.
+        onChange={(v) => setParams(v === 'register' ? { tab: v } : {}, { replace: true })}
+        options={[
+          {
+            value: 'day',
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <ClipboardCheck className="size-4" /> Today
+              </span>
+            ),
+          },
+          {
+            value: 'register',
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <TableProperties className="size-4" /> Monthly register
+              </span>
+            ),
+          },
+        ]}
+      />
+      {tab === 'register' ? <RegisterTiles /> : <AttendanceDay />}
+    </div>
+  );
 }
 
 export function AttendanceRegisterPage() {
-  const { batchId = '' } = useParams();
-  const batch = useBatches().data?.find((b) => b.id === batchId);
-  return (
-    <div>
-      <PageHeader
-        className="mb-2 sm:mb-3"
-        title="Monthly register"
-        description={batch ? `${batch.name}: every session this month.` : undefined}
-      />
-      <MonthlyRegister batchId={batchId} />
-    </div>
-  );
+  return <MonthlyRegisterPage />;
 }

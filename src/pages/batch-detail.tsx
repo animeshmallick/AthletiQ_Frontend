@@ -925,7 +925,7 @@ function Sessions({
   const list = tab === 'upcoming' ? upcoming : recent;
   return (
     <section className="space-y-2" aria-label="Sessions">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-[15px] font-semibold">
           <CalendarClock className="size-4" /> Sessions
         </h2>

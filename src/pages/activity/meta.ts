@@ -120,6 +120,9 @@ const ACTION_LABELS: Record<string, string> = {
   'auth.token_reuse': 'Old session reused: signed out everywhere',
   'auth.role_switched': 'Switched role',
   'user.roles_changed': 'Roles changed',
+  'student.makeup_booked': 'Makeup booked for a missed session',
+  'student.makeup_not_needed': 'Makeup marked as not needed',
+  'student.makeup_needed': 'Makeup needed after all',
 };
 
 export function humanize(action: string) {
@@ -144,7 +147,7 @@ export const label = (key: string) =>
 /** Readable value for a metadata field (money in paise, dates, lists, nested objects). */
 export function display(key: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'number' && /amount|fee|discount|total|paise/i.test(key))
+  if (typeof value === 'number' && /amount|fee(?!dback)|discount|paise/i.test(key))
     return money(value);
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (Array.isArray(value)) return value.length ? value.map(String).join(', ') : '—';

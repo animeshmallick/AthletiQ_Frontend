@@ -221,7 +221,7 @@ function Overview({
                 href={`https://wa.me/${s.phone.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noreferrer"
-                className="ml-2 inline-flex items-center gap-1 text-xs text-success hover:underline"
+                className="-my-1 ml-1 inline-flex items-center gap-1 px-1 py-1.5 text-xs text-success hover:underline"
               >
                 <MessageCircle className="size-3" /> WhatsApp
               </a>

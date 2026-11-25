@@ -73,6 +73,11 @@ export function StudentsPage() {
     pageSize: grouped ? 500 : 25,
   });
 
+  const filters = [q.batchId, q.locationId, q.sportId, q.coachId, q.feePlanId, q.dues].filter(
+    Boolean,
+  );
+  const narrowed = !!q.search || filters.length > 0 || q.status !== 'active';
+
   const set = (patch: Record<string, string>) => {
     const p = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) {
@@ -266,17 +271,17 @@ export function StudentsPage() {
       ) : students.data.data.length === 0 ? (
         <EmptyState
           icon={<Users />}
-          title={q.search ? 'No matching students' : 'No students yet'}
+          title={narrowed ? 'No matching students' : 'No students yet'}
           description={
-            q.search
-              ? 'Try a different name or phone number.'
+            narrowed
+              ? 'Try a different search or clear the filters.'
               : isAdmin
                 ? 'Register your first student to get started.'
                 : 'Students appear here once they are placed in your batches.'
           }
           action={
             isAdmin &&
-            !q.search && (
+            !narrowed && (
               <Button onClick={() => setCreating(true)}>
                 <Plus /> Add student
               </Button>

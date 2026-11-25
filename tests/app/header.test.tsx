@@ -122,6 +122,35 @@ describe('app header', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/attendance'));
   });
 
+  it('opens the bell whatever kinds of to-do it holds', async () => {
+    const user = userEvent.setup();
+    const kinds = [
+      'missed-sessions',
+      'unconfirmed-sessions',
+      'course-setup',
+      'substitute-requests',
+      'skill-assessments',
+      'something-newer',
+    ];
+    await boot(adminUser, {
+      'GET /me/tasks': () => ({
+        ...tasks,
+        total: kinds.length,
+        counts: {},
+        items: kinds.map((kind) => ({ ...tasks.items[2]!, id: kind, kind, title: kind })),
+      }),
+    });
+    await user.click(
+      await screen.findByRole(
+        'button',
+        { name: '6 to-dos, 0 unread notifications' },
+        { timeout: 5000 },
+      ),
+    );
+    const panel = await screen.findByRole('dialog', { name: 'Needs your attention' });
+    expect(within(panel).getAllByRole('link')).toHaveLength(kinds.length);
+  });
+
   it('puts pending counts on the tabs and totals the rest on "More"', async () => {
     await boot(coachUser);
     const tabbar = await screen.findByRole('navigation', { name: 'Quick navigation' });

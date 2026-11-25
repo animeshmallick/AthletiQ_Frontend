@@ -162,6 +162,8 @@ export function SessionChangeDialog({
   const [endTime, setEnd] = useState(hhmm(session?.endTime ?? batch.endTime));
   const [reason, setReason] = useState('');
   const [smart, setSmart] = useState(false);
+  /** Students booked to make it up elsewhere come here instead. */
+  const [release, setRelease] = useState(false);
   const days = useSmartDates(batch.id, session?.date ?? '', missed);
   /** The choice whose warnings were confirmed. */
   const [confirmed, setConfirmed] = useState<string | null>(null);
@@ -175,7 +177,7 @@ export function SessionChangeDialog({
     startTime === hhmm(session.startTime) &&
     endTime === hhmm(session.endTime);
   const canCheck = !!date && !!startTime && !!endTime && !unchanged;
-  const key = [date, startTime, endTime].join('|');
+  const key = [date, startTime, endTime, release].join('|');
   const check = canCheck && result?.key === key ? result.preview : null;
   const sessionDate = session?.date;
 
@@ -183,7 +185,13 @@ export function SessionChangeDialog({
     if (!canCheck) return;
     let live = true;
     const t = setTimeout(() => {
-      previewChange(batch.id, { sessionDate, date, startTime, endTime })
+      previewChange(batch.id, {
+        sessionDate,
+        date,
+        startTime,
+        endTime,
+        ...(release ? { releaseMakeups: true } : {}),
+      })
         .catch((err: unknown): ChangePreview => ({
           ok: false,
           errors: [errorMessage(err)],
@@ -195,8 +203,9 @@ export function SessionChangeDialog({
       live = false;
       clearTimeout(t);
     };
-  }, [batch.id, sessionDate, date, startTime, endTime, canCheck, key]);
+  }, [batch.id, sessionDate, date, startTime, endTime, release, canCheck, key]);
 
+  const booked = result?.preview.booked ?? 0;
   const needsConfirm = !!check?.warnings.length;
   const isConfirmed = confirmed === key;
   const canSave = !!check?.ok && (!needsConfirm || isConfirmed);
@@ -209,6 +218,7 @@ export function SessionChangeDialog({
       endTime,
       reason: reason.trim() || null,
       confirm: needsConfirm && isConfirmed,
+      ...(release ? { releaseMakeups: true } : {}),
     };
     try {
       const saved = await create.mutateAsync(body);
@@ -335,6 +345,25 @@ export function SessionChangeDialog({
               onChange={(e) => setReason(e.target.value)}
             />
           </Field>
+          {missed && booked > 0 && (
+            <label className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-[13px]">
+              <span>
+                <span className="block font-medium">
+                  {plural(booked, 'student')} booked into other batches
+                </span>
+                <span className="text-[12px] text-muted-foreground">
+                  {release
+                    ? 'Their bookings are cancelled; they come to this session.'
+                    : 'They keep their bookings and aren’t expected here.'}
+                </span>
+              </span>
+              <Switch
+                checked={release}
+                onCheckedChange={setRelease}
+                aria-label="Bring booked students to this session instead"
+              />
+            </label>
+          )}
           <div aria-live="polite" className="space-y-1.5">
             {!canCheck ? (
               <p className="text-[12px] text-muted-foreground">

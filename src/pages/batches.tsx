@@ -310,7 +310,8 @@ export function BatchDialog({
             }
             className="sm:col-span-2"
           >
-            <Select required {...register('feePlanId')}>
+            {/* Free is never picked for them: it would quietly stop the billing. */}
+            <Select required={paidFitting.length > 0} {...register('feePlanId')}>
               <option value="">Select…</option>
               {fitting.map((p) => (
                 <option key={p.id} value={p.id}>

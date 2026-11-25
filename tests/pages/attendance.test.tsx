@@ -86,6 +86,131 @@ function coachApi(over: Record<string, Handler> = {}) {
 const coachPage = (route = '/attendance?date=2026-03-09') =>
   renderPage(<AttendancePage />, { path: '/attendance', route, user: coachUser });
 
+const register = () => {
+  const person = (studentId: string, fullName: string, extra = {}) => ({
+    studentId,
+    fullName,
+    rate: 50,
+    change: null,
+    attended: 1,
+    counted: 2,
+    absentRun: 0,
+    bestStreak: 1,
+    late: 0,
+    lastAttended: null,
+    ...extra,
+  });
+  const session = (date: string, extra = {}) => ({
+    date,
+    startTime: '06:00:00',
+    endTime: '08:00:00',
+    origin: { kind: 'regular', originalDate: null, changeId: null },
+    state: 'held',
+    reason: null,
+    substitute: null,
+    checkedIn: null,
+    expected: 2,
+    marked: 1,
+    present: 1,
+    late: 0,
+    absent: 0,
+    excused: 0,
+    rate: 100,
+    ...extra,
+  });
+  const student = (studentId: string, fullName: string, extra = {}) => ({
+    ...person(studentId, fullName),
+    code: studentId,
+    joinedOn: null,
+    leftOn: null,
+    cells: {},
+    present: 1,
+    absent: 0,
+    excused: 0,
+    unmarked: 0,
+    previousRate: null,
+    longestAbsence: 0,
+    ...extra,
+  });
+  return {
+    batch: {
+      id: 'b1',
+      name: 'Morning U-12',
+      coach: { id: 'coach-1', name: 'Ravi Kumar' },
+      location: 'Indiranagar Club',
+      sport: 'Badminton',
+      weekdays: [1, 3, 5],
+      startTime: '06:00:00',
+      endTime: '08:00:00',
+      dayTimes: {},
+      capacity: 20,
+      isActive: true,
+    },
+    month: '2026-03-01',
+    today: '2026-03-20',
+    sessions: [
+      session('2026-03-02'),
+      session('2026-03-04'),
+      session('2026-03-06', { state: 'cancelled', reason: 'Rain', marked: 0, rate: null }),
+    ],
+    students: [
+      student('s1', 'Anya Rao', {
+        rate: 100,
+        cells: {
+          '2026-03-02': { mark: 'present' },
+          '2026-03-04': { mark: 'late', madeUp: 'Evening on 2026-03-05' },
+          '2026-03-06': { mark: null },
+        },
+      }),
+      student('s2', 'Bhavin Shah', {
+        joinedOn: '2026-03-04',
+        cells: { '2026-03-04': { mark: 'absent' } },
+      }),
+    ],
+    summary: {
+      students: 2,
+      rate: 75,
+      previousRate: 70,
+      change: 5,
+      present: 2,
+      late: 1,
+      absent: 1,
+      excused: 0,
+      madeUp: 1,
+      sessions: 3,
+      held: 2,
+      cancelled: 1,
+      unrecorded: 0,
+      upcoming: 0,
+      moved: 0,
+      extra: 0,
+      covered: 0,
+      averagePresent: 1.5,
+      completeness: 100,
+      unmarked: 0,
+      punctuality: null,
+      checkIns: 0,
+    },
+    insights: {
+      byWeekday: [{ weekday: 1, sessions: 1, rate: 100 }],
+      byWeek: [{ week: '2026-03-02', sessions: 2, rate: 75 }],
+      bands: { excellent: 1, good: 0, fair: 0, low: 1, none: 0 },
+      best: { date: '2026-03-02', rate: 100 },
+      worst: null,
+      top: [person('s1', 'Anya Rao')],
+      perfect: [],
+      low: [person('s2', 'Bhavin Shah')],
+      absentRuns: [person('s2', 'Bhavin Shah', { absentRun: 3 })],
+      improved: [],
+      declined: [],
+      oftenLate: [],
+      neverMarked: [],
+      joined: 1,
+      left: 0,
+    },
+  };
+};
+
 describe('AttendancePage (coach)', () => {
   it('lists the day’s sessions collapsed; tap one to mark it', async () => {
     coachApi();
@@ -112,20 +237,7 @@ describe('AttendancePage (coach)', () => {
   });
 
   it('opens the monthly register from a session', async () => {
-    coachApi({
-      'GET /attendance/register': () => ({
-        batch: { id: 'b1', name: 'Morning U-12' },
-        dates: ['2026-03-02', '2026-03-04'],
-        students: [
-          {
-            studentId: 's1',
-            fullName: 'Anya Rao',
-            code: 'ATQ-0001',
-            marks: { '2026-03-02': 'present', '2026-03-04': 'absent' },
-          },
-        ],
-      }),
-    });
+    coachApi({ 'GET /attendance/registers/b1': () => register() });
     const { user, router } = await renderPage(<AttendancePage />, {
       path: '/attendance',
       route: '/attendance?date=2026-03-09&batch=b1',
@@ -135,7 +247,79 @@ describe('AttendancePage (coach)', () => {
     // Opens as its own page.
     await user.click(await screen.findByRole('link', { name: /monthly register/i }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/attendance/register/b1'));
-    expect(await screen.findByText('50%')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Morning U-12' })).toBeInTheDocument();
+  });
+
+  it('lists every batch’s month, and steps between months', async () => {
+    const api = coachApi({
+      'GET /attendance/registers': (c) => ({
+        month: c.query.get('month'),
+        batches: [
+          {
+            batch: register().batch,
+            month: '2026-03-01',
+            summary: register().summary,
+            low: 1,
+            absentRuns: 1,
+            perfect: 0,
+            trend: [
+              { date: '2026-03-02', rate: 50 },
+              { date: '2026-03-04', rate: 100 },
+            ],
+          },
+        ],
+      }),
+    });
+    const { user, router } = await coachPage('/attendance?date=2026-03-09');
+    await user.click(await screen.findByRole('radio', { name: /Monthly register/ }));
+    const tile = await screen.findByRole('link', { name: /Morning U-12/ });
+    expect(tile).toHaveAttribute('href', '/attendance/register/b1');
+    expect(within(tile).getByText(/1 student missing 3\+ in a row/)).toBeInTheDocument();
+    expect(within(tile).getByRole('img', { name: '75% attendance' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Previous month' }));
+    await waitFor(() => expect(router.state.location.search).toMatch(/month=\d{4}-\d{2}/));
+    await waitFor(() => expect(api.find('GET /attendance/registers')).toHaveLength(2));
+  });
+
+  it('shows a batch’s register, insights and sessions for a month', async () => {
+    const api = coachApi({
+      'GET /attendance/registers/b1': () => register(),
+      'GET /attendance/session': () => sheet(),
+    });
+    const { user } = await renderPage(<AttendanceRegisterPage />, {
+      path: '/attendance/register/:batchId',
+      route: '/attendance/register/b1?month=2026-03',
+      user: coachUser,
+    });
+    expect(
+      await screen.findByRole('button', { name: 'Anya Rao, 2 Mar: Present' }),
+    ).toBeInTheDocument();
+    expect(api.find('GET /attendance/registers/b1')[0]!.query.get('month')).toBe('2026-03-01');
+    expect(
+      screen.getByRole('button', { name: /Anya Rao, 4 Mar: Late, made up in Evening/ }),
+    ).toBeInTheDocument();
+    // Not a member yet that day: nothing to open.
+    expect(
+      screen.getByRole('button', { name: /Bhavin Shah, 2 Mar: not in this batch/ }),
+    ).toBeDisabled();
+    expect(screen.getByText('Joined 4 Mar')).toBeInTheDocument();
+    const names = () => screen.getAllByRole('rowheader').map((h) => h.textContent!);
+    expect(names()[0]).toContain('Anya');
+    await user.click(screen.getByRole('button', { name: /Sort: Highest first/ }));
+    await user.click(screen.getByRole('button', { name: /Sort: Lowest first/ }));
+    expect(names()[0]).toContain('Bhavin');
+    await user.click(screen.getByRole('button', { name: 'Anya Rao, 2 Mar: Present' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('radio', { name: /Insights/ }));
+    expect(await screen.findByText('This month in short')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Bhavin Shah has missed 3 or more sessions in a row/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/₹/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Sessions/ }));
+    expect(await screen.findByText(/Rain/)).toBeInTheDocument();
   });
 
   it('marks everyone left present in one tap, with undo', async () => {
@@ -204,15 +388,50 @@ describe('AttendancePage (coach)', () => {
         .getAllByRole('radiogroup', { name: /^Attendance for/ })
         .map((r) => r.getAttribute('aria-label')!.replace('Attendance for ', ''));
     const first = await open();
-    await first.user.click(
-      await screen.findByRole('button', { name: /Sort by highest attendance/ }),
-    );
+    // Highest attendance first, unless they chose otherwise.
+    await screen.findByRole('button', { name: /Sort by name/ });
     expect(names()).toEqual(['Zoya', 'Anya Rao', 'Meera']);
+    await first.user.click(screen.getByRole('button', { name: /Sort by name/ }));
+    expect(names()).toEqual(['Anya Rao', 'Meera', 'Zoya']);
     first.unmount();
-    const second = await open();
-    await second.user.click(await screen.findByRole('button', { name: /Sort by name/ }));
+    await open();
+    await screen.findByRole('button', { name: /Sort by highest attendance/ });
     expect(names()).toEqual(['Anya Rao', 'Meera', 'Zoya']);
     localStorage.removeItem('atq-attendance-sort');
+  });
+
+  it('recalculates the 30-day attendance as soon as a student is marked', async () => {
+    const [a] = sheet().students;
+    const students = [
+      { ...a!, status: null, isMakeup: false, rate30: 100, before30: { marked: 3, present: 3 } },
+    ];
+    mockApi({
+      'GET /attendance/calendar': () => ({
+        from: '2026-03-09',
+        to: '2026-03-09',
+        today: '2026-03-20',
+        days: [
+          {
+            date: '2026-03-09',
+            sessions: [at('b1', 'Morning U-12', ['l1', 'Ground'], '06:00:00')],
+          },
+        ],
+      }),
+      'GET /attendance/session': () => sheet({ students }),
+      'PUT /attendance/session': () => {
+        students[0] = { ...students[0]!, status: 'absent' as never };
+        return { saved: 1 };
+      },
+    });
+    const { user } = await renderPage(<AttendancePage />, {
+      path: '/attendance',
+      route: '/attendance?batch=b1&date=2026-03-09',
+      user: adminUser,
+    });
+    expect(await screen.findByText(/100% · 30d/)).toBeInTheDocument();
+    const toggle = screen.getByRole('radiogroup', { name: /^Attendance for/ });
+    await user.click(within(toggle).getByRole('radio', { name: /Absent/ }));
+    expect(await screen.findByText(/75% · 30d/)).toBeInTheDocument();
   });
 
   it('filters the list from the summary counts', async () => {

@@ -7,11 +7,12 @@
  *   the app's cached files and reloads into the new version; the sign-in is kept (it lives in a
  *   secure cookie, which is left alone).
  * - Coming back after a long break (20+ min) with a newer version live, the app updates on its own
- *   (nobody is mid-task then).
+ *   unless something is open or unsaved.
  *
  * Checks: at start, when the app comes back to the screen, and every 10 minutes while it's open.
  */
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { overlayOnStack } from './back-stack';
 import { noteReload } from './client-log';
 
 /** Away at least this long: update without asking. */
@@ -36,6 +37,19 @@ async function latestEntry(): Promise<string | null> {
   } catch {
     return null; // offline: try again next time
   }
+}
+
+// ─── Unsaved work ───────────────────────────────────────────────────────────
+
+let holds = 0;
+
+/** While `on` (unsaved work on screen), the app never reloads by itself; Update still shows. */
+export function useHoldReload(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    holds++;
+    return () => void holds--;
+  }, [on]);
 }
 
 // ─── "Update available" state ───────────────────────────────────────────────
@@ -101,6 +115,8 @@ export async function reloadIfOutdated(
   reload: () => void = () => void applyUpdate('Reloaded into the new version after a break'),
 ) {
   if (!(await checkForWebUpdate(running))) return false;
+  // A form is open or half filled: they choose when, with the Update button.
+  if (holds > 0 || overlayOnStack()) return false;
   reload();
   return true;
 }

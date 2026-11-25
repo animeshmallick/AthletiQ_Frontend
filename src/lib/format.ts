@@ -21,6 +21,11 @@ const inr = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
   minimumFractionDigits: 0,
 });
+const inrPaise = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  minimumFractionDigits: 2,
+});
 const inrCompact = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
@@ -28,9 +33,9 @@ const inrCompact = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 1,
 });
 
-/** 250000 paise → "₹2,500". */
+/** 250000 paise → "₹2,500"; 250050 → "₹2,500.50". */
 export function money(paise: number): string {
-  return inr.format(paise / 100);
+  return (Math.round(paise) % 100 ? inrPaise : inr).format(paise / 100);
 }
 
 /** 12500000 paise → "₹1.3L". */
@@ -207,7 +212,11 @@ export function initials(name: string): string {
     .join('');
 }
 
-export function plural(n: number, one: string, many = `${one}s`) {
+export function plural(
+  n: number,
+  one: string,
+  many = /(ch|sh|s|x)$/.test(one) ? `${one}es` : `${one}s`,
+) {
   return `${n} ${n === 1 ? one : many}`;
 }
 

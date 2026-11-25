@@ -7,6 +7,7 @@ import { Accordion } from 'radix-ui';
 import { CalendarX2, ChevronDown, Layers, MapPin } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useBlocker, useSearchParams } from 'react-router';
+import { useHoldReload } from '@/app/version-check';
 import { useUser } from '@/app/auth';
 import { ConfirmDialog, EmptyState, ListSkeleton, PageHeader } from '@/components/common';
 import { Floating, FloatBadge } from '@/components/floating-badge';
@@ -64,6 +65,7 @@ export function LessonPlansPage() {
     setEditing({});
   };
   const busy = Object.values(editing).some(Boolean);
+  useHoldReload(busy);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       Object.values(editingRef.current).some(Boolean) &&

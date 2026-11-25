@@ -7,8 +7,11 @@
  */
 import {
   AlertTriangle,
+  Award,
   Bell,
   CalendarCheck2,
+  CalendarClock,
+  CalendarX2,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -16,6 +19,8 @@ import {
   IndianRupee,
   MapPin,
   MessageSquareText,
+  Repeat,
+  Settings2,
   ShieldAlert,
   UserPlus,
   type LucideIcon,
@@ -65,6 +70,7 @@ function useScreenTitle(): string {
   if (pathname.startsWith('/account')) return 'Account';
   // Detail screens that aren't in the menu.
   if (pathname.startsWith('/invoices/')) return 'Invoice';
+  if (pathname.startsWith('/students')) return pathname === '/students' ? 'Students' : 'Student';
   if (pathname.startsWith('/attendance/register/')) return 'Monthly register';
   return 'AthletiQ';
 }
@@ -200,6 +206,11 @@ const KIND_ICON: Record<AppTask['kind'], LucideIcon> = {
   registrations: UserPlus,
   'flagged-check-ins': ShieldAlert,
   'overdue-fees': IndianRupee,
+  'missed-sessions': CalendarX2,
+  'unconfirmed-sessions': CalendarClock,
+  'course-setup': Settings2,
+  'substitute-requests': Repeat,
+  'skill-assessments': Award,
 };
 
 const SEVERITY_STYLE: Record<AppTask['severity'], string> = {
@@ -256,7 +267,7 @@ export function TasksBell() {
               urgent ? 'bg-destructive' : 'bg-primary',
             )}
           >
-            {total > 9 ? '9+' : total}
+            {total > 99 ? '99+' : total}
           </span>
         )}
       </button>
@@ -323,7 +334,8 @@ export function TasksBell() {
         ) : (
           <ul className="max-h-[60dvh] divide-y overflow-y-auto">
             {tasks.data!.items.map((t, i) => {
-              const Icon = KIND_ICON[t.kind];
+              // A kind this version doesn't know yet still shows.
+              const Icon = KIND_ICON[t.kind] ?? ClipboardList;
               return (
                 <li key={t.id} className="animate-rise" style={{ animationDelay: `${i * 30}ms` }}>
                   <Link

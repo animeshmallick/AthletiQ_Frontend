@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/overlays';
 import { Badge, Card, Input } from '@/components/ui/primitives';
+import { useHoldReload } from '@/app/version-check';
 import { errorMessage } from '@/lib/api';
 import {
   useCreateSport,
@@ -60,12 +61,14 @@ function toDraft(s: Framework): Draft {
           .filter((x) => x.isActive)
           .map((x) => ({ key: x.id, id: x.id, name: x.name, description: x.description ?? '' })),
       })),
-    levels: s.levels.map((l) => ({
-      key: l.id,
-      code: l.code ?? '',
-      name: l.name,
-      min: (l.minScore / 100).toFixed(2),
-    })),
+    levels: [...s.levels]
+      .sort((a, b) => a.minScore - b.minScore)
+      .map((l) => ({
+        key: l.id,
+        code: l.code ?? '',
+        name: l.name,
+        min: (l.minScore / 100).toFixed(2),
+      })),
   };
 }
 
@@ -128,6 +131,8 @@ function Editor({ sport }: { sport: SportListItem }) {
     a.skills.filter((x) => !x.isActive || !a.isActive).map((x) => x.name),
   );
   const dirty = JSON.stringify(draft) !== JSON.stringify(toDraft(sport));
+
+  useHoldReload(dirty);
 
   const setArea = (i: number, patch: Partial<Draft['areas'][number]>) =>
     setDraft((d) => ({ ...d, areas: d.areas.map((a, j) => (j === i ? { ...a, ...patch } : a)) }));
@@ -321,64 +326,62 @@ function Editor({ sport }: { sport: SportListItem }) {
           A student’s level follows their latest assessment average (1–5) and can go up or down. The
           code’s letter is the band: A Beginner, B Intermediate, C Advanced.
         </p>
-        {[...draft.levels]
-          .map((l, i) => ({ l, i }))
-          .sort((a, b) => Number(a.l.min) - Number(b.l.min))
-          .map(({ l, i }) => (
-            <div key={l.key} className="flex items-center gap-1.5">
-              <Input
-                value={l.code}
-                maxLength={2}
-                aria-label="Level code"
-                placeholder="B1"
-                className="h-8 w-14 text-center font-semibold uppercase"
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    levels: d.levels.map((x, j) =>
-                      j === i ? { ...x, code: e.target.value.toUpperCase() } : x,
-                    ),
-                  }))
-                }
-              />
-              <Input
-                value={l.name}
-                maxLength={60}
-                aria-label="Level name"
-                className="h-8 flex-1"
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    levels: d.levels.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)),
-                  }))
-                }
-              />
-              <span className="text-[12px] text-muted-foreground">from</span>
-              <Input
-                value={l.min}
-                inputMode="decimal"
-                aria-label="Minimum average"
-                className="h-8 w-20 text-right tabular-nums"
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    levels: d.levels.map((x, j) => (j === i ? { ...x, min: e.target.value } : x)),
-                  }))
-                }
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label={`Remove ${l.name || 'level'}`}
-                onClick={() =>
-                  setDraft((d) => ({ ...d, levels: d.levels.filter((_, j) => j !== i) }))
-                }
-              >
-                <Trash2 className="text-muted-foreground" />
-              </Button>
-            </div>
-          ))}
+        {/* In the saved order: sorting while a score is typed would move the row away. */}
+        {draft.levels.map((l, i) => (
+          <div key={l.key} className="flex items-center gap-1.5">
+            <Input
+              value={l.code}
+              maxLength={2}
+              aria-label="Level code"
+              placeholder="B1"
+              className="h-8 w-14 text-center font-semibold uppercase"
+              onChange={(e) =>
+                setDraft((d) => ({
+                  ...d,
+                  levels: d.levels.map((x, j) =>
+                    j === i ? { ...x, code: e.target.value.toUpperCase() } : x,
+                  ),
+                }))
+              }
+            />
+            <Input
+              value={l.name}
+              maxLength={60}
+              aria-label="Level name"
+              className="h-8 flex-1"
+              onChange={(e) =>
+                setDraft((d) => ({
+                  ...d,
+                  levels: d.levels.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)),
+                }))
+              }
+            />
+            <span className="text-[12px] text-muted-foreground">from</span>
+            <Input
+              value={l.min}
+              inputMode="decimal"
+              aria-label="Minimum average"
+              className="h-8 w-20 text-right tabular-nums"
+              onChange={(e) =>
+                setDraft((d) => ({
+                  ...d,
+                  levels: d.levels.map((x, j) => (j === i ? { ...x, min: e.target.value } : x)),
+                }))
+              }
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label={`Remove ${l.name || 'level'}`}
+              onClick={() =>
+                setDraft((d) => ({ ...d, levels: d.levels.filter((_, j) => j !== i) }))
+              }
+            >
+              <Trash2 className="text-muted-foreground" />
+            </Button>
+          </div>
+        ))}
         <Button
           variant="ghost"
           size="sm"

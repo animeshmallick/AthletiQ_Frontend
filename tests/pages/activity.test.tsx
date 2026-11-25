@@ -488,5 +488,7 @@ describe('Activity log (coach)', () => {
       expect(api.find('GET /client-events/insights').at(-1)!.query.get('kind')).toBe('crash'),
     );
     expect(api.find('GET /activity/errors/insights')).toHaveLength(0);
+    // "Last 24 hours" is exactly that, not two whole days.
+    expect(api.find('GET /client-events/insights')[0]!.query.get('since')).toBeTruthy();
   });
 });

@@ -58,9 +58,13 @@ const PLATFORM: Record<string, string> = {
 };
 
 /** Logs are kept 30 days: longer periods show the last 30. */
-export function clampToKept(range: { from: string; to: string }) {
+export function clampToKept(range: { from: string; to: string; since?: string }) {
   const earliest = addDays(range.to, -29);
-  return { from: range.from < earliest ? earliest : range.from, to: range.to };
+  return {
+    from: range.from < earliest ? earliest : range.from,
+    to: range.to,
+    ...(range.since ? { since: range.since } : {}),
+  };
 }
 
 function KindChip({ kind }: { kind: ClientEventKind }) {
@@ -72,7 +76,11 @@ function KindChip({ kind }: { kind: ClientEventKind }) {
   );
 }
 
-export function ClientErrorsView({ range }: { range: { from: string; to: string } }) {
+export function ClientErrorsView({
+  range,
+}: {
+  range: { from: string; to: string; since?: string };
+}) {
   const kept = clampToKept(range);
   const [kind, setKind] = useState<ClientEventKind | null>(null);
   const [platform, setPlatform] = useState<string | null>(null);
@@ -177,7 +185,16 @@ export function ClientErrorsView({ range }: { range: { from: string; to: string 
                 <span className="tabular text-muted-foreground">{p.n}</span>
               </button>
             ))}
-          {kind && <FilterChip onClear={() => setKind(null)}>{CLIENT_KIND[kind].label}</FilterChip>}
+          {kind && (
+            <FilterChip onClear={() => setKind(null)}>
+              {CLIENT_KIND[kind]?.label ?? kind}
+            </FilterChip>
+          )}
+          {platform && (
+            <FilterChip onClear={() => setPlatform(null)}>
+              {PLATFORM[platform] ?? platform}
+            </FilterChip>
+          )}
         </div>
       )}
 

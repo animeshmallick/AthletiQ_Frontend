@@ -469,7 +469,7 @@ describe('Money dashboard', () => {
     const payTo = within(dialog).getByRole('combobox', { name: /Pay to/ });
     // Only payees that are owed something; the only one is picked with its full amount.
     expect(dialog).not.toHaveTextContent('Ground');
-    await waitFor(() => expect(payTo).toHaveTextContent(/Society · ₹437.5/));
+    await waitFor(() => expect(payTo).toHaveTextContent(/Society · ₹437.50/));
     expect(within(dialog).getByText(/^Up to ₹437\.5/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Record payment' }));
     await waitFor(() => expect(api.find('POST /funds/payouts')).toHaveLength(1));

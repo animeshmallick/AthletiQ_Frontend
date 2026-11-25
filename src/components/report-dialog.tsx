@@ -2,6 +2,7 @@
  * Pick what a PDF report covers, then view it in the app, share it (WhatsApp etc.) or download it.
  */
 import { Check, Copy, Download, Eye, FileText, Link2, Share2, Trash2 } from 'lucide-react';
+import { copyText } from '@/lib/copy';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AppUpdateNeeded, saveFile, shareFile } from '@/app/share-file';
@@ -190,8 +191,7 @@ function ShareLinks({ studentId, title }: { studentId: string; title: string }) 
       const text = `${title}: ${link.url}\nOpen it with the student’s registration number. Valid for 30 days.`;
       if (navigator.share) await navigator.share({ title, text }).catch(() => undefined);
       else {
-        await navigator.clipboard?.writeText(text);
-        toast.success('Link copied');
+        if (await copyText(text)) toast.success('Link copied');
       }
     } catch (err) {
       toast.error('Could not create the link', { description: errorMessage(err) });
@@ -221,9 +221,7 @@ function ShareLinks({ studentId, title }: { studentId: string; title: string }) 
             variant="ghost"
             className="size-7"
             aria-label="Copy link"
-            onClick={() =>
-              void navigator.clipboard?.writeText(fresh).then(() => toast.success('Link copied'))
-            }
+            onClick={() => void copyText(fresh).then((ok) => ok && toast.success('Link copied'))}
           >
             <Copy />
           </Button>

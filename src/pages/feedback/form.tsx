@@ -2,6 +2,7 @@ import { Lock, Send } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
+import { useHoldReload } from '@/app/version-check';
 import { useUser } from '@/app/auth';
 import { ConfirmDialog, ErrorState, ListSkeleton, PageHeader, Progress } from '@/components/common';
 import { Button } from '@/components/ui/button';
@@ -225,6 +226,7 @@ export function FeedbackFormPage() {
     user.role === 'coach' &&
     !!report.data?.editable &&
     JSON.stringify(answers) !== JSON.stringify(report.data.feedback?.answers ?? {});
+  useHoldReload(dirty);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       dirty &&

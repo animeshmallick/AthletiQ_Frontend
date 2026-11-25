@@ -54,13 +54,16 @@ export const SORTS = [
 export const defaultSort = (status: string) =>
   status === 'open' || status === 'overdue' ? 'dueDateAsc' : 'issueDateDesc';
 
+const NUMBERS = new Set(['min', 'max']);
+
 /** The API query for the filters in the URL (amounts are typed in rupees, sent in paise). */
 export function filterQuery(params: URLSearchParams): Record<string, string | number> {
   const out: Record<string, string | number> = {};
   for (const [key, api] of Object.entries(INVOICE_FILTERS)) {
     const v = params.get(key);
-    if (!v) continue;
-    out[api] = key === 'min' || key === 'max' ? Math.round(Number(v) * 100) : v;
+    // A mistyped address never asks for something that can't exist.
+    if (!v || (NUMBERS.has(key) && !Number.isFinite(Number(v)))) continue;
+    out[api] = NUMBERS.has(key) ? Math.round(Number(v) * 100) : v;
   }
   return out;
 }
@@ -89,7 +92,7 @@ export function InvoiceFilters({
   actions?: ReactNode;
 }) {
   const isAdmin = useUser().role === 'admin';
-  const students = useStudents({ pageSize: 100, sort: 'name' });
+  const students = useStudents({ pageSize: 500, sort: 'name' });
   const batches = useBatches();
   const sports = useSports();
   const locations = useLocations();

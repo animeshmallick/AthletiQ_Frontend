@@ -6,6 +6,7 @@ import { MapPin, Navigation } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type mapboxgl from 'mapbox-gl';
 import type { GeoJSONSource, Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
+import { toast } from 'sonner';
 import { MAPBOX_TOKEN } from '@/lib/env';
 import { cn } from '@/lib/utils';
 import { Skeleton } from './ui/primitives';
@@ -21,6 +22,8 @@ function loadMapbox() {
       return m.default;
     },
   );
+  // No connection: the next screen tries again.
+  mapboxPromise.catch(() => (mapboxPromise = null));
   return mapboxPromise;
 }
 
@@ -67,6 +70,7 @@ export function LocationPicker({
   const onChangeRef = useRef(onChange);
   const [ready, setReady] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -74,57 +78,59 @@ export function LocationPicker({
 
   useEffect(() => {
     let cancelled = false;
-    void loadMapbox().then((mapboxgl) => {
-      if (cancelled || !container.current) return;
-      const center: [number, number] = value ? [value.longitude, value.latitude] : DEFAULT_CENTER;
-      const map = new mapboxgl.Map({
-        container: container.current,
-        style: document.documentElement.classList.contains('dark')
-          ? 'mapbox://styles/mapbox/dark-v11'
-          : 'mapbox://styles/mapbox/streets-v12',
-        center,
-        zoom: value ? 16 : 11,
-        attributionControl: false,
-      });
-      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
-      map.addControl(new mapboxgl.AttributionControl({ compact: true }));
-      const marker = new mapboxgl.Marker({ draggable: true, color: '#4f46e5' }).setLngLat(center);
-      if (value) marker.addTo(map);
-      const emit = (lng: number, lat: number) =>
-        onChangeRef.current({
-          latitude: Number(lat.toFixed(6)),
-          longitude: Number(lng.toFixed(6)),
+    void loadMapbox()
+      .then((mapboxgl) => {
+        if (cancelled || !container.current) return;
+        const center: [number, number] = value ? [value.longitude, value.latitude] : DEFAULT_CENTER;
+        const map = new mapboxgl.Map({
+          container: container.current,
+          style: document.documentElement.classList.contains('dark')
+            ? 'mapbox://styles/mapbox/dark-v11'
+            : 'mapbox://styles/mapbox/streets-v12',
+          center,
+          zoom: value ? 16 : 11,
+          attributionControl: false,
         });
-      marker.on('dragend', () => {
-        const p = marker.getLngLat();
-        emit(p.lng, p.lat);
-      });
-      map.on('click', (e) => {
-        marker.setLngLat(e.lngLat).addTo(map);
-        emit(e.lngLat.lng, e.lngLat.lat);
-      });
-      map.on('load', () => {
-        map.addSource('fence', {
-          type: 'geojson',
-          data: circle(center[0], center[1], radiusMeters),
+        map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+        map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+        const marker = new mapboxgl.Marker({ draggable: true, color: '#4f46e5' }).setLngLat(center);
+        if (value) marker.addTo(map);
+        const emit = (lng: number, lat: number) =>
+          onChangeRef.current({
+            latitude: Number(lat.toFixed(6)),
+            longitude: Number(lng.toFixed(6)),
+          });
+        marker.on('dragend', () => {
+          const p = marker.getLngLat();
+          emit(p.lng, p.lat);
         });
-        map.addLayer({
-          id: 'fence-fill',
-          type: 'fill',
-          source: 'fence',
-          paint: { 'fill-color': '#4f46e5', 'fill-opacity': 0.12 },
+        map.on('click', (e) => {
+          marker.setLngLat(e.lngLat).addTo(map);
+          emit(e.lngLat.lng, e.lngLat.lat);
         });
-        map.addLayer({
-          id: 'fence-line',
-          type: 'line',
-          source: 'fence',
-          paint: { 'line-color': '#4f46e5', 'line-width': 2 },
+        map.on('load', () => {
+          map.addSource('fence', {
+            type: 'geojson',
+            data: circle(center[0], center[1], radiusMeters),
+          });
+          map.addLayer({
+            id: 'fence-fill',
+            type: 'fill',
+            source: 'fence',
+            paint: { 'fill-color': '#4f46e5', 'fill-opacity': 0.12 },
+          });
+          map.addLayer({
+            id: 'fence-line',
+            type: 'line',
+            source: 'fence',
+            paint: { 'line-color': '#4f46e5', 'line-width': 2 },
+          });
+          setReady(true);
         });
-        setReady(true);
-      });
-      mapRef.current = map;
-      markerRef.current = marker;
-    });
+        mapRef.current = map;
+        markerRef.current = marker;
+      })
+      .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
       mapRef.current?.remove();
@@ -155,7 +161,12 @@ export function LocationPicker({
         onChange(v);
         mapRef.current?.flyTo({ center: [v.longitude, v.latitude], zoom: 16 });
       },
-      () => setLocating(false),
+      () => {
+        setLocating(false);
+        toast.error('Could not get your location', {
+          description: 'Allow location for AthletiQ, or place the pin on the map.',
+        });
+      },
       { enableHighAccuracy: true, timeout: 10_000 },
     );
   }
@@ -163,12 +174,17 @@ export function LocationPicker({
   return (
     <div className={cn('relative overflow-hidden rounded-xl border', className)}>
       <div ref={container} className="h-72 w-full" />
-      {!ready && <Skeleton className="absolute inset-0 rounded-none" />}
+      {failed && (
+        <p className="absolute inset-0 flex items-center justify-center bg-muted px-6 text-center text-[13px] text-muted-foreground">
+          The map couldn’t load. Check your connection and open this again.
+        </p>
+      )}
+      {!ready && !failed && <Skeleton className="absolute inset-0 rounded-none" />}
       <button
         type="button"
         onClick={useMyLocation}
         disabled={locating}
-        className="absolute bottom-3 left-3 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-card px-3 py-2 text-xs font-medium shadow-md hover:bg-muted disabled:opacity-60"
+        className="absolute bottom-9 left-3 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-card px-3 py-2 text-xs font-medium shadow-md hover:bg-muted disabled:opacity-60"
       >
         <Navigation className="size-3.5" /> {locating ? 'Locating…' : 'Use my location'}
       </button>
