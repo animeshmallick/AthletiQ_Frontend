@@ -64,6 +64,7 @@ import { nullIfEmpty } from '@/lib/forms';
 import {
   useAdjustInvoice,
   useCancelInvoice,
+  useRestoreCancelled,
   useRestoreLost,
   useMarkPaid,
   useReversePayment,
@@ -578,6 +579,8 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
   const [cancelling, setCancelling] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const restoreLost = useRestoreLost(inv.id);
+  const restoreCancelled = useRestoreCancelled(inv.id);
+  const restore = inv.status === 'cancelled' ? restoreCancelled : restoreLost;
   const [adjusting, setAdjusting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [viewing, setViewing] = useState<PdfFile | null>(null);
@@ -631,15 +634,14 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
     .reduce((n, p) => n + p.amount, 0);
   const balance = inv.status === 'due' ? Math.max(inv.totalAmount - paidSoFar, 0) : 0;
   const tiles = [
-    inv.status !== 'cancelled' &&
-      inv.status !== 'lost' && {
-        key: 'wa',
-        label: 'WhatsApp',
-        icon: <MessageCircle />,
-        tone: 'text-success bg-success/10',
-        loading: share.isPending,
-        onClick: () => void whatsapp(),
-      },
+    (inv.status === 'due' || inv.status === 'paid') && {
+      key: 'wa',
+      label: 'WhatsApp',
+      icon: <MessageCircle />,
+      tone: 'text-success bg-success/10',
+      loading: share.isPending,
+      onClick: () => void whatsapp(),
+    },
     {
       key: 'view',
       label: 'View PDF',
@@ -805,10 +807,18 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
           )}
         </div>
       )}
-      {inv.cancelledReason && (
-        <p className="rounded-xl border bg-muted/60 px-3 py-1 text-[13px] text-muted-foreground">
-          <b className="font-semibold text-foreground">Cancelled:</b> {inv.cancelledReason}
-        </p>
+      {inv.status === 'cancelled' && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted/60 px-3 py-1.5 text-[13px] text-muted-foreground">
+          <p>
+            <b className="font-semibold text-foreground">Cancelled:</b>{' '}
+            {inv.cancelledReason ?? 'no reason given'}
+          </p>
+          {isAdmin && (
+            <Button size="sm" variant="outline" onClick={() => setRestoring(true)}>
+              Restore
+            </Button>
+          )}
+        </div>
       )}
 
       {/* Details: what this invoice covers, for whom, where and when. */}
@@ -984,13 +994,13 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
       <ConfirmDialog
         open={restoring}
         onOpenChange={setRestoring}
-        title="Collect this invoice again?"
+        title={inv.status === 'cancelled' ? 'Restore this invoice?' : 'Collect this invoice again?'}
         description="It becomes due and counts as outstanding again."
         confirmLabel="Make it due"
         requireReason
-        loading={restoreLost.isPending}
+        loading={restore.isPending}
         onConfirm={(reason) =>
-          restoreLost.mutate(reason, {
+          restore.mutate(reason, {
             onSuccess: () => {
               toast.success('Invoice is due again');
               setRestoring(false);

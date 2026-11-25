@@ -6,14 +6,22 @@ import {
   CloudRain,
   LayoutGrid,
   MapPin,
+  Phone,
   UserRound,
   Users,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
+import { useUser } from '@/app/auth';
+import { CheckInButton } from '@/components/check-in-button';
 import { OriginBadge, SessionActions } from '@/components/session-change';
-import { notStarted } from '@/lib/session-origin';
 import { Link } from 'react-router';
-import { ATTENDANCE_META, SectionDivider } from '@/components/common';
+import {
+  ATTENDANCE_META,
+  Avatar,
+  ErrorState,
+  ListSkeleton,
+  SectionDivider,
+} from '@/components/common';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,10 +40,18 @@ import {
   relativeDay,
   weekdaysLabel,
 } from '@/lib/format';
-import { useAttendanceSheet, useBatch, useSessionPlan, useRegister } from '@/lib/queries';
+import {
+  useAttendanceSheet,
+  useBatch,
+  useCalendar,
+  useCoachToday,
+  useRegister,
+  useRoster,
+  useSessionPlan,
+} from '@/lib/queries';
 import type { AttendanceStatus, DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { batchTone, liveStatus } from './calendar-meta';
+import { batchTone, liveStatus, useIstMinutes } from './calendar-meta';
 
 const STATUSES: AttendanceStatus[] = ['present', 'absent', 'late', 'excused'];
 const BAR: Record<AttendanceStatus, string> = {
@@ -102,28 +118,98 @@ function useAttendanceTrend(batchId: string, date: string) {
   };
 }
 
-/** Details, today's numbers and recent trends for one session in the calendar. */
+/** For a card that opens the session: ignores clicks on its own links and buttons. */
+export const openUnlessControl = (open: () => void) => (e: MouseEvent) => {
+  if (!(e.target as Element).closest('a,button')) open();
+};
+
+/**
+ * One session wherever it is tapped (calendar, home, batch): its details, who is expected, recent
+ * trends, and everything that can be done with it. Reads the day itself, so it stays current
+ * after an action.
+ */
 export function SessionDialog({
-  session: s,
+  batchId,
   date,
-  todayDate,
-  now,
-  isAdmin,
-  onOpenChange,
+  onClose,
 }: {
-  session: DayOverviewSession | null;
+  batchId: string | null;
   date: string;
-  todayDate: string;
-  now: number;
-  isAdmin: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
 }) {
   return (
-    <Dialog open={Boolean(s)} onOpenChange={onOpenChange}>
+    <Dialog open={!!batchId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="gap-2 p-2.5 pt-4 sm:max-w-xl sm:gap-2.5 sm:p-3.5">
-        {s && <Body s={s} date={date} todayDate={todayDate} now={now} isAdmin={isAdmin} />}
+        {batchId && <Loaded batchId={batchId} date={date} />}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Loaded({ batchId, date }: { batchId: string; date: string }) {
+  const isAdmin = useUser().role === 'admin';
+  const now = useIstMinutes();
+  const q = useCalendar(date, date);
+  const s = q.data?.days.find((d) => d.date === date)?.sessions.find((x) => x.batch.id === batchId);
+  if (s && q.data)
+    return <Body s={s} date={date} todayDate={q.data.today} now={now} isAdmin={isAdmin} />;
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Session</DialogTitle>
+        <DialogDescription>{formatLongDate(date)}</DialogDescription>
+      </DialogHeader>
+      {q.isError ? (
+        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+      ) : q.isPending || q.isPlaceholderData ? (
+        <ListSkeleton rows={4} />
+      ) : (
+        <p className="py-4 text-center text-[13px] text-muted-foreground">
+          The batch has no session on this day any more.
+        </p>
+      )}
+    </>
+  );
+}
+
+/** Who is expected, with a call button. */
+function Expected({ batchId, date }: { batchId: string; date: string }) {
+  const q = useRoster(batchId, date);
+  return (
+    <section aria-label="Expected students" className="space-y-1.5">
+      <SectionDivider as="h3">Expected · {q.data ? q.data.students.length : '…'}</SectionDivider>
+      {q.isPending ? (
+        <ListSkeleton rows={2} />
+      ) : q.isError ? (
+        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+      ) : !q.data.students.length ? (
+        <p className="py-2 text-center text-[13px] text-muted-foreground">No students expected.</p>
+      ) : (
+        <ul className="divide-y rounded-xl border">
+          {q.data.students.map((st) => (
+            <li key={st.studentId} className="flex items-center gap-2 px-2 py-1.5">
+              <Avatar name={st.fullName} className="size-8" />
+              <Link
+                to={`/students/${st.studentId}`}
+                className="min-w-0 flex-1 truncate text-[13px] font-medium hover:underline"
+              >
+                {st.fullName}
+              </Link>
+              {st.isMakeup && <Badge variant="warning">Makeup</Badge>}
+              {st.phone && (
+                <a
+                  href={`tel:${st.phone}`}
+                  aria-label={`Call ${st.fullName}`}
+                  className="flex size-7 items-center justify-center rounded-lg border text-muted-foreground hover:text-foreground"
+                >
+                  <Phone className="size-3.5" />
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -142,6 +228,7 @@ function Body({
 }) {
   const id = s.batch.id;
   const past = date <= todayDate;
+  const me = useUser();
   const batch = useBatch(id);
   const sheet = useAttendanceSheet(past && !s.cancelled ? id : undefined, date);
   const day = useSessionPlan(id, date);
@@ -152,7 +239,9 @@ function Body({
   const plan = day.data && day.data.source !== 'none' ? day.data : undefined;
   const fits = plan ? plan.totalMinutes === plan.minutes : false;
   const rel = relativeDay(date, todayDate);
-  const canMove = !s.marked && !s.coachSession && notStarted(date, s.batch.startTime);
+  const isToday = date === todayDate;
+  const mine = useCoachToday(isToday && !isAdmin);
+  const item = mine.data?.sessions.find((t) => t.batch.id === id);
 
   return (
     <>
@@ -189,6 +278,56 @@ function Body({
           )}
         </div>
       </DialogHeader>
+
+      <section aria-label="Session controls" className="space-y-1.5">
+        {/* One row on every screen: quick actions and the batch. */}
+        <div className="flex gap-1.5 *:flex-1">
+          {!s.cancelled && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                asChild
+                className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
+              >
+                <Link to={`/attendance?batch=${id}&date=${date}`}>
+                  <Users /> <span className="truncate">Attendance</span>
+                </Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                asChild
+                className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
+              >
+                <Link to={`/lesson-plans?batch=${id}&date=${date}`}>
+                  <ClipboardList /> <span className="truncate">Lesson plan</span>
+                </Link>
+              </Button>
+            </>
+          )}
+          <Button
+            size="sm"
+            asChild
+            className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
+          >
+            <Link to={`/batches/${id}`} aria-label="Open batch">
+              <LayoutGrid /> <span className="truncate">Batch</span>
+            </Link>
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {isToday && item && !item.session && !s.cancelled && <CheckInButton item={item} />}
+          <SessionActions
+            batch={s.batch}
+            session={{ date, startTime: s.batch.startTime, endTime: s.batch.endTime }}
+            origin={s.origin}
+            cancelled={!!s.cancelled}
+            mine={s.batch.coach.id === me.id}
+            recorded={s.marked > 0 || !!s.coachSession}
+          />
+        </div>
+      </section>
 
       {!s.cancelled && (
         <section aria-label="This session" className="space-y-1.5">
@@ -258,6 +397,8 @@ function Body({
         </section>
       )}
 
+      <Expected batchId={id} date={date} />
+
       <section aria-label="Last 4 weeks" className="space-y-1.5">
         <SectionDivider as="h3">Last 4 weeks</SectionDivider>
         {trend.loading ? (
@@ -304,51 +445,6 @@ function Body({
           </div>
         )}
       </section>
-
-      <SessionActions
-        batch={s.batch}
-        session={{ date, startTime: s.batch.startTime, endTime: s.batch.endTime }}
-        origin={s.origin}
-        cancelled={!!s.cancelled}
-        canMove={canMove}
-      />
-
-      {/* One row on every screen: two quick actions and the batch. */}
-      <div className="flex gap-1.5 border-t pt-2 *:flex-1">
-        {!s.cancelled && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              asChild
-              className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
-            >
-              <Link to={`/attendance?batch=${id}&date=${date}`}>
-                <Users /> <span className="truncate">Attendance</span>
-              </Link>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              asChild
-              className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
-            >
-              <Link to={`/lesson-plans?batch=${id}&date=${date}`}>
-                <ClipboardList /> <span className="truncate">Lesson plan</span>
-              </Link>
-            </Button>
-          </>
-        )}
-        <Button
-          size="sm"
-          asChild
-          className="min-w-0 gap-1 px-2 text-[12px] pointer-coarse:text-[12px] [&_svg:not([class*=size-])]:size-3.5"
-        >
-          <Link to={`/batches/${id}`} aria-label="Open batch">
-            <LayoutGrid /> <span className="truncate">Batch</span>
-          </Link>
-        </Button>
-      </div>
     </>
   );
 }

@@ -379,6 +379,8 @@ export interface CoachSession {
   checkInLng: number;
   checkInDistanceM: number;
   checkInWithinFence: boolean;
+  /** Checked in over 30 minutes early, or after the session ended. */
+  outsideTime?: boolean;
   note: string | null;
   reviewedAt: string | null;
   reviewNote: string | null;

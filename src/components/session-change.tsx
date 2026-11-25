@@ -1,7 +1,7 @@
 /**
  * Rescheduling a missed session (a calendar of the next 30 days, with a switch that highlights the
- * days suiting every student's billing month), and, for admins, moving a session in advance or
- * adding an extra one. Also the badge that shows where a session came from, and undoing a change.
+ * days suiting every student's billing month), moving a session in advance and, for admins, adding
+ * an extra one. Also the badge that shows where a session came from, and undoing a change.
  */
 import {
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
+import { CancelSessionButton, RestoreSessionButton } from '@/components/cancel-session';
 import { Field, ListSkeleton } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Switch } from '@/components/ui/controls';
@@ -47,7 +48,7 @@ import {
   today,
   WEEKDAYS,
 } from '@/lib/format';
-import { hhmm } from '@/lib/session-origin';
+import { hhmm, mayCancelOn, notStarted } from '@/lib/session-origin';
 import type { SessionOrigin } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -140,7 +141,7 @@ export interface SessionRef {
 }
 
 /**
- * `missed` reschedules a missed session; `session` alone moves one in advance (admin); neither
+ * `missed` reschedules a missed session; `session` alone moves one in advance; neither
  * adds an extra session (admin).
  */
 export function SessionChangeDialog({
@@ -290,7 +291,13 @@ export function SessionChangeDialog({
           {(!missed || isAdmin) && (
             <Field
               label={extra ? 'Day' : missed ? 'Or another day' : 'New day'}
-              hint={missed ? 'Admins can go past the 30 days.' : undefined}
+              hint={
+                missed
+                  ? 'Admins can go past the 30 days.'
+                  : session && !isAdmin
+                    ? 'Within 30 days, on a day the batch doesn’t run.'
+                    : undefined
+              }
             >
               <Input
                 type="date"
@@ -416,28 +423,35 @@ export function UndoChangeButton({ changeId, extra }: { changeId: string; extra:
 }
 
 /**
- * Actions for one session in a calendar sheet: reschedule when missed (anyone who runs it), move
- * in advance or undo (admins; coaches undo through the missed-sessions page).
+ * Actions for one session: cancel or restore, or reschedule when missed (anyone who runs
+ * it), move in advance, or undo a change.
  */
 export function SessionActions({
   batch,
   session,
   origin,
   cancelled,
-  canMove,
+  recorded,
+  mine,
 }: {
   batch: { id: string; name: string; startTime: string; endTime: string };
   session: SessionRef;
   origin?: SessionOrigin | null;
   cancelled: boolean;
-  /** Not started and nothing recorded. */
-  canMove: boolean;
+  /** Attendance or a check-in exists: it happened, so it stays as it is. */
+  recorded: boolean;
+  /** The batch's own coach is looking (substitutes only reschedule missed sessions). */
+  mine: boolean;
 }) {
   const isAdmin = useUser().role === 'admin';
   const [open, setOpen] = useState(false);
-  const movable = cancelled ? isAdmin || origin?.kind !== 'extra' : isAdmin && canMove;
+  const canMove = !recorded && notStarted(session.date, session.startTime);
+  const movable =
+    (cancelled || (canMove && (isAdmin || mine))) && (isAdmin || origin?.kind !== 'extra');
   const changed = origin?.changeId && origin.kind !== 'regular' ? origin.changeId : null;
-  if (!movable && !(changed && isAdmin && canMove)) return null;
+  const cancellable = !cancelled && !recorded && mayCancelOn(session.date, isAdmin);
+  const undoable = canMove && (isAdmin || origin?.kind !== 'extra') ? changed : null;
+  if (!movable && !cancellable && !cancelled && !undoable) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {movable && (
@@ -445,9 +459,9 @@ export function SessionActions({
           <CalendarClock /> {cancelled ? 'Reschedule' : 'Move session'}
         </Button>
       )}
-      {changed && isAdmin && canMove && (
-        <UndoChangeButton changeId={changed} extra={origin?.kind === 'extra'} />
-      )}
+      {cancellable && <CancelSessionButton batchId={batch.id} date={session.date} />}
+      {cancelled && <RestoreSessionButton batchId={batch.id} date={session.date} />}
+      {undoable && <UndoChangeButton changeId={undoable} extra={origin?.kind === 'extra'} />}
       {open && (
         <SessionChangeDialog
           batch={batch}

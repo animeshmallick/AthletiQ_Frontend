@@ -183,6 +183,41 @@ describe('batch timings', () => {
     });
   });
 
+  it('asks before giving a coach two batches at once at one place', async () => {
+    const api = mockApi({
+      'GET /users': () => ({ data: [], meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } }),
+      'GET /locations': () => [],
+      'GET /sports': () => [],
+      'GET /fee-plans': () => [
+        { id: 'p1', name: '6 days', daysPerWeek: 6, monthlyFee: 250_000, isActive: true },
+      ],
+      'PATCH /batches/b1': (c) =>
+        (c.body as { confirm?: boolean }).confirm
+          ? batch
+          : {
+              status: 409,
+              body: {
+                error: {
+                  code: 'CONFLICT',
+                  message: 'The coach already has Evening (Monday) at that time at this location.',
+                  details: { warnings: [{ code: 'coach-busy' }] },
+                },
+              },
+            },
+    });
+    const onOpenChange = jest.fn();
+    const { user } = await renderPage(
+      <BatchDialog open onOpenChange={onOpenChange} batch={batch} />,
+      { path: '/', route: '/', user: adminUser },
+    );
+    await user.click(await screen.findByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByText(/already has Evening/)).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(api.find('PATCH /batches/b1')).toHaveLength(2);
+  });
+
   it('shows each day’s time on the student’s batch card', async () => {
     mockApi({
       'GET /students/s1': () => ({

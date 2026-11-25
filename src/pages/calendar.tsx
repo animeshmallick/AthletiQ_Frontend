@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { batchTone, minutes } from './calendar-meta';
 import { CoachDayView } from './calendar-coach-day';
 import { SwipeDays } from '@/components/swipe-days';
-import { SessionDialog } from './calendar-session';
+import { SessionDialog } from './session-dialog';
 
 type View = 'week' | 'day';
 
@@ -132,7 +132,7 @@ export function CalendarPage() {
   const endHour = 24;
 
   const [openSession, setOpenSession] = useState<{
-    s: DayOverviewSession;
+    batchId: string;
     date: string;
   } | null>(null);
   const now = useNowMinutes();
@@ -227,7 +227,7 @@ export function CalendarPage() {
               selected={date}
               now={now}
               onOpenDay={(d) => set({ date: d, view: 'day' })}
-              onOpenSession={(s, d) => setOpenSession({ s, date: d })}
+              onOpenSession={(s, d) => setOpenSession({ batchId: s.batch.id, date: d })}
             />
           )}
         </SwipeDays>
@@ -258,12 +258,9 @@ export function CalendarPage() {
         </Card>
       )}
       <SessionDialog
-        session={openSession?.s ?? null}
+        batchId={openSession?.batchId ?? null}
         date={openSession?.date ?? date}
-        todayDate={q.data?.today ?? today()}
-        now={now}
-        isAdmin={user.role === 'admin'}
-        onOpenChange={(o) => !o && setOpenSession(null)}
+        onClose={() => setOpenSession(null)}
       />
     </div>
   );

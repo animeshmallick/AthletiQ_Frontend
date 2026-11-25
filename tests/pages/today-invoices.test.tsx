@@ -1,7 +1,9 @@
+import { within } from '@testing-library/react';
 import { InvoiceDetailPage } from '@/pages/invoices/detail';
 import { InvoicesPage } from '@/pages/invoices';
 import { TodayPage } from '@/pages/today';
-import { invoiceDetail, studentListItem } from '../fixtures';
+import { today } from '@/lib/format';
+import { calendarDay, daySession, invoiceDetail, studentListItem } from '../fixtures';
 import { adminUser, coachUser, mockApi, renderPage, screen, waitFor } from '../utils';
 
 const todaySession = (session: unknown = null) => ({
@@ -114,6 +116,35 @@ describe('TodayPage (coach)', () => {
     // Away from the venue: the check-in time turns red.
     expect(await screen.findByText(/^In 6:01/)).toHaveClass('text-destructive');
     expect(screen.queryByRole('button', { name: /check (in|out)/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the session with its controls; once cancelled it offers to reschedule', async () => {
+    let cancelled: string | null = null;
+    const api = mockApi({
+      'GET /coach-sessions/today': () => todaySession(),
+      'GET /attendance/overview': () => overview,
+      'GET /attendance/calendar': () => ({
+        ...calendarDay(today(), [daySession({ marked: 0, cancelled })]),
+        today: today(),
+      }),
+      'GET /batches/b1/roster': () => ({ students: [] }),
+      'POST /batches/b1/cancellations': () => {
+        cancelled = 'Rain';
+        return { id: 'c1' };
+      },
+    });
+    const { user } = await renderPage(<TodayPage />, { user: coachUser });
+    await user.click(await screen.findByRole('button', { name: 'Morning U-12' }));
+    const d = await screen.findByRole('dialog', { name: 'Morning U-12' });
+    expect(within(d).getByRole('link', { name: 'Attendance' })).toBeInTheDocument();
+    expect(await within(d).findByRole('button', { name: /check in/i })).toBeInTheDocument();
+    await user.click(within(d).getByRole('button', { name: 'Cancel session' }));
+    const ask = await screen.findByRole('dialog', { name: 'Cancel this session?' });
+    await user.type(within(ask).getByLabelText(/reason/i), 'Rain');
+    await user.click(within(ask).getByRole('button', { name: 'Cancel session' }));
+    await waitFor(() => expect(api.find('POST /batches/b1/cancellations')).toHaveLength(1));
+    expect(await screen.findByRole('button', { name: 'Reschedule' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restore session' })).toBeInTheDocument();
   });
 
   it('shows a rest-day state', async () => {
@@ -234,6 +265,27 @@ describe('InvoicesPage', () => {
     await waitFor(() => expect(router.state.location.search).toContain('group=location'));
     expect(await screen.findByRole('button', { name: /Main ground/ })).toBeInTheDocument();
     expect(screen.queryByText('Anya Rao')).not.toBeInTheDocument();
+  });
+
+  it('restores an invoice cancelled by mistake (admin)', async () => {
+    const api = mockApi({
+      'GET /invoices/i1': () => ({
+        ...invoiceDetail,
+        status: 'cancelled',
+        displayStatus: 'cancelled',
+        cancelledReason: 'Oops',
+      }),
+      'POST /invoices/i1/restore-cancelled': () => invoiceDetail,
+    });
+    const { user } = await renderPage(<InvoiceDetailPage />, {
+      path: '/invoices/:id',
+      route: '/invoices/i1',
+      user: adminUser,
+    });
+    await user.click(await screen.findByRole('button', { name: 'Restore' }));
+    await user.type(screen.getByLabelText(/reason/i), 'Cancelled by mistake');
+    await user.click(screen.getByRole('button', { name: 'Make it due' }));
+    await waitFor(() => expect(api.find('POST /invoices/i1/restore-cancelled')).toHaveLength(1));
   });
 
   it('lists unpaid invoices and records a payment', async () => {

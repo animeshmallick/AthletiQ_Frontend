@@ -2,7 +2,7 @@
  * The coach's day, grouped by where they need to be: sessions in time order, with a location
  * divider whenever the place changes (map link, time spent there, travel gap since the last
  * place). Each session is a compact tile with a status badge, attendance and plan status, and
- * check-in / out for today; tapping it lists who is expected (makeups marked).
+ * check-in / out for today; tapping it opens the session.
  */
 import { FloatBadge } from '@/components/floating-badge';
 import {
@@ -12,31 +12,23 @@ import {
   CloudRain,
   MapPin,
   Navigation,
-  Phone,
   Repeat,
   Users,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useUser } from '@/app/auth';
-import { Avatar, EmptyState, ListSkeleton } from '@/components/common';
-import { OriginBadge, SessionActions } from '@/components/session-change';
-import { notStarted } from '@/lib/session-origin';
+import { EmptyState } from '@/components/common';
+import { CheckInButton } from '@/components/check-in-button';
+import { OriginBadge } from '@/components/session-change';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/overlays';
 import { Badge, Card } from '@/components/ui/primitives';
 import { formatClock, formatTime, formatTimeRange, plural } from '@/lib/format';
-import { useCoachToday, useRoster } from '@/lib/queries';
+import { useCoachToday } from '@/lib/queries';
 import type { DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { batchTone, minutes } from './calendar-meta';
-import { CheckInButton } from './today';
+import { SessionDialog } from './session-dialog';
 import {
   lateLabel,
   lateMinutes,
@@ -72,7 +64,7 @@ export function CoachDayView({
   isAdmin?: boolean;
 }) {
   const today = useCoachToday(isToday && !isAdmin);
-  const [open, setOpen] = useState<DayOverviewSession | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const sorted = [...sessions].sort(
     (a, b) => minutes(a.batch.startTime) - minutes(b.batch.startTime),
   );
@@ -131,13 +123,13 @@ export function CoachDayView({
                 date={date}
                 isToday={isToday}
                 isAdmin
-                onOpen={() => setOpen(s)}
+                onOpen={() => setOpen(s.batch.id)}
               />
             </li>
           ))}
         </ol>
         {nowBefore === 'end' && <NowLine label="All sessions done for today" />}
-        <StudentsDialog s={open} date={date} isAdmin onClose={() => setOpen(null)} />
+        <SessionDialog batchId={open} date={date} onClose={() => setOpen(null)} />
       </div>
     );
 
@@ -206,7 +198,7 @@ export function CoachDayView({
                     date={date}
                     isToday={isToday}
                     todayItem={today.data?.sessions.find((t) => t.batch.id === s.batch.id)}
-                    onOpen={() => setOpen(s)}
+                    onOpen={() => setOpen(s.batch.id)}
                   />
                 </li>
               ))}
@@ -215,7 +207,7 @@ export function CoachDayView({
         );
       })}
       {nowBefore === 'end' && <NowLine label="All sessions done for today" />}
-      <StudentsDialog s={open} date={date} onClose={() => setOpen(null)} />
+      <SessionDialog batchId={open} date={date} onClose={() => setOpen(null)} />
     </div>
   );
 }
@@ -285,7 +277,8 @@ function SessionTile({
     <Card
       role="button"
       tabIndex={0}
-      aria-label={`${s.batch.name} students`}
+      aria-haspopup="dialog"
+      aria-label={`${s.batch.name} session`}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -314,11 +307,7 @@ function SessionTile({
                 'text-[10px] font-medium',
                 s.coachSession.flagged ? 'text-destructive' : 'text-foreground/70',
               )}
-              title={
-                s.coachSession.flagged
-                  ? 'Checked in away from the venue or outside the session time'
-                  : 'Checked in'
-              }
+              title={s.coachSession.flagged ? 'Checked in away from the venue' : 'Checked in'}
             >
               In {formatClock(s.coachSession.checkInAt)}
             </p>
@@ -399,98 +388,5 @@ function SessionTile({
         </FloatBadge>
       </div>
     </Card>
-  );
-}
-
-function StudentsDialog({
-  s,
-  date,
-  isAdmin = false,
-  onClose,
-}: {
-  s: DayOverviewSession | null;
-  date: string;
-  isAdmin?: boolean;
-  onClose: () => void;
-}) {
-  const q = useRoster(s?.batch.id ?? '', date);
-  const canMove = !!s && !s.marked && !s.coachSession && notStarted(date, s.batch.startTime);
-  return (
-    <Dialog open={!!s} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        {s && (
-          <div className="space-y-2.5">
-            <DialogHeader>
-              <DialogTitle>{s.batch.name}</DialogTitle>
-              <DialogDescription>
-                {formatTimeRange(s.batch.startTime, s.batch.endTime)} · {s.batch.location.name}
-                {isAdmin ? ` · ${s.batch.coach.name}` : ''}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex gap-1.5">
-              <Button asChild size="sm" className="flex-1">
-                <Link to={`/attendance?batch=${s.batch.id}&date=${date}`}>
-                  <Users /> Attendance
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="flex-1">
-                <Link to={`/lesson-plans?batch=${s.batch.id}&date=${date}`}>
-                  <ClipboardList /> Lesson plan
-                </Link>
-              </Button>
-              {isAdmin && (
-                <Button asChild size="sm" variant="outline" className="flex-1">
-                  <Link to={`/batches/${s.batch.id}`}>
-                    <CalendarDays /> Open batch
-                  </Link>
-                </Button>
-              )}
-            </div>
-            <OriginBadge origin={s.origin} date={date} />
-            <SessionActions
-              batch={s.batch}
-              session={{ date, startTime: s.batch.startTime, endTime: s.batch.endTime }}
-              origin={s.origin}
-              cancelled={!!s.cancelled}
-              canMove={canMove}
-            />
-            <p className="text-[12px] font-semibold text-muted-foreground">
-              Expected · {q.data ? q.data.students.length : '…'}
-            </p>
-            {q.isPending ? (
-              <ListSkeleton rows={3} />
-            ) : !q.data?.students.length ? (
-              <p className="py-3 text-center text-[13px] text-muted-foreground">
-                No students expected.
-              </p>
-            ) : (
-              <ul className="divide-y rounded-xl border">
-                {q.data.students.map((st) => (
-                  <li key={st.studentId} className="flex items-center gap-2 px-2 py-1.5">
-                    <Avatar name={st.fullName} className="size-8" />
-                    <Link
-                      to={`/students/${st.studentId}`}
-                      className="min-w-0 flex-1 truncate text-[13px] font-medium hover:underline"
-                    >
-                      {st.fullName}
-                    </Link>
-                    {st.isMakeup && <Badge variant="warning">Makeup</Badge>}
-                    {st.phone && (
-                      <a
-                        href={`tel:${st.phone}`}
-                        aria-label={`Call ${st.fullName}`}
-                        className="flex size-7 items-center justify-center rounded-lg border text-muted-foreground hover:text-foreground"
-                      >
-                        <Phone className="size-3.5" />
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }

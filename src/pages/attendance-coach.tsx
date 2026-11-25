@@ -37,6 +37,8 @@ import { Floating } from '@/components/floating-badge';
 import { SwipeDays } from '@/components/swipe-days';
 import { toast } from 'sonner';
 import { haptic } from '@/app/native';
+import { CheckInButton } from '@/components/check-in-button';
+import { CancelSessionButton } from '@/components/cancel-session';
 import {
   ATTENDANCE_META,
   Avatar,
@@ -78,11 +80,11 @@ import {
   useCoachToday,
   useMarkAttendance,
 } from '@/lib/queries';
+import { mayCancelOn } from '@/lib/session-origin';
 import type { AttendanceSheet, AttendanceStatus, DayOverviewSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { CancelledBanner, CancelSessionButton } from './attendance-parts';
+import { CancelledBanner } from './attendance-parts';
 import { batchTone, minutes, useIstMinutes } from './calendar-meta';
-import { CheckInButton } from './today';
 
 type Student = AttendanceSheet['students'][number];
 
@@ -320,7 +322,8 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
   const mark = useMarkAttendance(batchId, date);
   const pendingHere = usePendingMarks(batchId, date);
   const online = useOnline();
-  const isCoach = useUser().role === 'coach';
+  const role = useUser().role;
+  const isCoach = role === 'coach';
   const coachToday = useCoachToday(isCoach && date === today());
   const [noteFor, setNoteFor] = useState<Student | null>(null);
   const [filter, setFilter] = useState<AttendanceFilter>('all');
@@ -330,13 +333,16 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
   const data = sheet.data;
   if (data.cancelled)
     return <CancelledBanner batchId={batchId} date={date} reason={data.cancelled.reason} />;
+  // Before anyone checks in: a check-in or a mark means the session happened.
+  const cancellable =
+    data.isScheduledDay && !session.coachSession && mayCancelOn(date, role === 'admin');
   if (data.students.length === 0)
     return (
       <EmptyState
         icon={<Users />}
         title="No students expected"
         description="Nobody in this batch trains on this day, and no makeups are booked."
-        action={data.isScheduledDay && <CancelSessionButton batchId={batchId} date={date} />}
+        action={cancellable && <CancelSessionButton batchId={batchId} date={date} />}
       />
     );
 
@@ -444,7 +450,7 @@ function CoachSheet({ session, date }: { session: DayOverviewSession; date: stri
         onFilter={setFilter}
         actions={
           <>
-            {editable && marked === 0 && data.isScheduledDay && (
+            {cancellable && marked === 0 && waiting === 0 && (
               <CancelSessionButton batchId={batchId} date={date} compact />
             )}
             {editable && unmarked.length > 0 ? (

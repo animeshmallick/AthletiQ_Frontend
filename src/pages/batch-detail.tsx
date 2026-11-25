@@ -61,8 +61,10 @@ import { cn } from '@/lib/utils';
 import { LevelBadge } from './skills/ui';
 import { BatchDialog } from './batches';
 import { BatchCyclesSection } from './cycle-parts';
+import { CancelSessionButton } from '@/components/cancel-session';
 import { OriginBadge, SessionChangeDialog, UndoChangeButton } from '@/components/session-change';
-import { notStarted } from '@/lib/session-origin';
+import { mayCancelOn, notStarted } from '@/lib/session-origin';
+import { SessionDialog } from './session-dialog';
 import { useBatchSessionChanges } from '@/lib/cycles';
 
 const phoneDigits = (p: string) => p.replace(/\D/g, '');
@@ -815,28 +817,36 @@ function StudentDialog({
 function SessionRow({
   s,
   batchId,
+  mine,
   past,
   onMove,
+  onOpen,
 }: {
   s: BatchSessionInfo;
   batchId: string;
+  /** The batch's own coach (substitutes only reschedule missed sessions). */
+  mine: boolean;
   past: boolean;
   onMove?: (s: BatchSessionInfo) => void;
+  onOpen: () => void;
 }) {
-  // Anyone who runs it reschedules a cancelled session; only admins move one in advance.
+  // Anyone who runs it cancels, moves or reschedules; extra sessions are moved by admins.
   const isAdmin = useUser().role === 'admin';
+  const cancellable =
+    !!onMove && !s.cancelled && !s.marked && !s.checkedIn && mayCancelOn(s.date, isAdmin);
   const movable =
     !!onMove &&
-    (s.cancelled
-      ? isAdmin || s.origin?.kind !== 'extra'
-      : isAdmin && !past && notStarted(s.date, s.startTime));
+    (!!s.cancelled || (!past && (isAdmin || mine) && notStarted(s.date, s.startTime))) &&
+    (isAdmin || s.origin?.kind !== 'extra');
   return (
     <div
       className={cn('flex items-center gap-1 pr-2 hover:bg-muted/40', s.cancelled && 'opacity-60')}
     >
-      <Link
-        to={`/attendance?batch=${batchId}&date=${s.date}`}
-        className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2"
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 px-3 py-2 text-left"
       >
         <span className="w-32 shrink-0">
           <span className="block text-[13px] font-semibold">{relativeDay(s.date)}</span>
@@ -873,7 +883,8 @@ function SessionRow({
           )}
         </span>
         {s.substitute && !s.cancelled && <Badge variant="muted">Sub</Badge>}
-      </Link>
+      </button>
+      {cancellable && <CancelSessionButton batchId={batchId} date={s.date} compact />}
       {movable && (
         <Button
           variant="ghost"
@@ -899,10 +910,12 @@ function Sessions({
   recent: BatchSessionInfo[];
 }) {
   const batchId = batch.id;
-  const isAdmin = useUser().role === 'admin';
+  const me = useUser();
+  const isAdmin = me.role === 'admin';
   const [tab, setTab] = useState<'upcoming' | 'recent'>('upcoming');
   const [moving, setMoving] = useState<BatchSessionInfo | null>(null);
   const [adding, setAdding] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
   const list = tab === 'upcoming' ? upcoming : recent;
   return (
     <section className="space-y-2" aria-label="Sessions">
@@ -936,13 +949,20 @@ function Sessions({
               key={s.date}
               s={s}
               batchId={batchId}
+              mine={batch.coach.id === me.id}
               past={tab === 'recent'}
               onMove={setMoving}
+              onOpen={() => setOpen(s.date)}
             />
           ))}
         </Card>
       )}
       <ChangesList batchId={batchId} />
+      <SessionDialog
+        batchId={open ? batchId : null}
+        date={open ?? today()}
+        onClose={() => setOpen(null)}
+      />
       {moving && (
         <SessionChangeDialog
           batch={batch}

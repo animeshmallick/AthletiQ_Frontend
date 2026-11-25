@@ -6,19 +6,16 @@ import {
   ChevronRight,
   ClipboardList,
   CloudRain,
-  LogIn,
   MapPin,
   Repeat,
 } from 'lucide-react';
 import { Suspense, useState } from 'react';
 import { Link } from 'react-router';
-import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import { EmptyState, ErrorState, ListSkeleton, SectionDivider } from '@/components/common';
+import { CheckInButton } from '@/components/check-in-button';
 import { Floating, FloatBadge } from '@/components/floating-badge';
-import { Button } from '@/components/ui/button';
 import { Badge, Card, Skeleton } from '@/components/ui/primitives';
-import { errorMessage } from '@/lib/api';
 import {
   addDays,
   formatClock,
@@ -30,10 +27,8 @@ import {
   startOfWeek,
   today,
 } from '@/lib/format';
-import { getCurrentPosition } from '@/lib/geolocation';
 import {
   useAttendanceOverview,
-  useCheck,
   useCoachToday,
   useFeedbackWeek,
   useFinance,
@@ -49,6 +44,7 @@ import {
   STATUS_META,
 } from '@/lib/session-status';
 import { cn } from '@/lib/utils';
+import { openUnlessControl, SessionDialog } from './session-dialog';
 import { CollectedByCard, MoneySnapshot } from './today-insights';
 import {
   AdminFollowUps,
@@ -72,63 +68,14 @@ function greeting() {
 
 // ─── Coach: check-in card ────────────────────────────────────────────────────
 
-/** Check in at the venue (GPS). Once checked in, the session's status shows Live instead. */
-export function CheckInButton({
-  item,
-  compact = false,
-}: {
-  item: TodaySession;
-  overview?: DayOverviewSession;
-  /** Small button for dense lists (calendar cards). */
-  compact?: boolean;
-}) {
-  const checkIn = useCheck();
-  const [locating, setLocating] = useState(false);
-
-  async function run() {
-    setLocating(true);
-    try {
-      const pos = await getCurrentPosition();
-      const res = await checkIn.mutateAsync({
-        batchId: item.batch.id,
-        latitude: pos.latitude,
-        longitude: pos.longitude,
-        accuracy: pos.accuracy,
-      });
-      (res.session.flagged ? toast.warning : toast.success)(res.message);
-    } catch (err) {
-      toast.error('Check-in failed', { description: errorMessage(err) });
-    } finally {
-      setLocating(false);
-    }
-  }
-
-  if (item.session) return null;
-  return (
-    <Button
-      size="sm"
-      variant="success"
-      className={cn(
-        'shrink-0',
-        compact
-          ? 'h-6 gap-1 rounded-md px-2 text-[11px] pointer-coarse:h-6 pointer-coarse:text-[11px] [&_svg:not([class*=size-])]:size-3'
-          : 'h-8 gap-1.5 rounded-lg px-3 text-[12px] pointer-coarse:h-8 [&_svg:not([class*=size-])]:size-3.5',
-      )}
-      loading={locating || checkIn.isPending}
-      onClick={() => void run()}
-    >
-      <LogIn />
-      {locating ? 'Locating…' : 'Check in'}
-    </Button>
-  );
-}
-
 function CoachSessionCard({
   item,
   overview,
+  onOpen,
 }: {
   item: TodaySession;
   overview?: DayOverviewSession;
+  onOpen: () => void;
 }) {
   const statusIn = {
     startTime: item.batch.startTime,
@@ -177,7 +124,13 @@ function CoachSessionCard({
         ) : null,
       ]}
     >
-      <Card className={cn('px-2 pt-1.5 pb-1.5', item.cancelled && 'opacity-75')}>
+      <Card
+        onClick={openUnlessControl(onOpen)}
+        className={cn(
+          'cursor-pointer px-2 pt-1.5 pb-1.5 transition-shadow hover:shadow-e2',
+          item.cancelled && 'opacity-75',
+        )}
+      >
         {/* Two columns like the calendar: when (scheduled, checked in, how late) | what. */}
         <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2">
           <div className="tabular leading-tight">
@@ -204,16 +157,18 @@ function CoachSessionCard({
             )}
           </div>
           <div className="min-w-0">
-            <Link
-              to={`/batches/${item.batch.id}`}
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              onClick={onOpen}
               className={cn(
-                'group flex min-w-0 items-center gap-0.5 text-[13.5px] leading-snug font-semibold hover:text-primary',
+                'group flex max-w-full min-w-0 cursor-pointer items-center gap-0.5 text-left text-[13.5px] leading-snug font-semibold hover:text-primary',
                 item.cancelled && 'line-through',
               )}
             >
               <span className="truncate">{item.batch.name}</span>
               <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-            </Link>
+            </button>
             <p className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
               <MapPin className="size-3 shrink-0" />
               <span className="truncate">{item.location.name}</span>
@@ -340,6 +295,7 @@ function Hello({ chips }: { chips: { label: string; tone?: 'warn' | 'bad' }[] })
 }
 
 function CoachToday() {
+  const [open, setOpen] = useState<string | null>(null);
   const day = today();
   const todayQ = useCoachToday();
   const overview = useAttendanceOverview(day);
@@ -385,12 +341,15 @@ function CoachToday() {
                   key={s.batch.id}
                   item={s}
                   overview={overview.data?.sessions.find((o) => o.batch.id === s.batch.id)}
+                  onOpen={() => setOpen(s.batch.id)}
                 />
               ))}
             </div>
           )
         }
       />
+
+      <SessionDialog batchId={open} date={day} onClose={() => setOpen(null)} />
 
       <SectionDivider>To-dos</SectionDivider>
       <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">

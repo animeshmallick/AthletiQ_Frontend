@@ -836,6 +836,11 @@ export const useCancelInvoice = (id: string) =>
   );
 
 /** Admin: a written-off invoice is collected after all. */
+export const useRestoreCancelled = (id: string) =>
+  useInvoiceMutation((reason: string) =>
+    api.post<InvoiceDetail>(`/invoices/${id}/restore-cancelled`, { reason }),
+  );
+
 export const useRestoreLost = (id: string) =>
   useInvoiceMutation((reason: string) =>
     api.post<InvoiceDetail>(`/invoices/${id}/restore-lost`, { reason }),
@@ -1220,6 +1225,7 @@ export function useCancelSession() {
         ['coach-sessions'],
         ['lessons', 'session'],
         ['feedback'],
+        ['batches'],
         ['session-changes'],
         ['cycles'],
         ['me', 'tasks'],
@@ -1233,7 +1239,16 @@ export function useRestoreSession() {
     mutationFn: ({ batchId, date }: { batchId: string; date: string }) =>
       api.delete(`/batches/${batchId}/cancellations/${date}`),
     onSuccess: () =>
-      invalidate(['attendance'], ['coach-sessions'], ['lessons', 'session'], ['feedback']),
+      invalidate(
+        ['attendance'],
+        ['coach-sessions'],
+        ['lessons', 'session'],
+        ['feedback'],
+        ['batches'],
+        ['session-changes'],
+        ['cycles'],
+        ['me', 'tasks'],
+      ),
   });
 }
 

@@ -4,10 +4,12 @@ import { AttendancePage } from '@/pages/attendance';
 import { InvoicesPage } from '@/pages/invoices';
 import { StudentDetailPage } from '@/pages/students/detail';
 import { StudentsPage } from '@/pages/students/list';
+import { today } from '@/lib/format';
 import { TodayPage } from '@/pages/today';
 import {
   batch,
   calendarDay,
+  daySession,
   invoiceDetail,
   sheet,
   studentDetail,
@@ -50,6 +52,41 @@ describe('cancelling a session (rain / holiday)', () => {
     await renderPage(<AttendancePage />, { path: '/attendance', route, user: adminUser });
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /cancel session/i })).not.toBeInTheDocument();
+  });
+
+  it('lets a coach cancel before checking in, but not after a check-in', async () => {
+    const date = today();
+    const locked = sheet({
+      date,
+      editable: false,
+      needsCheckIn: true,
+      students: sheet().students.map((s) => ({ ...s, status: null })),
+    });
+    const show = async (coachSession: { checkInAt: string; flagged: boolean } | null) => {
+      const api = mockApi({
+        'GET /batches': () => [batch],
+        'GET /attendance/calendar': () =>
+          calendarDay(date, [daySession({ marked: 0, coachSession })]),
+        'GET /attendance/session': () => locked,
+        'GET /coach-sessions/today': () => ({ date, sessions: [] }),
+        'POST /batches/b1/cancellations': () => ({ status: 201, body: { data: { id: 'c1' } } }),
+      });
+      const page = await renderPage(<AttendancePage />, {
+        path: '/attendance',
+        route: `/attendance?batch=b1&date=${date}`,
+        user: coachUser,
+      });
+      expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
+      return { api, ...page };
+    };
+    const first = await show(null);
+    await first.user.click(screen.getByRole('button', { name: 'Cancel session' }));
+    await first.user.type(screen.getByLabelText(/reason/i), 'Heavy rain');
+    await first.user.click(screen.getAllByRole('button', { name: 'Cancel session' }).at(-1)!);
+    await waitFor(() => expect(first.api.find('POST /batches/b1/cancellations')).toHaveLength(1));
+    first.unmount();
+    await show({ checkInAt: `${date}T10:00:00Z`, flagged: false });
+    expect(screen.queryByRole('button', { name: 'Cancel session' })).not.toBeInTheDocument();
   });
 
   it('shows a cancelled session and restores it', async () => {

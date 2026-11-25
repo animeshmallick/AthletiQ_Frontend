@@ -1,92 +1,20 @@
-import { CalendarCheck2, CloudRain, RotateCcw } from 'lucide-react';
+import { CalendarCheck2, CloudRain } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
-import {
-  ATTENDANCE_META,
-  ConfirmDialog,
-  EmptyState,
-  ErrorState,
-  ListSkeleton,
-} from '@/components/common';
+import { RestoreSessionButton } from '@/components/cancel-session';
+import { ATTENDANCE_META, EmptyState, ErrorState, ListSkeleton } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/primitives';
-import { errorMessage } from '@/lib/api';
 import {
   addMonths,
   endOfMonth,
-  formatLongDate,
   formatShortDate,
   isoWeekday,
   startOfMonth,
   today,
   WEEKDAYS,
 } from '@/lib/format';
-import { useCancelSession, useRegister, useRestoreSession } from '@/lib/queries';
+import { useRegister } from '@/lib/queries';
 import { cn } from '@/lib/utils';
-
-/** Marks a session as not happening (rain, holiday…) — it then doesn't count as an absence. */
-export function CancelSessionButton({
-  batchId,
-  date,
-  compact = false,
-}: {
-  batchId: string;
-  date: string;
-  /** Icon-only, for tight rows. */
-  compact?: boolean;
-}) {
-  const cancel = useCancelSession();
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      {compact ? (
-        <Button
-          variant="outline"
-          size="icon-sm"
-          aria-label="Cancel session"
-          title="Cancel session (rain, holiday…)"
-          className="size-7 rounded-lg text-muted-foreground pointer-coarse:size-7 [&_svg:not([class*=size-])]:size-3.5"
-          onClick={() => setOpen(true)}
-        >
-          <CloudRain />
-        </Button>
-      ) : (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground"
-          onClick={() => setOpen(true)}
-        >
-          <CloudRain /> Cancel session
-        </Button>
-      )}
-      <ConfirmDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Cancel this session?"
-        description={`No attendance will be taken for ${formatLongDate(date)}. Students won't be marked absent and it won't count in weekly reports. Fees are not affected.`}
-        confirmLabel="Cancel session"
-        destructive
-        requireReason
-        reasonLabel="Reason (e.g. heavy rain, holiday)"
-        loading={cancel.isPending}
-        onConfirm={(reason) =>
-          cancel.mutate(
-            { batchId, date, reason },
-            {
-              onSuccess: () => {
-                toast.success('Session cancelled');
-                setOpen(false);
-              },
-              onError: (e) =>
-                toast.error('Could not cancel session', { description: errorMessage(e) }),
-            },
-          )
-        }
-      />
-    </>
-  );
-}
 
 export function CancelledBanner({
   batchId,
@@ -97,29 +25,12 @@ export function CancelledBanner({
   date: string;
   reason: string;
 }) {
-  const restore = useRestoreSession();
   return (
     <EmptyState
       icon={<CloudRain />}
       title="Session cancelled"
       description={reason}
-      action={
-        <Button
-          variant="outline"
-          loading={restore.isPending}
-          onClick={() =>
-            restore.mutate(
-              { batchId, date },
-              {
-                onSuccess: () => toast.success('Session restored'),
-                onError: (e) => toast.error(errorMessage(e)),
-              },
-            )
-          }
-        >
-          <RotateCcw /> Restore session
-        </Button>
-      }
+      action={<RestoreSessionButton batchId={batchId} date={date} />}
     />
   );
 }

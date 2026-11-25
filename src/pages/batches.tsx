@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { useUser } from '@/app/auth';
 import {
+  ConfirmDialog,
   Avatar,
   EmptyState,
   ErrorState,
@@ -49,6 +50,7 @@ import {
   WEEKDAYS,
   weekdaysLabel,
 } from '@/lib/format';
+import { ApiError, errorMessage } from '@/lib/api';
 import { applyServerErrors } from '@/lib/forms';
 import {
   useBatches,
@@ -191,7 +193,9 @@ export function BatchDialog({
   const daysChanged =
     !!batch && [...watchedDays].sort().join() !== [...batch.weekdays].sort().join();
 
-  const onSubmit = handleSubmit(async (v) => {
+  /** The coach has another batch here at that time: saved only once confirmed. */
+  const [clash, setClash] = useState<string | null>(null);
+  const saveBatch = async (v: Values, confirm: boolean) => {
     // New batches must have a course; a course, once set, can be changed but not removed.
     if (!v.courseMonths && !fixed && (!batch || batch.courseMonths)) {
       form.setError('courseMonths', { message: 'Choose the course length in months' });
@@ -210,7 +214,9 @@ export function BatchDialog({
         ),
         capacity: Number(v.capacity),
         coachFeedback: isFree ? v.coachFeedback : true,
+        ...(confirm ? { confirm } : {}),
       });
+      setClash(null);
       toast.success(
         batch
           ? daysChanged && batch.memberCount
@@ -220,9 +226,13 @@ export function BatchDialog({
       );
       close(false);
     } catch (err) {
-      applyServerErrors(err, form.setError, 'Could not save batch');
+      const warned =
+        err instanceof ApiError && (err.details as { warnings?: unknown[] } | undefined)?.warnings;
+      setClash(warned ? errorMessage(err) : null);
+      if (!warned) applyServerErrors(err, form.setError, 'Could not save batch');
     }
-  });
+  };
+  const onSubmit = handleSubmit((v) => saveBatch(v, false));
 
   return (
     <Dialog open={open} onOpenChange={close}>
@@ -412,6 +422,15 @@ export function BatchDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog
+        open={!!clash}
+        onOpenChange={(o) => !o && setClash(null)}
+        title="Coach has two batches then"
+        description={clash ?? ''}
+        confirmLabel="Save anyway"
+        loading={save.isPending}
+        onConfirm={() => void handleSubmit((v) => saveBatch(v, true))()}
+      />
     </Dialog>
   );
 }

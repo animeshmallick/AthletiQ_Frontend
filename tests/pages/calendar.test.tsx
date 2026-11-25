@@ -114,7 +114,7 @@ describe('CalendarPage', () => {
       route: '/calendar?view=day&date=2026-03-10',
       user: adminUser,
     });
-    const tile = await screen.findByRole('button', { name: 'Morning U-12 students' });
+    const tile = await screen.findByRole('button', { name: 'Morning U-12 session' });
     expect(tile).toHaveTextContent(/·/);
     // No location grouping or travel for admins.
     expect(screen.queryByRole('link', { name: /directions to/i })).not.toBeInTheDocument();
@@ -209,7 +209,7 @@ describe('CalendarPage', () => {
     );
 
     // Tap a session: who's expected, makeups marked.
-    await user.click(screen.getByRole('button', { name: 'Seniors students' }));
+    await user.click(screen.getByRole('button', { name: 'Seniors session' }));
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('Anya Rao')).toBeInTheDocument();
     expect(within(dialog).getByText('Makeup')).toBeInTheDocument();

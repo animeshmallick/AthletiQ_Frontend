@@ -1,4 +1,4 @@
-import { today } from './format';
+import { addDays, today } from './format';
 
 export const hhmm = (t: string) => t.slice(0, 5);
 
@@ -13,4 +13,12 @@ const clock = new Intl.DateTimeFormat('en-GB', {
 export function notStarted(date: string, startTime: string, now: Date = new Date()) {
   const d = today(now);
   return date === d ? hhmm(startTime) > clock.format(now) : date > d;
+}
+
+/**
+ * Days a session can be cancelled (the server's rule): up to 90 ahead; coaches up to a week back,
+ * admins any time.
+ */
+export function mayCancelOn(date: string, isAdmin: boolean, day: string = today()) {
+  return date <= addDays(day, 90) && (isAdmin || date >= addDays(day, -7));
 }

@@ -139,7 +139,7 @@ export function CoachSessionsPage() {
     <div>
       <PageHeader
         title="Coach check-ins"
-        description="GPS-verified session attendance. Check-ins outside the location radius, or outside 30 minutes before the start to the end, are flagged for review."
+        description="GPS-verified session attendance. Check-ins outside the location radius are flagged for review."
       />
 
       <FilterBar>
@@ -243,6 +243,11 @@ export function CoachSessionsPage() {
                 <p className="font-semibold">
                   {r.batch.name}
                   <span className="font-normal text-muted-foreground"> · {formatDate(r.date)}</span>
+                  {r.outsideTime && (
+                    <Badge variant="muted" className="ml-1.5">
+                      <Clock /> Outside session time
+                    </Badge>
+                  )}
                 </p>
                 <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
                   {isAdmin && `${r.coach.name} · `}

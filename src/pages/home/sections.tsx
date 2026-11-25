@@ -58,6 +58,7 @@ import {
   STATUS_META,
 } from '@/lib/session-status';
 import { cn } from '@/lib/utils';
+import { openUnlessControl, SessionDialog } from '../session-dialog';
 
 // ─── Shared bits ─────────────────────────────────────────────────────────────
 
@@ -143,6 +144,7 @@ export function DayPlan({
   const [day, setDay] = useState(today());
   const q = useCalendar(day, day);
   const tasks = useTasks();
+  const [open, setOpen] = useState<string | null>(null);
   const now = useNowMinutes();
   const isToday = day === today();
   const isPast = day < today();
@@ -232,7 +234,13 @@ export function DayPlan({
                       ) : null,
                     ]}
                   >
-                    <Card className={cn('p-2', st === 'cancelled' && 'opacity-70')}>
+                    <Card
+                      onClick={openUnlessControl(() => setOpen(s.batch.id))}
+                      className={cn(
+                        'cursor-pointer p-2 transition-shadow hover:shadow-e2',
+                        st === 'cancelled' && 'opacity-70',
+                      )}
+                    >
                       <div>
                         {/* Time on one line, then the session below at full width. */}
                         <div className="flex items-center gap-2">
@@ -281,12 +289,14 @@ export function DayPlan({
                           )}
                         </div>
                         <div className="mt-0.5 min-w-0">
-                          <Link
-                            to={`/attendance?batch=${s.batch.id}&date=${day}`}
-                            className="block truncate text-[14px] font-semibold hover:underline"
+                          <button
+                            type="button"
+                            aria-haspopup="dialog"
+                            onClick={() => setOpen(s.batch.id)}
+                            className="block max-w-full cursor-pointer truncate text-left text-[14px] font-semibold hover:underline"
                           >
                             {s.batch.name}
-                          </Link>
+                          </button>
                           <p className="truncate text-[11px] text-muted-foreground">
                             {isAdmin ? `${s.batch.coach.name} · ` : ''}
                             {s.batch.location.name}
@@ -333,6 +343,7 @@ export function DayPlan({
           </ol>
         )}
       </SwipeDays>
+      <SessionDialog batchId={open} date={day} onClose={() => setOpen(null)} />
     </Card>
   );
 }

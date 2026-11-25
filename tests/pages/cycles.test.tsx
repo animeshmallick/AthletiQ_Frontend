@@ -6,7 +6,8 @@ import {
   UndoChangeButton,
 } from '@/components/session-change';
 import { courseHint } from '@/lib/cycles';
-import { notStarted } from '@/lib/session-origin';
+import { addDays, today } from '@/lib/format';
+import { mayCancelOn, notStarted } from '@/lib/session-origin';
 import { BatchDialog } from '@/pages/batches';
 import { BatchCyclesSection, StudentBatchesTab } from '@/pages/cycle-parts';
 import { MissedSessionsPage } from '@/pages/missed-sessions';
@@ -412,10 +413,10 @@ describe('session changes', () => {
     const { user } = await renderPage(
       <div>
         <div data-testid="a">
-          <SessionActions batch={ref} session={session} cancelled={false} canMove />
+          <SessionActions batch={ref} session={session} cancelled={false} mine recorded={false} />
         </div>
         <div data-testid="b">
-          <SessionActions batch={ref} session={session} cancelled canMove={false} />
+          <SessionActions batch={ref} session={session} cancelled mine recorded={false} />
         </div>
         <UndoChangeButton changeId="x" extra={false} />
         <OriginBadge origin={moved} date="2099-03-11" />
@@ -427,12 +428,57 @@ describe('session changes', () => {
     expect(await screen.findByText(/Moved from/)).toBeInTheDocument();
     expect(screen.getByText('New time')).toBeInTheDocument();
     expect(screen.getByText('Extra session')).toBeInTheDocument();
-    expect(screen.getByTestId('a')).toBeEmptyDOMElement();
+    // Movable in advance; 2099 is past the 90 days it can be cancelled ahead.
+    const a = within(screen.getByTestId('a'));
+    expect(a.getAllByRole('button')).toHaveLength(1);
+    await user.click(a.getByRole('button', { name: 'Move session' }));
+    const d = await screen.findByRole('dialog', { name: 'Move this session' });
+    expect(within(d).getByText(/Within 30 days/)).toBeInTheDocument();
+    await user.click(within(d).getByRole('button', { name: 'Cancel' }));
     expect(
       within(screen.getByTestId('b')).getByRole('button', { name: /Reschedule/ }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Undo/ }));
     await waitFor(() => expect(api.find('POST /session-changes/x/cancel')).toHaveLength(1));
+  });
+
+  it('lets a coach cancel an upcoming session from the calendar', async () => {
+    const api = mockApi({ 'POST /batches/b1/cancellations': () => ({ id: 'c1' }) });
+    const date = addDays(today(), 3);
+    const { user } = await renderPage(
+      <SessionActions
+        batch={ref}
+        session={{ ...session, date }}
+        cancelled={false}
+        mine
+        recorded={false}
+      />,
+      { user: coachUser },
+    );
+    await user.click(await screen.findByRole('button', { name: 'Cancel session' }));
+    const d = await screen.findByRole('dialog');
+    await user.type(within(d).getByLabelText(/reason/i), 'Holiday');
+    await user.click(within(d).getByRole('button', { name: 'Cancel session' }));
+    await waitFor(() =>
+      expect(api.find('POST /batches/b1/cancellations')[0]!.body).toEqual({
+        date,
+        reason: 'Holiday',
+      }),
+    );
+  });
+
+  it('knows which days can be cancelled', () => {
+    const on = (date: string, admin = false) => mayCancelOn(date, admin, '2026-03-09');
+    expect([on('2026-03-02'), on('2026-03-01'), on('2026-03-01', true)]).toEqual([
+      true,
+      false,
+      true,
+    ]);
+    expect([on('2026-06-07'), on('2026-06-08'), on('2026-06-08', true)]).toEqual([
+      true,
+      false,
+      false,
+    ]);
   });
 
   it('knows whether a session has started (academy time)', () => {
