@@ -14,6 +14,7 @@ import {
   formatTime,
   formatTimeRange,
   initials,
+  istDate,
   isoWeekday,
   money,
   moneyCompact,
@@ -104,4 +105,9 @@ describe('coachTimes', () => {
     expect(coachTimes(null)).toBe('Not in');
     expect(coachTimes({ checkInAt: '2026-03-09T00:32:00Z' })).toMatch(/^In 6:02\s?am$/i);
   });
+});
+
+it('reads a timestamp’s day in academy time', () => {
+  expect(istDate('2026-03-09T20:00:00.000Z')).toBe('2026-03-10');
+  expect(istDate('2026-03-09')).toBe('2026-03-09');
 });

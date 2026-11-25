@@ -24,7 +24,7 @@ import {
 import { SwipeDays } from '@/components/swipe-days';
 import { Segmented } from '@/components/ui/controls';
 import { Badge, Card } from '@/components/ui/primitives';
-import { addDays, formatShortDate, startOfWeek, today } from '@/lib/format';
+import { istDate, addDays, formatShortDate, startOfWeek, today } from '@/lib/format';
 import { useFeedbackWeek, type FeedbackBoardItem } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
@@ -187,9 +187,9 @@ export function FeedbackPage() {
                     {rows.map((s) => {
                       const st = STATUS[s.status];
                       return (
-                        <li key={s.studentId}>
+                        <li key={`${s.studentId}:${s.batchId}`}>
                           <Link
-                            to={`/feedback/${s.studentId}/${weekStart}`}
+                            to={`/feedback/${s.studentId}/${weekStart}${user.role === 'admin' ? `?batch=${s.batchId}` : ''}`}
                             className="flex items-center gap-2 px-1.5 py-1 transition-colors hover:bg-muted/50"
                           >
                             <Avatar name={s.fullName} className="size-7 text-[10px]" />
@@ -199,7 +199,7 @@ export function FeedbackPage() {
                                 {s.code}
                                 {s.writtenBy && user.role === 'admin' && ` · by ${s.writtenBy}`}
                                 {s.submittedAt &&
-                                  ` · sent ${formatShortDate(s.submittedAt.slice(0, 10))}`}
+                                  ` · sent ${formatShortDate(istDate(s.submittedAt))}`}
                               </p>
                             </div>
                             <Badge variant={st.variant} className="px-1.5 text-[10px]">

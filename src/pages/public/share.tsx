@@ -14,7 +14,7 @@ import { PdfViewer, type PdfFile } from '@/components/pdf-viewer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/primitives';
 import { api, ApiError, errorMessage, requestBlobPost } from '@/lib/api';
-import { formatDate } from '@/lib/format';
+import { istDate, formatDate } from '@/lib/format';
 
 interface ShareInfo {
   kind: 'report' | 'invoice' | 'certificate';
@@ -157,7 +157,7 @@ export function SharePage({ kind }: { kind: 'report' | 'invoice' | 'certificate'
               Open
             </Button>
             <p className="text-center text-[11px] text-muted-foreground">
-              Link valid until {formatDate(info.data.expiresAt.slice(0, 10))}
+              Link valid until {formatDate(istDate(info.data.expiresAt))}
             </p>
           </form>
         )}

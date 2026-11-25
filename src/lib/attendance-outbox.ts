@@ -9,7 +9,7 @@
  */
 import { useSyncExternalStore } from 'react';
 import { logClientEvent } from '@/app/client-log';
-import { ApiError, api } from './api';
+import { ApiError, api, tokenStore } from './api';
 import type { AttendanceStatus } from './types';
 
 export interface QueuedMark {
@@ -18,6 +18,8 @@ export interface QueuedMark {
   note?: string | null;
 }
 interface Entry {
+  /** Who marked it: a shared phone never sends one coach's marks as another's. */
+  userId?: string | null;
   batchId: string;
   date: string;
   /** studentId → latest mark. */
@@ -54,13 +56,23 @@ function write(next: Outbox) {
   listeners.forEach((l) => l());
 }
 
-const keyOf = (batchId: string, date: string) => `${batchId}:${date}`;
+const keyOf = (batchId: string, date: string, user = tokenStore.userId()) =>
+  `${user ? `${user}:` : ''}${batchId}:${date}`;
+/** Entries of the person signed in (and ones saved before the owner was kept). */
+const mine = () =>
+  Object.values(read()).filter((e) => !e.userId || e.userId === tokenStore.userId());
 
 /** Keeps marks on the phone to send later. */
 export function queueMarks(batchId: string, date: string, records: QueuedMark[]) {
   const all = { ...read() };
   const k = keyOf(batchId, date);
-  const entry = all[k] ?? { batchId, date, records: {}, queuedAt: Date.now() };
+  const entry = all[k] ?? {
+    userId: tokenStore.userId(),
+    batchId,
+    date,
+    records: {},
+    queuedAt: Date.now(),
+  };
   const merged = { ...entry.records };
   for (const r of records) merged[r.studentId] = r;
   all[k] = { ...entry, records: merged };
@@ -71,8 +83,7 @@ export function queueMarks(batchId: string, date: string, records: QueuedMark[])
 /** How many marks are waiting to sync for a session (or overall). */
 export function pendingCount(batchId?: string, date?: string) {
   const all = read();
-  const entries =
-    batchId && date ? [all[keyOf(batchId, date)]].filter(Boolean) : Object.values(all);
+  const entries = batchId && date ? [all[keyOf(batchId, date)]].filter(Boolean) : mine();
   return entries.reduce((n, e) => n + Object.keys(e!.records).length, 0);
 }
 
@@ -110,7 +121,7 @@ let onRejected: (batchId: string, date: string, message: string) => void = () =>
 export function flushOutbox(): Promise<void> {
   flushing ??= (async () => {
     const synced: SyncResult['synced'] = [];
-    for (const entry of Object.values(read())) {
+    for (const entry of mine()) {
       const records = Object.values(entry.records);
       try {
         await api.put('/attendance/session', {
@@ -122,8 +133,8 @@ export function flushOutbox(): Promise<void> {
         removeIfUnchanged(entry);
       } catch (err) {
         const status = err instanceof ApiError ? err.status : 0;
-        if (status === 0 || status >= 500) {
-          // Still offline (or the server is busy): try again later.
+        if (status === 0 || status === 401 || status === 408 || status === 429 || status >= 500) {
+          // Still offline, signed out, or the server is busy: keep them and try again later.
           scheduleRetry();
           break;
         }
@@ -146,7 +157,7 @@ export function flushOutbox(): Promise<void> {
 /** Removes a sent entry, unless more marks were queued for it meanwhile (those stay). */
 function removeIfUnchanged(sent: Entry) {
   const all = { ...read() };
-  const k = keyOf(sent.batchId, sent.date);
+  const k = keyOf(sent.batchId, sent.date, sent.userId ?? null);
   const now = all[k];
   if (!now) return;
   const left = Object.fromEntries(
@@ -172,6 +183,10 @@ export function startAttendanceSync(handlers: {
   window.addEventListener('online', () => void flushOutbox());
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && pendingCount()) void flushOutbox();
+  });
+  // Signed in again (marks kept while signed out go now).
+  tokenStore.subscribe((session) => {
+    if (session && pendingCount()) void flushOutbox();
   });
   if (pendingCount()) void flushOutbox();
 }

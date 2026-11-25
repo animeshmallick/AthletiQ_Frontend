@@ -5,7 +5,7 @@
 import { Accordion } from 'radix-ui';
 import { ChevronDown, ChevronRight, Layers, MapPin } from 'lucide-react';
 import { useState } from 'react';
-import { formatMonth, formatShortDate, money, plural, today } from '@/lib/format';
+import { istDate, formatMonth, formatShortDate, money, plural, today } from '@/lib/format';
 import type { Invoice } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -80,7 +80,7 @@ function standing(inv: Invoice) {
     case 'due':
       return `Due ${formatShortDate(inv.dueDate)}`;
     case 'paid':
-      return inv.paidAt ? `Paid ${formatShortDate(inv.paidAt.slice(0, 10))}` : 'Paid';
+      return inv.paidAt ? `Paid ${formatShortDate(istDate(inv.paidAt))}` : 'Paid';
     case 'refunded':
       return 'Refunded';
     case 'lost':

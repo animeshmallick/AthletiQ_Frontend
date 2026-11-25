@@ -49,6 +49,7 @@ import {
 import { Badge, Card, Input, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage, requestBlob } from '@/lib/api';
 import {
+  istDate,
   addDays,
   formatDate,
   formatInstant,
@@ -623,7 +624,7 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
       : inv.displayStatus === 'due'
         ? `Due ${formatDate(inv.dueDate)}`
         : inv.displayStatus === 'paid'
-          ? `Paid${inv.paidAt ? ` on ${formatDate(inv.paidAt.slice(0, 10))}` : ''}`
+          ? `Paid${inv.paidAt ? ` on ${formatDate(istDate(inv.paidAt))}` : ''}`
           : inv.displayStatus === 'refunded'
             ? 'Refunded'
             : inv.displayStatus === 'lost'

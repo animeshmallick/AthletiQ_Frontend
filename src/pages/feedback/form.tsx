@@ -1,6 +1,6 @@
 import { Lock, Send } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
 import { ErrorState, ListSkeleton, PageHeader, Progress } from '@/components/common';
@@ -17,7 +17,7 @@ import {
   Textarea,
 } from '@/components/ui/primitives';
 import { ApiError, errorMessage } from '@/lib/api';
-import { addDays, formatDate, formatLongDate, formatShortDate } from '@/lib/format';
+import { istDate, addDays, formatDate, formatLongDate, formatShortDate } from '@/lib/format';
 import { useFeedbackReport, useSaveFeedback } from '@/lib/queries';
 import type { AttendanceSummary, FeedbackField } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -203,7 +203,8 @@ export function FeedbackFormPage() {
   const { studentId = '', weekStart = '' } = useParams();
   const user = useUser();
   const navigate = useNavigate();
-  const report = useFeedbackReport(studentId, weekStart);
+  const [params] = useSearchParams();
+  const report = useFeedbackReport(studentId, weekStart, params.get('batch') ?? undefined);
   const save = useSaveFeedback(studentId, weekStart);
   const [answers, setAnswers] = useState<Answers>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -268,7 +269,7 @@ export function FeedbackFormPage() {
         actions={
           submitted ? (
             <Badge variant="success">
-              Sent {feedback?.submittedAt ? formatDate(feedback.submittedAt.slice(0, 10)) : ''}
+              Sent {feedback?.submittedAt ? formatDate(istDate(feedback.submittedAt)) : ''}
             </Badge>
           ) : feedback ? (
             <Badge variant="warning">Draft</Badge>

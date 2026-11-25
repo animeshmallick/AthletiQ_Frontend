@@ -235,3 +235,24 @@ describe('Pagination', () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+describe('MoneyInput', () => {
+  it('takes rupees and paise as typed', async () => {
+    const seen: (number | null)[] = [];
+    function Form() {
+      const [v, setV] = useState<number | null>(null);
+      return <MoneyInput aria-label="Amount" value={v} onChange={(x) => (seen.push(x), setV(x))} />;
+    }
+    const user = userEvent.setup();
+    render(<Form />);
+    const input = await screen.findByLabelText('Amount');
+    await user.type(input, '1250.50');
+    expect(input).toHaveValue('1250.50');
+    expect(seen.at(-1)).toBe(125_050);
+    await user.clear(input);
+    expect(seen.at(-1)).toBeNull();
+    await user.type(input, '.5.79');
+    expect(input).toHaveValue('0.57');
+    expect(seen.at(-1)).toBe(57);
+  });
+});

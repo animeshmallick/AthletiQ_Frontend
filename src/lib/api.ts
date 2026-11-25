@@ -55,6 +55,7 @@ type Listener = (session: Session | null) => void;
 let accessToken: string | null = null;
 /** When the access token stops working (ms since epoch); refreshed a little before that. */
 let accessTokenExpiresAt = 0;
+let userId: string | null = null;
 const listeners = new Set<Listener>();
 let refreshInFlight: Promise<Session | null> | null = null;
 /** Refresh this long before the access token expires, so requests never go out with a stale one. */
@@ -62,8 +63,11 @@ const REFRESH_EARLY_MS = 60_000;
 
 export const tokenStore = {
   get: () => accessToken,
+  /** Who is signed in. */
+  userId: () => userId,
   set(session: Session | null) {
     accessToken = session?.accessToken ?? null;
+    userId = session?.user?.id ?? null;
     accessTokenExpiresAt = session ? Date.now() + session.accessTokenExpiresIn * 1000 : 0;
     listeners.forEach((l) => l(session));
   },

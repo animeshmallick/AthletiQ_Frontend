@@ -138,6 +138,9 @@ export function today(now: Date = new Date()): string {
   return istDay.format(now);
 }
 
+/** The day of a timestamp, in academy time (its first ten characters are the UTC day). */
+export const istDate = (timestamp: string) => today(new Date(timestamp));
+
 export function addDays(d: string, n: number): string {
   const x = utc(d);
   x.setUTCDate(x.getUTCDate() + n);

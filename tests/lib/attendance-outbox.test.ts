@@ -6,7 +6,8 @@ import {
   queueMarks,
   startAttendanceSync,
 } from '@/lib/attendance-outbox';
-import { mockApi } from '../utils';
+import { tokenStore } from '@/lib/api';
+import { adminUser, coachUser, mockApi } from '../utils';
 
 describe('attendance without signal', () => {
   beforeEach(() => __resetOutbox());
@@ -76,5 +77,38 @@ describe('attendance without signal', () => {
     await flushOutbox();
     expect(pendingCount()).toBe(0);
     expect(onRejected).toHaveBeenCalledWith('b1', '2026-03-09', 'This day is locked');
+  });
+
+  it('keeps marks while signed out, and never sends them as someone else', async () => {
+    const as = (user: typeof coachUser) =>
+      tokenStore.set({ accessToken: 't', accessTokenExpiresIn: 900, user });
+    let status = 401;
+    const api = mockApi({
+      'PUT /attendance/session': () =>
+        status === 200
+          ? { saved: 1 }
+          : { status, body: { error: { code: 'UNAUTHENTICATED', message: 'Signed out' } } },
+      'POST /auth/refresh': () => ({ status: 500, body: { error: { code: 'X', message: 'x' } } }),
+    });
+    const onRejected = jest.fn();
+    startAttendanceSync({ onSynced: jest.fn(), onRejected });
+    as(coachUser);
+    queueMarks('b1', '2026-03-09', [{ studentId: 's1', status: 'present' }]);
+    await flushOutbox();
+    expect(onRejected).not.toHaveBeenCalled();
+    expect(pendingCount()).toBe(1);
+    // Someone else signs in on this phone: not theirs to send.
+    status = 200;
+    const before = api.find('PUT /attendance/session').length;
+    as(adminUser);
+    await flushOutbox();
+    expect(pendingCount()).toBe(0);
+    expect(api.find('PUT /attendance/session')).toHaveLength(before);
+    // Back again: sent on sign-in.
+    as(coachUser);
+    await flushOutbox();
+    expect(api.find('PUT /attendance/session').length).toBeGreaterThan(before);
+    expect(pendingCount()).toBe(0);
+    tokenStore.set(null);
   });
 });

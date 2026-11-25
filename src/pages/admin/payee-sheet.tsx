@@ -39,6 +39,7 @@ import {
 import { Badge, Card, Input } from '@/components/ui/primitives';
 import { errorMessage, requestBlob } from '@/lib/api';
 import {
+  istDate,
   formatDate,
   formatMonth,
   formatShortDate,
@@ -149,7 +150,7 @@ export function PayeeSheet({
                   {!d.payee.isActive && <Badge variant="muted">Retired</Badge>}
                 </DialogTitle>
                 <DialogDescription className="truncate">
-                  {d.payee.note || `Payee since ${formatDate(d.payee.createdAt.slice(0, 10))}`}
+                  {d.payee.note || `Payee since ${formatDate(istDate(d.payee.createdAt))}`}
                 </DialogDescription>
               </div>
             </DialogHeader>

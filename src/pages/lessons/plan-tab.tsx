@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/overlays';
 import { Badge, Input, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatShortDate, plural } from '@/lib/format';
+import { istDate, formatShortDate, plural } from '@/lib/format';
 import { useBatchPlan, useCopyBatchPlan, usePlanOverview, useSaveBatchPlan } from '@/lib/queries';
 import {
   draftProblem,
@@ -149,7 +149,7 @@ export function PlanTab({
                 'drill',
               )}
               {plan.updatedBy &&
-                ` · updated by ${plan.updatedBy.name}, ${formatShortDate(plan.updatedAt.slice(0, 10))}`}
+                ` · updated by ${plan.updatedBy.name}, ${formatShortDate(istDate(plan.updatedAt))}`}
             </span>
             {canEdit && (
               <>

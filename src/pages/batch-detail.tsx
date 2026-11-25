@@ -40,6 +40,7 @@ import {
 import { Badge, Card, Input, Skeleton } from '@/components/ui/primitives';
 import { scheduleGroups, timesVary } from '@/lib/batch-times';
 import {
+  istDate,
   formatDate,
   formatShortDate,
   formatTimeRange,
@@ -795,7 +796,7 @@ function StudentDialog({
                   {isAdmin && s.fees.monthly !== null
                     ? `${money(s.fees.monthly)}/month · ${money(s.fees.due ?? 0)} unpaid${s.fees.overdue ? ` (${money(s.fees.overdue)} overdue)` : ''}`
                     : s.fees.lastPaidAt
-                      ? `Last paid ${formatDate(s.fees.lastPaidAt.slice(0, 10))}`
+                      ? `Last paid ${formatDate(istDate(s.fees.lastPaidAt))}`
                       : 'No payment recorded yet'}
                 </p>
               </div>

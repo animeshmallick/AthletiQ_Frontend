@@ -719,9 +719,9 @@ export const useFeedbackWeek = (q: Query) =>
     placeholderData: keepPreviousData,
   });
 
-export const useFeedbackReport = (studentId: string, weekStart: string) =>
+export const useFeedbackReport = (studentId: string, weekStart: string, batchId?: string) =>
   useQuery({
-    queryKey: keys.feedbackReport(studentId, weekStart),
+    queryKey: [...keys.feedbackReport(studentId, weekStart), batchId ?? null],
     queryFn: () =>
       api.get<{
         student: { id: string; code: string; fullName: string };
@@ -734,7 +734,7 @@ export const useFeedbackReport = (studentId: string, weekStart: string) =>
         /** Feedback opens only after the week ends. */
         weekCompleted?: boolean;
         opensOn?: string;
-      }>(`/feedback/students/${studentId}/weeks/${weekStart}`),
+      }>(`/feedback/students/${studentId}/weeks/${weekStart}`, { batchId }),
   });
 
 export function useSaveFeedback(studentId: string, weekStart: string) {

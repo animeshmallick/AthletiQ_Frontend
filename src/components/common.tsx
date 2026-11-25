@@ -361,15 +361,24 @@ export function MoneyInput({
   value: number | null | undefined;
   onChange: (paise: number | null) => void;
 }) {
+  /** What is being typed ("12." on the way to "12.50"), while it still means `value`. */
+  const [typed, setTyped] = useState('');
+  const paise = (t: string) => (t === '' ? null : Math.round(Number(t) * 100));
+  const current = value ?? null;
+  const shown = paise(typed) === current ? typed : current === null ? '' : String(current / 100);
   return (
     <Input
       leading="₹"
       inputMode="decimal"
       className="tabular"
-      value={value === null || value === undefined ? '' : String(value / 100)}
+      value={shown}
       onChange={(e) => {
-        const raw = e.target.value.replace(/[^\d.]/g, '');
-        onChange(raw === '' ? null : Math.round(Number(raw) * 100));
+        // Digits and one decimal point, two places at most.
+        const [, whole = '', rest] =
+          /^(\d*)(\.\d{0,2})?/.exec(e.target.value.replace(/[^\d.]/g, '')) ?? [];
+        const text = `${whole.replace(/^0+(?=\d)/, '') || (rest ? '0' : '')}${rest ?? ''}`;
+        setTyped(text);
+        onChange(paise(text));
       }}
       {...props}
     />

@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/overlays';
 import { Badge, Card, Input } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatInstant, formatPhone, formatShortDate, money } from '@/lib/format';
+import { istDate, formatInstant, formatPhone, formatShortDate, money } from '@/lib/format';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema } from '@/lib/forms';
 import {
   useAccessLink,
@@ -426,7 +426,7 @@ export function CoachesPage() {
                     { label: 'Owed to them', value: money(u.owed ?? 0) },
                     {
                       label: 'Last seen',
-                      value: u.lastLoginAt ? formatShortDate(u.lastLoginAt.slice(0, 10)) : 'Never',
+                      value: u.lastLoginAt ? formatShortDate(istDate(u.lastLoginAt)) : 'Never',
                     },
                   ].map((x) => (
                     <div

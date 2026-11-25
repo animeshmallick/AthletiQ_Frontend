@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/overlays';
 import { errorMessage, requestBlob } from '@/lib/api';
-import { formatDate } from '@/lib/format';
+import { istDate, formatDate } from '@/lib/format';
 import { useCreateReportLink, useReportLinks, useRevokeReportLink } from '@/lib/skills';
 import { cn } from '@/lib/utils';
 
@@ -235,11 +235,11 @@ function ShareLinks({ studentId, title }: { studentId: string; title: string }) 
             <li key={l.id} className="flex items-center gap-2 px-2.5 py-1.5">
               <span className="min-w-0 flex-1">
                 <span className="block truncate">
-                  Made {formatDate(l.createdAt.slice(0, 10))}
+                  Made {formatDate(istDate(l.createdAt))}
                   {l.createdBy ? ` by ${l.createdBy}` : ''}
                 </span>
                 <span className="block text-muted-foreground">
-                  Until {formatDate(l.expiresAt.slice(0, 10))} · opened {l.views}×
+                  Until {formatDate(istDate(l.expiresAt))} · opened {l.views}×
                 </span>
               </span>
               <Button
