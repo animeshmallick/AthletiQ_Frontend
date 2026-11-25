@@ -214,6 +214,56 @@ describe('Activity log (admin)', () => {
     expect(await screen.findByRole('button', { name: /Invoice payment reverted/ })).toBeVisible();
   });
 
+  it('shows admins how fast the app is and what is worth making faster', async () => {
+    const figures = {
+      n: 120,
+      errors: 0,
+      avgMs: 210,
+      p50Ms: 140,
+      p95Ms: 1250,
+      maxMs: 4000,
+      queries: 6.5,
+      queryMs: 44,
+      cacheable: 40,
+      cacheRate: 75,
+    };
+    const route = (path: string, extra = {}) => ({
+      ...figures,
+      method: 'PUT',
+      route: path,
+      totalMs: 90_000,
+      ...extra,
+    });
+    const api = mockApi({
+      'GET /activity/insights': () => insights,
+      'GET /activity/requests/insights': () => requestInsights,
+      'GET /activity/performance': () => ({
+        by: 'hour',
+        totals: figures,
+        series: [{ ...figures, at: '2026-03-16 12:00' }],
+        spread: [
+          { upTo: 50, n: 100 },
+          { upTo: null, n: 20 },
+        ],
+        slowest: [route('/api/v1/attendance/session')],
+        mostTrips: [route('/api/v1/attendance/calendar', { queries: 14 })],
+        mostTime: [route('/api/v1/me/tasks')],
+      }),
+    });
+    const { user } = await renderPage(<AuditLogPage />, {
+      path: '/audit-log',
+      route: '/audit-log',
+      user: adminUser,
+    });
+    const panel = await screen.findByRole('region', { name: 'App speed' });
+    expect(await within(panel).findByText('75%')).toBeInTheDocument();
+    expect(within(panel).getByText('Per call · 44 ms each')).toBeInTheDocument();
+    expect(within(panel).getByText('Saved attendance › session')).toBeInTheDocument();
+    await user.click(within(panel).getByRole('radio', { name: 'Most trips' }));
+    expect(within(panel).getByText('Saved attendance › calendar')).toBeInTheDocument();
+    expect(api.find('GET /activity/performance')[0]!.query.get('since')).toBeTruthy();
+  });
+
   it('charts a single day hour by hour', async () => {
     const day = today();
     mockApi({

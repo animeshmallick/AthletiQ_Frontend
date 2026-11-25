@@ -24,9 +24,12 @@ export function Bars({
   restLabel,
   className,
   tone = 'primary',
+  summary,
 }: {
   data: BarDatum[];
   unit: string;
+  /** Shown when nothing is hovered, instead of the total (e.g. for averages). */
+  summary?: string;
   partLabel?: string;
   restLabel?: string;
   className?: string;
@@ -47,15 +50,13 @@ export function Bars({
             {partLabel && h.part ? ` (${h.part} ${partLabel})` : ''}
           </>
         ) : (
-          <>
-            {total} {unit} in all
-          </>
+          (summary ?? `${total} ${unit} in all`)
         )}
       </p>
       <div
         className="flex h-24 items-end gap-[2px]"
         role="img"
-        aria-label={`${total} ${unit}; busiest ${max}`}
+        aria-label={summary ?? `${total} ${unit}; busiest ${max}`}
         onMouseLeave={() => setHover(null)}
       >
         {data.map((d, i) => {

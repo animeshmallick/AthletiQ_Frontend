@@ -26,6 +26,7 @@ import {
 } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import { Bars, HourStrip, RankList } from './charts';
+import { AppSpeed } from './speed';
 import { EventDetails, EventRow, type FeedFilters } from './feed';
 import {
   entityMeta,
@@ -85,7 +86,7 @@ export function ActivityInsightsView({
   admin,
   onDrill,
 }: {
-  range: { from: string; to: string };
+  range: { from: string; to: string; since?: string };
   admin: boolean;
   /** Open the Activity tab with these filters. */
   onDrill: (d: Drill) => void;
@@ -266,6 +267,8 @@ export function ActivityInsightsView({
 
       <SectionDivider>Every change and how fast it was</SectionDivider>
       <RequestStats q={rq} admin={admin} onPerson={(id) => onDrill({ actorId: id })} />
+
+      {admin && <AppSpeed range={range} />}
 
       <EventDetails log={open} onClose={() => setOpen(null)} />
     </div>

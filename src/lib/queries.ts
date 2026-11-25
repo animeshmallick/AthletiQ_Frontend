@@ -1087,6 +1087,38 @@ export const useRequestInsights = (r: Range, enabled = true) =>
     enabled,
   });
 
+interface SpeedFigures {
+  n: number;
+  errors: number;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  maxMs: number;
+  /** Database trips per call, and how long one takes. */
+  queries: number;
+  queryMs: number | null;
+  cacheable: number;
+  cacheRate: number | null;
+}
+export type SpeedRoute = SpeedFigures & { method: string; route: string; totalMs: number };
+export interface AppSpeedInsights {
+  by: 'day' | 'hour';
+  totals: SpeedFigures;
+  series: (SpeedFigures & { at: string })[];
+  spread: { upTo: number | null; n: number }[];
+  slowest: SpeedRoute[];
+  mostTrips: SpeedRoute[];
+  mostTime: SpeedRoute[];
+}
+
+export const useAppSpeed = ({ from, to, since }: Range) =>
+  useQuery({
+    queryKey: ['activity', 'speed', from, to, since ?? null],
+    queryFn: ({ signal }) =>
+      api.get<AppSpeedInsights>('/activity/performance', { from, to, since }, signal),
+    placeholderData: keepPreviousData,
+  });
+
 export type ClientEventKind =
   | 'crash'
   | 'error'
