@@ -56,6 +56,8 @@ let accessToken: string | null = null;
 /** When the access token stops working (ms since epoch); refreshed a little before that. */
 let accessTokenExpiresAt = 0;
 let userId: string | null = null;
+/** The last session check never got an answer (no connection, server down). */
+let unreachable = false;
 const listeners = new Set<Listener>();
 let refreshInFlight: Promise<Session | null> | null = null;
 /** Refresh this long before the access token expires, so requests never go out with a stale one. */
@@ -65,6 +67,8 @@ export const tokenStore = {
   get: () => accessToken,
   /** Who is signed in. */
   userId: () => userId,
+  /** Not signed out: the server just couldn't be asked. */
+  unreachable: () => unreachable,
   set(session: Session | null) {
     accessToken = session?.accessToken ?? null;
     userId = session?.user?.id ?? null;
@@ -131,6 +135,7 @@ export function refreshSession(): Promise<Session | null> {
         credentials: 'include',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
+      unreachable = !res.ok && res.status !== 401 && res.status !== 403;
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           if (accessToken) {
@@ -147,6 +152,7 @@ export function refreshSession(): Promise<Session | null> {
       tokenStore.set(data);
       return data;
     } catch {
+      unreachable = true;
       return null;
     }
   }).finally(() => {

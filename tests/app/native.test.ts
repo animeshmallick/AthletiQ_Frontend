@@ -170,7 +170,6 @@ describe('push notifications', () => {
     expect(request).toHaveBeenLastCalledWith('/me/devices', {
       method: 'DELETE',
       body: { token: 'fcm-token-123' },
-      noRetry: true,
     });
   });
 

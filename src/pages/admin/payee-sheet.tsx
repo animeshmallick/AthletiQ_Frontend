@@ -584,7 +584,7 @@ export function EditPayeeDialog({
             />
           </Field>
           <Field label="Note" hint="Contact, account details or anything useful.">
-            <Input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
+            <Input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} />
           </Field>
         </form>
         <DialogFooter>

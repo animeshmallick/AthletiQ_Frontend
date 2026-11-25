@@ -307,7 +307,7 @@ describe('InvoicesPage', () => {
     // Coaches start grouped by batch: the group sums up its invoices; open it to see them.
     const group = await screen.findByRole('button', { name: /Morning U-12/ });
     expect(group).toHaveTextContent('Overdue ₹2,500 · 1');
-    expect(api.find('GET /invoices')[0]!.query.get('pageSize')).toBe('100');
+    expect(api.find('GET /invoices')[0]!.query.get('pageSize')).toBe('500');
     await user.click(group);
     expect(await screen.findByText('Anya Rao')).toBeInTheDocument();
     expect(screen.getAllByText('1 invoice').length).toBeGreaterThan(0);

@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -26,6 +27,8 @@ interface AuthState {
   /** Switches this sign-in to another role the user holds, then reloads the app. */
   switchRole: (role: Role) => Promise<void>;
 }
+
+const RETRY_MS = 10_000;
 
 const chosenKey = (userId: string) => `atq-role-chosen:${userId}`;
 
@@ -57,9 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
 
   // Keep React state in sync with the token store (e.g. refresh failure elsewhere → signed out).
+  const lastUser = useRef<string | null>(null);
   useEffect(
     () =>
       tokenStore.subscribe((session) => {
+        // Signed out, or someone else signed in: what was loaded for the last person goes.
+        const id = session?.user?.id ?? null;
+        if (lastUser.current && lastUser.current !== id) queryClient.clear();
+        lastUser.current = id;
         if (session) {
           setUserState(session.user);
           setStatus('authenticated');
@@ -68,14 +76,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setStatus('anonymous');
         }
       }),
-    [],
+    [queryClient],
   );
 
   // Restore the session from the refresh cookie on first load.
+  // Opened without a connection: keep trying, so nobody has to sign in again for that.
   useEffect(() => {
-    void refreshSession().then((s) => {
-      if (!s) setStatus('anonymous');
-    });
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const restore = () => {
+      clearTimeout(timer);
+      void refreshSession().then((s) => {
+        if (!live || s) return;
+        if (!tokenStore.get()) setStatus('anonymous');
+        if (tokenStore.unreachable()) timer = setTimeout(restore, RETRY_MS);
+      });
+    };
+    const online = () => {
+      if (!tokenStore.get() && tokenStore.unreachable()) restore();
+    };
+    restore();
+    window.addEventListener('online', online);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+      window.removeEventListener('online', online);
+    };
   }, []);
 
   const adopt = useCallback((session: Session) => tokenStore.set(session), []);

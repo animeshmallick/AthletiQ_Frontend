@@ -171,6 +171,50 @@ describe('AttendancePage (coach)', () => {
     });
   });
 
+  it('sorts by name or highest attendance, and remembers the choice', async () => {
+    const [a, b] = sheet().students;
+    const students = [
+      { ...b!, studentId: 's3', fullName: 'Zoya', rate30: 90 },
+      { ...a!, rate30: 50 }, // Anya Rao
+      { ...b!, studentId: 's4', fullName: 'Meera', rate30: null },
+    ];
+    const open = async () => {
+      mockApi({
+        'GET /attendance/calendar': () => ({
+          from: '2026-03-09',
+          to: '2026-03-09',
+          today: '2026-03-20',
+          days: [
+            {
+              date: '2026-03-09',
+              sessions: [at('b1', 'Morning U-12', ['l1', 'Ground'], '06:00:00')],
+            },
+          ],
+        }),
+        'GET /attendance/session': () => sheet({ students }),
+      });
+      return renderPage(<AttendancePage />, {
+        path: '/attendance',
+        route: '/attendance?batch=b1&date=2026-03-09',
+        user: adminUser,
+      });
+    };
+    const names = () =>
+      screen
+        .getAllByRole('radiogroup', { name: /^Attendance for/ })
+        .map((r) => r.getAttribute('aria-label')!.replace('Attendance for ', ''));
+    const first = await open();
+    await first.user.click(
+      await screen.findByRole('button', { name: /Sort by highest attendance/ }),
+    );
+    expect(names()).toEqual(['Zoya', 'Anya Rao', 'Meera']);
+    first.unmount();
+    const second = await open();
+    await second.user.click(await screen.findByRole('button', { name: /Sort by name/ }));
+    expect(names()).toEqual(['Anya Rao', 'Meera', 'Zoya']);
+    localStorage.removeItem('atq-attendance-sort');
+  });
+
   it('filters the list from the summary counts', async () => {
     coachApi();
     const { user } = await coachPage('/attendance?date=2026-03-09&batch=b1');

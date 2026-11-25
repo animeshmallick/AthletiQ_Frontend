@@ -366,12 +366,14 @@ function Kpis({ d, isAdmin }: { d: BatchInsights; isAdmin: boolean }) {
           tone={s.skills.assessedThisMonth < s.students ? 'warn' : 'good'}
           hint={`${s.sessions30.withPlan} sessions had a lesson plan`}
         />
-        <Kpi
-          label="Fees overdue"
-          value={plural(s.fees.studentsOverdue, 'student')}
-          tone={s.fees.studentsOverdue ? 'bad' : 'good'}
-          hint={`${s.fees.studentsDue} more with fees due`}
-        />
+        {!s.fees.hidden && (
+          <Kpi
+            label="Fees overdue"
+            value={plural(s.fees.studentsOverdue, 'student')}
+            tone={s.fees.studentsOverdue ? 'bad' : 'good'}
+            hint={`${s.fees.studentsDue} more with fees due`}
+          />
+        )}
         <Kpi
           label="Joined · 90 days"
           value={String(s.movement90.joined)}
@@ -504,6 +506,7 @@ const FEE_BADGE: Record<
   due: { label: 'Fee due', variant: 'warning' },
   overdue: { label: 'Overdue', variant: 'destructive' },
   free: { label: 'Free', variant: 'muted' },
+  hidden: { label: 'Not shown', variant: 'muted' },
 };
 
 const tenure = (days: number) =>
@@ -532,7 +535,7 @@ function Students({
   };
   const list = useMemo(() => {
     const n = search.trim().toLowerCase();
-    const feeRank = { overdue: 0, due: 1, paid: 2, free: 3 };
+    const feeRank = { overdue: 0, due: 1, paid: 2, free: 3, hidden: 4 };
     return roster
       .filter(
         (r) =>
@@ -797,7 +800,9 @@ function StudentDialog({
                     ? `${money(s.fees.monthly)}/month · ${money(s.fees.due ?? 0)} unpaid${s.fees.overdue ? ` (${money(s.fees.overdue)} overdue)` : ''}`
                     : s.fees.lastPaidAt
                       ? `Last paid ${formatDate(istDate(s.fees.lastPaidAt))}`
-                      : 'No payment recorded yet'}
+                      : s.fees.status === 'hidden'
+                        ? 'Kept with the batch’s coach'
+                        : 'No payment recorded yet'}
                 </p>
               </div>
               {s.fees.unpaidInvoiceId && (

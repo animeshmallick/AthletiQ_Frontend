@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useAuth } from '@/app/auth';
-import { addDays, formatLongDate, relativeDay, today } from '@/lib/format';
+import { dateParam, addDays, formatLongDate, relativeDay, today } from '@/lib/format';
 import { PeriodStepper } from './date-nav';
 import { useBatches } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
@@ -100,7 +100,7 @@ export function useBatchDateParams({
   const [params, setParams] = useSearchParams();
   const batches = useBatches({ active: 'true' });
   const batchId = params.get('batch') ?? '';
-  const date = params.get('date') ?? defaultDate;
+  const date = dateParam(params.get('date'), defaultDate);
 
   // Auto-select the first batch for coaches with a single/obvious choice.
   useEffect(() => {

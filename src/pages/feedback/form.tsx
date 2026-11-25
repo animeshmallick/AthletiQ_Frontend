@@ -1,9 +1,9 @@
 import { Lock, Send } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { useRef, useState } from 'react';
+import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
-import { ErrorState, ListSkeleton, PageHeader, Progress } from '@/components/common';
+import { ConfirmDialog, ErrorState, ListSkeleton, PageHeader, Progress } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Switch } from '@/components/ui/controls';
 import {
@@ -219,6 +219,20 @@ export function FeedbackFormPage() {
     setAnswers(report.data.feedback?.answers ?? {});
   }
 
+  // Answers not saved yet: ask before leaving.
+  const leaving = useRef(false);
+  const dirty =
+    user.role === 'coach' &&
+    !!report.data?.editable &&
+    JSON.stringify(answers) !== JSON.stringify(report.data.feedback?.answers ?? {});
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty &&
+      !leaving.current &&
+      nextLocation.pathname !== '/login' && // the session ended
+      currentLocation.pathname !== nextLocation.pathname,
+  );
+
   if (report.isPending) return <ListSkeleton rows={6} />;
   if (report.isError)
     return <ErrorState error={report.error} onRetry={() => void report.refetch()} />;
@@ -252,7 +266,10 @@ export function FeedbackFormPage() {
     try {
       await save.mutateAsync({ answers, submit: send });
       toast.success(send ? (submitted ? 'Report updated' : 'Report sent') : 'Draft saved');
-      if (send && !submitted) navigate(`/feedback?week=${weekStart}`);
+      if (send && !submitted) {
+        leaving.current = true;
+        navigate(`/feedback?week=${weekStart}`);
+      }
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors.length) {
         setErrors(Object.fromEntries(err.fieldErrors.map((f) => [f.path, f.message])));
@@ -263,6 +280,15 @@ export function FeedbackFormPage() {
 
   return (
     <div className="mx-auto max-w-3xl pb-24">
+      <ConfirmDialog
+        open={blocker.state === 'blocked'}
+        onOpenChange={(o) => !o && blocker.state === 'blocked' && blocker.reset()}
+        title="Leave without saving?"
+        description="What you wrote in this report hasn’t been saved."
+        confirmLabel="Discard changes"
+        destructive
+        onConfirm={() => blocker.state === 'blocked' && blocker.proceed()}
+      />
       <PageHeader
         title={student.fullName}
         description={`${template.title} · ${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`}

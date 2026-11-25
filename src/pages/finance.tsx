@@ -59,7 +59,7 @@ export function FinancePage({ embedded = false }: { embedded?: boolean } = {}) {
   const range = useMemo(() => financeRange(preset), [preset]);
   const q = useFinance({ ...range, coachId: coachId || undefined, batchId: batchId || undefined });
   const projection = useProjection(30);
-  const coaches = useUsers({ role: 'coach', pageSize: 100 });
+  const coaches = useUsers({ role: 'coach', pageSize: 100 }, { enabled: isAdmin });
   const batches = useBatches({});
   const t = q.data?.totals;
 

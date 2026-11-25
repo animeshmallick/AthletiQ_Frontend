@@ -148,7 +148,7 @@ export async function disableWebPush() {
   localStorage.removeItem(TOKEN_KEY);
   if (!token) return;
   try {
-    await request('/me/devices', { method: 'DELETE', body: { token }, noRetry: true });
+    await request('/me/devices', { method: 'DELETE', body: { token } });
   } catch {
     // Signing out must not fail because of this.
   }

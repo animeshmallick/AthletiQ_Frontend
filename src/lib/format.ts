@@ -46,7 +46,14 @@ export function paiseToRupees(paise: number): number {
   return paise / 100;
 }
 
-const utc = (d: string) => new Date(`${d}T00:00:00Z`);
+/** A calendar day (or the academy-time day of a timestamp) as a Date. */
+const utc = (d: string) => new Date(`${d.length > 10 ? istDate(d) : d}T00:00:00Z`);
+
+/** A bad date shows a dash instead of crashing the screen. */
+const show = (f: Intl.DateTimeFormat, d: string) => {
+  const x = utc(d);
+  return Number.isNaN(x.getTime()) ? '—' : f.format(x);
+};
 
 const dateFmt = new Intl.DateTimeFormat('en-IN', {
   day: 'numeric',
@@ -72,13 +79,13 @@ const monthFmt = new Intl.DateTimeFormat('en-IN', {
 });
 
 /** "8 Nov 2026" */
-export const formatDate = (d: string | null | undefined) => (d ? dateFmt.format(utc(d)) : '—');
+export const formatDate = (d: string | null | undefined) => (d ? show(dateFmt, d) : '—');
 /** "8 Nov" */
-export const formatShortDate = (d: string) => shortFmt.format(utc(d));
+export const formatShortDate = (d: string) => show(shortFmt, d);
 /** "Sunday, 8 November" */
-export const formatLongDate = (d: string) => longFmt.format(utc(d));
+export const formatLongDate = (d: string) => show(longFmt, d);
 /** "2026-11" → "Nov 26" */
-export const formatMonth = (ym: string) => monthFmt.format(utc(`${ym}-01`));
+export const formatMonth = (ym: string) => show(monthFmt, `${ym}-01`);
 
 /** "06:30:00" → "6:30 am" */
 export function formatTime(t: string): string {
@@ -139,10 +146,18 @@ export function today(now: Date = new Date()): string {
 }
 
 /** The day of a timestamp, in academy time (its first ten characters are the UTC day). */
-export const istDate = (timestamp: string) => today(new Date(timestamp));
+export function istDate(timestamp: string) {
+  const at = new Date(timestamp);
+  return Number.isNaN(at.getTime()) ? timestamp.slice(0, 10) : today(at);
+}
+
+/** A date from the address bar, or the fallback when it isn't a real one. */
+export const dateParam = (v: string | null, fallback: string) =>
+  v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) ? v : fallback;
 
 export function addDays(d: string, n: number): string {
   const x = utc(d);
+  if (Number.isNaN(x.getTime())) return d;
   x.setUTCDate(x.getUTCDate() + n);
   return x.toISOString().slice(0, 10);
 }

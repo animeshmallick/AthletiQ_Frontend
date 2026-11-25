@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/overlays';
 import { timesOn } from '@/lib/batch-times';
-import { addDays, formatTime, isoWeekday, plural, today } from '@/lib/format';
+import { addDays, dateParam, formatTime, isoWeekday, plural, today } from '@/lib/format';
 import { batchTone } from '../calendar-meta';
 import { useBatches, useSessionPlan, useAttendanceOverview } from '@/lib/queries';
 import type { Batch } from '@/lib/types';
@@ -85,7 +85,7 @@ export function LessonPlansPage() {
       { replace: true },
     );
 
-  const date = params.get('date') ?? today();
+  const date = dateParam(params.get('date'), today());
   const step = (n: 1 | -1) => {
     if (busy) return;
     setDirection(n);

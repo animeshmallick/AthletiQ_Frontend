@@ -32,8 +32,8 @@ export function InvoicesPage({ embedded = false }: { embedded?: boolean } = {}) 
     sort: params.get('sort') ?? defaultSort(status),
     ...filterQuery(params),
     page,
-    // Grouped: the whole lot (up to 100) so each group's totals are complete.
-    pageSize: group === 'none' ? 25 : 100,
+    // Grouped: the whole lot (up to 500) so each group's totals are complete.
+    pageSize: group === 'none' ? 25 : 500,
   });
 
   const set = (patch: Record<string, string | null>) => {

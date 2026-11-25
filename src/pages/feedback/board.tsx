@@ -24,7 +24,7 @@ import {
 import { SwipeDays } from '@/components/swipe-days';
 import { Segmented } from '@/components/ui/controls';
 import { Badge, Card } from '@/components/ui/primitives';
-import { istDate, addDays, formatShortDate, startOfWeek, today } from '@/lib/format';
+import { istDate, addDays, dateParam, formatShortDate, startOfWeek, today } from '@/lib/format';
 import { useFeedbackWeek, type FeedbackBoardItem } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +38,7 @@ export function FeedbackPage() {
   const user = useUser();
   const [params, setParams] = useSearchParams();
   const lastWeek = startOfWeek(addDays(today(), -7));
-  const weekStart = params.get('week') ?? lastWeek;
+  const weekStart = startOfWeek(dateParam(params.get('week'), lastWeek));
   const [filter, setFilter] = useState<'all' | 'open' | 'submitted'>('open');
   const [direction, setDirection] = useState<1 | -1 | 0>(0);
   const board = useFeedbackWeek({ weekStart });

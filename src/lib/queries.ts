@@ -210,7 +210,7 @@ export function useSaveFeePlan() {
   return useMutation({
     mutationFn: ({ id, ...body }: Partial<FeePlan> & { id?: string }) =>
       id ? api.patch<FeePlan>(`/fee-plans/${id}`, body) : api.post<FeePlan>('/fee-plans', body),
-    onSuccess: () => invalidate(['fee-plans']),
+    onSuccess: () => invalidate(['fee-plans'], ['batches'], ['students'], ['finance']),
   });
 }
 
@@ -298,6 +298,9 @@ function useStudentMutation<B>(fn: (body: B) => Promise<StudentDetail>) {
         qc.invalidateQueries({ queryKey: ['finance'] }),
         qc.invalidateQueries({ queryKey: ['funds'] }),
         qc.invalidateQueries({ queryKey: ['skills'] }),
+        qc.invalidateQueries({ queryKey: ['cycles'] }),
+        qc.invalidateQueries({ queryKey: ['feedback'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
       ]);
     },
   });
@@ -489,6 +492,9 @@ export function useMarkAttendance(batchId: string, date: string) {
           ['attendance', 'calendar'],
           ['attendance', 'overview'],
           ['attendance', 'student'],
+          ['attendance', 'register'],
+          ['session-changes'],
+          ['cycles'],
           ['me', 'tasks'],
         ].map((queryKey) => qc.invalidateQueries({ queryKey })),
       );
@@ -552,7 +558,9 @@ export function useCheck() {
       accuracy?: number | null;
       note?: string | null;
     }) => api.post<{ session: CoachSession; message: string }>('/coach-sessions/check-in', body),
-    onSuccess: () => invalidate(['coach-sessions'], ['attendance', 'overview']),
+    // The attendance sheet unlocks, and the session counts as held.
+    onSuccess: () =>
+      invalidate(['coach-sessions'], ['attendance'], ['session-changes'], ['cycles'], ['batches']),
   });
 }
 
@@ -799,6 +807,9 @@ function useInvoiceMutation<B>(fn: (body: B) => Promise<InvoiceDetail>) {
         qc.invalidateQueries({ queryKey: ['finance'] }),
         qc.invalidateQueries({ queryKey: ['students'] }),
         qc.invalidateQueries({ queryKey: ['funds'] }),
+        // Dues on the renewals, student and batch pages.
+        qc.invalidateQueries({ queryKey: ['cycles'] }),
+        qc.invalidateQueries({ queryKey: ['batches'] }),
       ]);
     },
   });
@@ -905,7 +916,16 @@ export function useReviewRegistration() {
       action: 'approve' | 'reject';
       body?: Record<string, unknown>;
     }) => api.post(`/registrations/${id}/${action}`, body ?? {}),
-    onSuccess: () => invalidate(['registrations'], ['students'], ['users'], ['batches']),
+    onSuccess: () =>
+      invalidate(
+        ['registrations'],
+        ['students'],
+        ['users'],
+        ['batches'],
+        ['cycles'],
+        ['invoices'],
+        ['finance'],
+      ),
   });
 }
 
@@ -1602,7 +1622,8 @@ export interface BatchRosterEntry {
     monthly: number | null;
     due: number | null;
     overdue: number | null;
-    status: 'overdue' | 'due' | 'paid' | 'free';
+    /** hidden: a substitute doesn't see fees. */
+    status: 'overdue' | 'due' | 'paid' | 'free' | 'hidden';
     unpaidInvoiceId: string | null;
     lastPaidAt: string | null;
   };
@@ -1631,6 +1652,7 @@ export interface BatchInsights {
     };
     movement90: { joined: number; left: number };
     fees: {
+      hidden?: boolean;
       studentsOverdue: number;
       studentsDue: number;
       money: {

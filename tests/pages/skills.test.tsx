@@ -110,7 +110,10 @@ describe('Skills page', () => {
       comment: 'Great progress',
       goals: null,
     });
-    expect(await screen.findByRole('dialog', { name: 'Ben Das' })).toBeInTheDocument();
+    const next = await screen.findByRole('dialog', { name: 'Ben Das' });
+    // The next student starts blank: nothing carries over.
+    expect(within(next).queryAllByRole('radio', { checked: true })).toHaveLength(0);
+    expect(within(next).getByRole('textbox', { name: /how it is going/i })).toHaveValue('');
   });
 
   it('shows admins the insights first, and sheets read-only', async () => {

@@ -114,6 +114,7 @@ export function AssessTab({ batchId, month }: { batchId: string; month: string }
 
       {open && (
         <AssessDialog
+          key={open}
           sheet={sheet}
           studentId={open}
           onClose={() => setOpen(null)}

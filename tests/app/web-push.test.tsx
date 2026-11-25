@@ -103,7 +103,6 @@ describe('NotificationsCard', () => {
       expect(request).toHaveBeenLastCalledWith('/me/devices', {
         method: 'DELETE',
         body: { token: 'web-fcm-token' },
-        noRetry: true,
       }),
     );
     expect(webPush.webPushState()).toBe('off');

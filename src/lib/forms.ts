@@ -16,7 +16,13 @@ export function applyServerErrors<T extends FieldValues>(
     for (const f of err.fieldErrors) {
       if (f.path) setError(f.path as Path<T>, { type: 'server', message: f.message });
     }
-    toast.error(fallbackTitle, { description: 'Please fix the highlighted fields.' });
+    // One problem: say it (its field may not be on this form).
+    toast.error(fallbackTitle, {
+      description:
+        err.fieldErrors.length === 1
+          ? err.fieldErrors[0]!.message
+          : 'Please fix the highlighted fields.',
+    });
     return;
   }
   toast.error(fallbackTitle, { description: errorMessage(err) });

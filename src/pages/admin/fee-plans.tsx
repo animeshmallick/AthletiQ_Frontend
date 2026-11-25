@@ -67,8 +67,8 @@ function PlanDialog({ plan, onClose }: { plan?: FeePlan; onClose: () => void }) 
         <DialogHeader>
           <DialogTitle>{plan ? 'Edit fee plan' : 'New fee plan'}</DialogTitle>
           <DialogDescription>
-            When a student’s training days are chosen, the plan with the same number of days is
-            suggested.
+            Batches pick a plan for as many days a week as they run. Days can’t change while active
+            batches use the plan.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">

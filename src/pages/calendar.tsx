@@ -12,6 +12,7 @@ import { Segmented } from '@/components/ui/controls';
 import { Card, Skeleton } from '@/components/ui/primitives';
 import {
   addDays,
+  dateParam,
   formatLongDate,
   formatShortDate,
   relativeDay,
@@ -103,7 +104,7 @@ export function CalendarPage() {
   const user = useUser();
   const isPhone = useIsPhone();
   const [params, setParams] = useSearchParams();
-  const date = params.get('date') ?? today();
+  const date = dateParam(params.get('date'), today());
   const view: View = (params.get('view') as View | null) ?? (isPhone ? 'day' : 'week');
   const weekStart = startOfWeek(date);
   const weekEnd = addDays(weekStart, 6);

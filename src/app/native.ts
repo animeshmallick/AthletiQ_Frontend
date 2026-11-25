@@ -194,7 +194,8 @@ export async function unregisterPush() {
   const token = localStorage.getItem(PUSH_TOKEN_KEY);
   if (!isNativeApp() || !token) return;
   try {
-    await request('/me/devices', { method: 'DELETE', body: { token }, noRetry: true });
+    await request('/me/devices', { method: 'DELETE', body: { token } });
+    localStorage.removeItem(PUSH_TOKEN_KEY);
   } catch {
     // Signing out must not fail because of this.
   }

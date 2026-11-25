@@ -79,6 +79,21 @@ describe('FeedbackFormPage', () => {
     });
   });
 
+  it('asks before leaving with unsaved answers', async () => {
+    mockApi({ 'GET /feedback/students/s1/weeks/2026-03-09': () => report() });
+    const { user, router } = await renderPage(<FeedbackFormPage />, {
+      path,
+      route,
+      user: coachUser,
+    });
+    await user.click(await screen.findByRole('radio', { name: '5' }));
+    void router.navigate('/students');
+    expect(await screen.findByText('Leave without saving?')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(route);
+    await user.click(screen.getByRole('button', { name: 'Discard changes' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/students'));
+  });
+
   it('is read-only for admins and locked reports', async () => {
     mockApi({ 'GET /feedback/students/s1/weeks/2026-03-09': () => report() });
     await renderPage(<FeedbackFormPage />, { path, route, user: adminUser });

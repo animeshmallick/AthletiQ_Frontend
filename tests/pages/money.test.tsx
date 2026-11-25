@@ -499,7 +499,19 @@ describe('Money dashboard', () => {
       'GET /funds/overview': () => mine,
       'GET /funds/txns': () => page([]),
       'POST /funds/handovers': () => ({ status: 201, body: { data: txn({ type: 'handover' }) } }),
-      'POST /funds/expenses': () => ({ status: 201, body: { data: txn({}) } }),
+      'POST /funds/expenses': (c) =>
+        (c.body as { confirm?: boolean }).confirm
+          ? { status: 201, body: { data: txn({}) } }
+          : {
+              status: 409,
+              body: {
+                error: {
+                  code: 'CONFLICT',
+                  message: 'You just recorded the same entry. Add it again?',
+                  details: { warnings: [{ code: 'repeated' }] },
+                },
+              },
+            },
     });
     const { user } = await renderPage(<MoneyPage />, {
       path: '/money',
@@ -535,5 +547,9 @@ describe('Money dashboard', () => {
       amount: 80_000,
       category: 'equipment',
     });
+    // The server saw the same entry minutes ago: asked, then added.
+    await user.click(await screen.findByRole('button', { name: 'Add again' }));
+    await waitFor(() => expect(api.find('POST /funds/expenses')).toHaveLength(2));
+    expect(api.find('POST /funds/expenses')[1]!.body).toMatchObject({ confirm: true });
   });
 });

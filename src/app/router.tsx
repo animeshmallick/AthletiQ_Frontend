@@ -91,8 +91,11 @@ function RequireRole({ role, children }: { role: Role; children: ReactNode }) {
 /** Login & token pages: already signed-in users go to the app. */
 function GuestOnly() {
   const { status } = useAuth();
+  // Back to the screen that asked them to sign in (e.g. a notification's link).
+  const from = (useLocation().state as { from?: string } | null)?.from;
   if (status === 'loading') return <FullScreenLoader />;
-  if (status === 'authenticated') return <Navigate to="/" replace />;
+  if (status === 'authenticated')
+    return <Navigate to={from?.startsWith('/') && from !== '/login' ? from : '/'} replace />;
   return (
     <Suspense fallback={<FullScreenLoader />}>
       <Outlet />

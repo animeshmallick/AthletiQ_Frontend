@@ -668,7 +668,10 @@ export function StudentDetailPage() {
       </div>
 
       {/* ?tab=invoices (e.g. from an invoice's "more unpaid" link) opens that tab. */}
-      <Tabs defaultValue={new URLSearchParams(window.location.search).get('tab') ?? 'overview'}>
+      <Tabs
+        key={s.id}
+        defaultValue={new URLSearchParams(window.location.search).get('tab') ?? 'overview'}
+      >
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="batches">Batches</TabsTrigger>

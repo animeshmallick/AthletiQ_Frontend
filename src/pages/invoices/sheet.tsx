@@ -166,6 +166,9 @@ function MarkPaidDialog({
   const [note, setNote] = useState('');
   const [noteOpen, setNoteOpen] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // Invoices can be issued, and paid, before their month starts.
+  const earliest =
+    invoice.issueDate < invoice.periodStart ? invoice.issueDate : invoice.periodStart;
 
   async function submit() {
     try {
@@ -257,7 +260,7 @@ function MarkPaidDialog({
               type="date"
               value={paidOn}
               max={today()}
-              min={invoice.periodStart}
+              min={earliest}
               onChange={(e) => setPaidOn(e.target.value)}
               className="h-9"
             />
@@ -266,7 +269,7 @@ function MarkPaidDialog({
                 { label: 'Today', value: today() },
                 { label: 'Yesterday', value: addDays(today(), -1) },
               ]
-                .filter((d) => d.value >= invoice.periodStart)
+                .filter((d) => d.value >= earliest)
                 .map((d) => (
                   <button
                     key={d.label}
@@ -618,13 +621,17 @@ export function InvoiceBody({ inv }: { inv: InvoiceDetail }) {
     inv.displayStatus === 'overdue'
       ? Math.max(1, Math.round((Date.parse(today()) - Date.parse(inv.dueDate)) / 86_400_000))
       : 0;
+  // The day the money came in, not the day it was entered.
+  const paidOn =
+    inv.payments.find((p) => p.status === 'completed')?.paidOn ??
+    (inv.paidAt ? istDate(inv.paidAt) : null);
   const standing =
     inv.displayStatus === 'overdue'
       ? `Overdue by ${plural(days, 'day')} · was due ${formatDate(inv.dueDate)}`
       : inv.displayStatus === 'due'
         ? `Due ${formatDate(inv.dueDate)}`
         : inv.displayStatus === 'paid'
-          ? `Paid${inv.paidAt ? ` on ${formatDate(istDate(inv.paidAt))}` : ''}`
+          ? `Paid${paidOn ? ` on ${formatDate(paidOn)}` : ''}`
           : inv.displayStatus === 'refunded'
             ? 'Refunded'
             : inv.displayStatus === 'lost'

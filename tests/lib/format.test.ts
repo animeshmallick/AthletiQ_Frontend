@@ -1,5 +1,6 @@
 import {
   coachTimes,
+  dateParam,
   addDays,
   addMonths,
   eachDay,
@@ -105,6 +106,16 @@ describe('coachTimes', () => {
     expect(coachTimes(null)).toBe('Not in');
     expect(coachTimes({ checkInAt: '2026-03-09T00:32:00Z' })).toMatch(/^In 6:02\s?am$/i);
   });
+});
+
+it('never crashes on a bad date', () => {
+  expect(formatShortDate('nonsense')).toBe('—');
+  expect(formatDate('')).toBe('—');
+  expect(addDays('nonsense', 1)).toBe('nonsense');
+  expect(formatDate('2026-03-09T20:00:00.000Z')).toContain('10 Mar');
+  expect(dateParam('2026-13-99', '2026-03-09')).toBe('2026-03-09');
+  expect(dateParam('2026-03-10', '2026-03-09')).toBe('2026-03-10');
+  expect(dateParam(null, '2026-03-09')).toBe('2026-03-09');
 });
 
 it('reads a timestamp’s day in academy time', () => {

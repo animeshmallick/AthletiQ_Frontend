@@ -122,7 +122,7 @@ export function CoachSessionsPage() {
   const { from, to } = periodRange(period);
   const [coachId, setCoachId] = useState('');
   const [reviewing, setReviewing] = useState<CoachSessionRow | null>(null);
-  const coaches = useUsers({ role: 'coach', pageSize: 100 });
+  const coaches = useUsers({ role: 'coach', pageSize: 100 }, { enabled: isAdmin });
   const q = useCoachSessions({
     from,
     to,

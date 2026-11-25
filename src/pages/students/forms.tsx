@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/overlays';
 import { Input, Select, Separator, Textarea } from '@/components/ui/primitives';
 import { errorMessage } from '@/lib/api';
-import { formatDate, money, today } from '@/lib/format';
+import { addDays, formatDate, money, today } from '@/lib/format';
 import { applyServerErrors, nullIfEmpty, optionalPhoneSchema, phoneSchema } from '@/lib/forms';
 import {
   useBatches,
@@ -403,7 +403,8 @@ export function StudentFormDialog({
     }
   });
 
-  const joiningLocked = !!student && student.billing.invoiceCount > 0;
+  // Until money changes hands, a wrong date can be corrected (its invoices are raised again).
+  const joiningLocked = !!student && student.billing.paid > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -426,7 +427,7 @@ export function StudentFormDialog({
             error={formState.errors.joiningDate?.message}
             hint={
               joiningLocked
-                ? 'Locked — invoices already use it as the billing day.'
+                ? 'Locked: fees were already paid on this billing day.'
                 : 'Each batch’s monthly invoice is issued on this day.'
             }
           >
@@ -668,7 +669,11 @@ export function LeaveBatchDialog({
         leftOn,
         reason: nullIfEmpty(reason),
       });
-      toast.success(`Left ${membership.batchName}`);
+      toast.success(
+        leftOn > today()
+          ? `Leaves ${membership.batchName} on ${formatDate(leftOn)}`
+          : `Left ${membership.batchName}`,
+      );
       onOpenChange(false);
     } catch (err) {
       toast.error('Could not update', { description: errorMessage(err) });
@@ -680,8 +685,9 @@ export function LeaveBatchDialog({
         <DialogHeader>
           <DialogTitle>Leave {membership.batchName}</DialogTitle>
           <DialogDescription>
-            {student.fullName} stays in their other batches. No more invoices for this batch; the
-            current month was prepaid (adjust or refund that invoice if needed).
+            {student.fullName} stays in their other batches. Unpaid invoices for later months of
+            this batch are cancelled; paid ones are kept, with no refund or credit. With a future
+            day they stay in it until then.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -913,9 +919,13 @@ export function RejoinDialog({
             label="Rejoin date"
             required
             error={formState.errors.rejoinDate?.message}
-            hint={student.leftOn ? `Left on ${student.leftOn}.` : undefined}
+            hint={student.leftOn ? `Left on ${formatDate(student.leftOn)}.` : undefined}
           >
-            <Input type="date" min={student.leftOn ?? undefined} {...register('rejoinDate')} />
+            <Input
+              type="date"
+              min={student.leftOn ? addDays(student.leftOn, 1) : undefined}
+              {...register('rejoinDate')}
+            />
           </Field>
           <Controller
             control={control}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useUser } from '@/app/auth';
-import { Field, MoneyInput } from '@/components/common';
+import { ConfirmDialog, Field, MoneyInput } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
 import {
@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/overlays';
 import { Input, Select, Textarea } from '@/components/ui/primitives';
-import { errorMessage } from '@/lib/api';
+import { ApiError, errorMessage } from '@/lib/api';
 import { money, today } from '@/lib/format';
 import { useFundAction, usePayable, useUsers } from '@/lib/queries';
 import type { AcademyFunds } from '@/lib/types';
@@ -86,7 +86,7 @@ export function MoneyActionDialog({
           ? 'payouts'
           : 'income',
   );
-  const staffQ = useUsers({ status: 'active', pageSize: 100 });
+  const staffQ = useUsers({ status: 'active', pageSize: 100 }, { enabled: admin });
   const staff = admin ? (staffQ.data?.data ?? []) : [];
 
   const [amount, setAmount] = useState<number | null>(prefill.amount ?? null);
@@ -155,12 +155,19 @@ export function MoneyActionDialog({
           : undefined;
 
   const copy = COPY[action];
+  /** The same entry was just recorded: saved again only if they say so. */
+  const [repeated, setRepeated] = useState<string | null>(null);
 
-  async function submit() {
+  async function submit(confirm = false) {
     if (!amount) return toast.error('Enter an amount');
     if (limit !== undefined && amount > limit)
       return toast.error(`That is more than the ${money(Math.max(limit, 0))} available`);
-    const body: Record<string, unknown> = { amount, occurredOn: date, note: note.trim() || null };
+    const body: Record<string, unknown> = {
+      amount,
+      occurredOn: date,
+      note: note.trim() || null,
+      ...(confirm ? { confirm } : {}),
+    };
     if (action === 'handover') {
       if (admin && !userId) return toast.error('Choose who handed over the cash');
       if (admin) body.userId = userId;
@@ -194,7 +201,10 @@ export function MoneyActionDialog({
       toast.success(`${copy.title} · ${money(amount)}`);
       onClose();
     } catch (err) {
-      toast.error('Could not record it', { description: errorMessage(err) });
+      const asks =
+        err instanceof ApiError && (err.details as { warnings?: unknown[] } | undefined)?.warnings;
+      setRepeated(asks ? errorMessage(err) : null);
+      if (!asks) toast.error('Could not record it', { description: errorMessage(err) });
     }
   }
 
@@ -402,6 +412,15 @@ export function MoneyActionDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog
+        open={!!repeated}
+        onOpenChange={(o) => !o && setRepeated(null)}
+        title="Recorded twice?"
+        description={repeated ?? ''}
+        confirmLabel="Add again"
+        loading={mutation.isPending}
+        onConfirm={() => void submit(true)}
+      />
     </Dialog>
   );
 }

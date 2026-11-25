@@ -331,8 +331,8 @@ function OfflineBanner() {
       role="status"
       className="flex items-center justify-center gap-2 bg-warning px-4 py-2 text-sm font-medium text-warning-foreground"
     >
-      <WifiOff className="size-4" /> You're offline. Changes will fail until your connection is
-      back.
+      <WifiOff className="size-4" /> You're offline. Attendance is kept on this phone; other changes
+      need a connection.
     </div>
   );
 }
