@@ -552,4 +552,36 @@ describe('Money dashboard', () => {
     await waitFor(() => expect(api.find('POST /funds/expenses')).toHaveLength(2));
     expect(api.find('POST /funds/expenses')[1]!.body).toMatchObject({ confirm: true });
   });
+
+  it('a coach holding no academy cash records a purchase as paid from their own money', async () => {
+    const mine: MyFunds = {
+      scope: 'self',
+      from: '2026-01-01',
+      to: '2026-01-15',
+      cash: 0,
+      due: 0,
+      period: {
+        collected: 0,
+        earned: 0,
+        earnedBy: [],
+        kept: 0,
+        handedOver: 0,
+        spent: 0,
+        paidToMe: 0,
+      },
+    };
+    mockApi({ 'GET /funds/overview': () => mine, 'GET /funds/txns': () => page([]) });
+    const { user } = await renderPage(<MoneyPage />, {
+      path: '/money',
+      route: '/money',
+      user: coachUser,
+    });
+    await user.click(await screen.findByRole('button', { name: 'Pay' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Purchase/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Record a purchase' });
+    expect(within(dialog).getByRole('radio', { name: 'My own money' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
 });

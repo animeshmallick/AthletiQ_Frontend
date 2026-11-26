@@ -95,7 +95,10 @@ export function MoneyActionDialog({
   const [category, setCategory] = useState('equipment');
   const [note, setNote] = useState('');
   const [reference, setReference] = useState('');
-  const [paidFrom, setPaidFrom] = useState<'academy' | 'cash' | 'own'>(admin ? 'academy' : 'cash');
+  // A coach holding no academy cash can only have paid from their own money.
+  const [paidFrom, setPaidFrom] = useState<'academy' | 'cash' | 'own'>(
+    admin ? 'academy' : myCash === 0 ? 'own' : 'cash',
+  );
   const [userId, setUserId] = useState(prefill.userId ?? (admin ? '' : user.id));
   // Payouts: "staff:<id>" or "payee:<id>".
   const [payTo, setPayTo] = useState(
@@ -105,6 +108,9 @@ export function MoneyActionDialog({
   // Coaches pay only their batches' payees, from their own cash.
   const payable = usePayable(action === 'payout' && !admin);
   const coachPayees = (payable.data?.payees ?? []).filter((p) => p.owed > 0);
+  const nobodyOwed = admin
+    ? !!b && !b.staffDue.some((s) => s.amount > 0) && !b.payeeDue.some((p) => p.amount > 0)
+    : payable.isSuccess && !coachPayees.length;
   const holding = (id: string) =>
     id ? (b?.holders.find((h) => h.userId === id)?.amount ?? 0) : (b?.academyCash ?? 0);
   const owedTo = (key: string) => {
@@ -224,7 +230,12 @@ export function MoneyActionDialog({
         </DialogHeader>
         <div className="grid gap-3.5 sm:grid-cols-2">
           {action === 'payout' && (
-            <Field label="Pay to" required className="sm:col-span-2">
+            <Field
+              label="Pay to"
+              required
+              className="sm:col-span-2"
+              hint={nobodyOwed ? 'Nobody is owed anything right now.' : undefined}
+            >
               <Select
                 value={payTo}
                 onChange={(e) => {
