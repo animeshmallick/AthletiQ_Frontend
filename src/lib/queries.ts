@@ -1396,12 +1396,13 @@ export const useAdjustInvoice = (id: string) =>
     api.post<InvoiceDetail>(`/invoices/${id}/adjust`, body),
   );
 
-/** Pending tasks + badge counts; refreshed every minute and when the app regains focus. */
+/** Pending tasks + badge counts; refreshed every 5 minutes and when the app regains focus. */
 export const useTasks = () =>
   useQuery({
     queryKey: ['me', 'tasks'] as const,
     queryFn: () => api.get<TasksResponse>('/me/tasks'),
-    refetchInterval: 60_000,
+    // Not every minute: an app left open would keep the database from ever pausing.
+    refetchInterval: 5 * 60_000,
     staleTime: 20_000,
   });
 

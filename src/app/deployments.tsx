@@ -91,7 +91,7 @@ export function DeploymentsInfo({ className }: { className?: string }) {
       const res = await fetch(`${API_URL}/ready`, { cache: 'no-store' });
       return (await res.json()) as Ready;
     },
-    refetchInterval: 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
   });
   const [app, setApp] = useState<{ version: string; build: string } | null>(null);
