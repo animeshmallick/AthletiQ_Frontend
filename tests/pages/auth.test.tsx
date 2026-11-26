@@ -1,5 +1,5 @@
 import { LoginPage } from '@/pages/auth/login';
-import { AcceptInvitePage } from '@/pages/auth/token-password';
+import { AcceptInvitePage, ResetPasswordPage } from '@/pages/auth/token-password';
 import { coachUser, mockApi, renderPage, screen, sessionFor, waitFor } from '../utils';
 
 describe('LoginPage', () => {
@@ -80,6 +80,20 @@ describe('AcceptInvitePage', () => {
     });
     expect(await screen.findByText('Link expired')).toBeInTheDocument();
     expect(screen.getByText('This link is invalid or has expired.')).toBeInTheDocument();
+  });
+
+  it('explains a link cut short', async () => {
+    mockApi({
+      'GET /auth/password-reset': () => ({
+        status: 400,
+        body: { error: { code: 'VALIDATION_ERROR', message: 'Some fields are invalid' } },
+      }),
+    });
+    await renderPage(<ResetPasswordPage />, {
+      path: '/reset-password',
+      route: '/reset-password?token=abc',
+    });
+    expect(await screen.findByText(/This link is incomplete/)).toBeInTheDocument();
   });
 
   it('handles a missing token', async () => {

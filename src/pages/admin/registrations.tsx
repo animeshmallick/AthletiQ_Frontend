@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   CheckCircle2,
   GraduationCap,
   Inbox,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import { copyText } from '@/lib/copy';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 import {
   ConfirmDialog,
@@ -160,6 +162,22 @@ function RegistrationCard({
               </span>
             )}
           </div>
+          {r.alreadyStudent && (
+            <p
+              role="note"
+              className="flex items-start gap-1.5 rounded-lg bg-warning/15 px-2.5 py-1.5 text-[13px]"
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-foreground dark:text-warning" />
+              <span>
+                Already a student:{' '}
+                <Link to={`/students/${r.alreadyStudent.id}`} className="font-semibold underline">
+                  {r.alreadyStudent.fullName} ({r.alreadyStudent.code})
+                </Link>
+                {r.alreadyStudent.left ? '. They left: rejoin them from their page.' : '.'} Reject
+                this request, or add a new batch from their page.
+              </span>
+            </p>
+          )}
           <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
             {r.type === 'student' ? (
               <>

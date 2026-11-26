@@ -135,7 +135,13 @@ describe('RegistrationsPage', () => {
     });
     const api = mockApi({
       'GET /registrations': () => ({
-        data: [reg('coach', 'r1'), reg('student', 'r2')],
+        data: [
+          reg('coach', 'r1'),
+          {
+            ...reg('student', 'r2'),
+            alreadyStudent: { id: 's9', code: 'ATQ-0009', fullName: 'Diya Kapoor', left: false },
+          },
+        ],
         meta: {
           page: 1,
           pageSize: 20,
@@ -156,6 +162,11 @@ describe('RegistrationsPage', () => {
     });
     expect(await screen.findByText('Vikram Rao')).toBeInTheDocument();
     expect(screen.getByText('Mon, Wed, Fri')).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('Already a student');
+    expect(screen.getByRole('link', { name: 'Diya Kapoor (ATQ-0009)' })).toHaveAttribute(
+      'href',
+      '/students/s9',
+    );
 
     await user.click(screen.getAllByRole('button', { name: /approve/i })[0]!);
     await user.click(await screen.findByRole('button', { name: 'Approve coach' }));

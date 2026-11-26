@@ -8,7 +8,7 @@ import { useAuth } from '@/app/auth';
 import { Field } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Input, Skeleton } from '@/components/ui/primitives';
-import { api, errorMessage, request, type Session } from '@/lib/api';
+import { ApiError, api, errorMessage, request, type Session } from '@/lib/api';
 import { passwordSchema } from '@/lib/forms';
 import { AuthShell } from './auth-shell';
 
@@ -74,7 +74,14 @@ function TokenPasswordPage({ kind }: { kind: 'invite' | 'reset' }) {
     return (
       <AuthShell
         title="Link expired"
-        subtitle={info.isError ? errorMessage(info.error) : 'This link is missing its token.'}
+        subtitle={
+          !info.isError
+            ? 'This link is missing its token.'
+            : // A link cut short when copied fails validation; say so plainly.
+              info.error instanceof ApiError && info.error.code === 'VALIDATION_ERROR'
+              ? 'This link is incomplete; it may have been cut off when copied. Ask your academy admin for a new one.'
+              : errorMessage(info.error)
+        }
       >
         <Button asChild variant="outline" className="w-full">
           <Link to="/login">Back to sign in</Link>

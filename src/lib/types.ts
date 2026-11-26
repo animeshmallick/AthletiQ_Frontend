@@ -736,6 +736,8 @@ export interface Registration {
   reviewedAt: string | null;
   reviewNote: string | null;
   createdAt: string;
+  /** A student with the same name and phone already exists. */
+  alreadyStudent?: { id: string; code: string; fullName: string; left: boolean } | null;
 }
 
 export interface AcademySettings {
