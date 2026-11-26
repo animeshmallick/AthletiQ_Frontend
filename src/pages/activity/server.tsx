@@ -13,6 +13,7 @@ import {
   Lightbulb,
   MemoryStick,
   Server,
+  Timer,
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
@@ -201,20 +202,25 @@ function Resource({
 }) {
   const L = LEVEL[level];
   return (
-    <Card className="flex min-w-0 flex-col gap-2 p-3">
-      <p className="flex items-center gap-2 text-[12.5px] font-medium text-muted-foreground">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+    <Card className="flex min-w-0 flex-col gap-1.5 p-2.5 sm:gap-2 sm:p-3">
+      <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground sm:gap-2 sm:text-[12.5px]">
+        <span className="hidden size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex">
           <Icon className="size-4" />
         </span>
-        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <Icon className="size-3.5 shrink-0 text-primary sm:hidden" aria-hidden />
+        <span className="min-w-0 flex-1 truncate" title={label}>
+          {label}
+        </span>
         {level !== 'good' && (
-          <L.icon className={cn('size-4 shrink-0', L.text)} aria-label={L.word} />
+          <L.icon className={cn('size-3.5 shrink-0 sm:size-4', L.text)} aria-label={L.word} />
         )}
       </p>
-      <p className="tabular text-[26px] leading-none font-bold">
+      <p className="tabular truncate text-[20px] leading-none font-bold sm:text-[26px]">
         {value}
         {unit && (
-          <span className="ml-0.5 text-[13px] font-medium text-muted-foreground">{unit}</span>
+          <span className="ml-0.5 text-[11px] font-medium text-muted-foreground sm:text-[13px]">
+            {unit}
+          </span>
         )}
       </p>
       <Spark values={spark} max={sparkMax} />
@@ -231,7 +237,9 @@ function Resource({
           style={{ width: `${Math.min(100, Math.max(2, pct))}%` }}
         />
       </span>
-      <p className="text-[11.5px] text-muted-foreground">{hint}</p>
+      <p className="line-clamp-2 text-[10.5px] leading-snug text-muted-foreground sm:text-[11.5px]">
+        {hint}
+      </p>
     </Card>
   );
 }
@@ -529,8 +537,8 @@ export function ServerView({ range }: { range: { from: string; to: string; since
     return (
       <div className="space-y-2">
         <Skeleton className="h-36 rounded-2xl" />
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
-          {[0, 1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-3 gap-2 xl:grid-cols-6">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
@@ -551,7 +559,7 @@ export function ServerView({ range }: { range: { from: string; to: string; since
       <Hero d={d} />
 
       <SectionDivider>Right now</SectionDivider>
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-3 gap-2 xl:grid-cols-6">
         <Resource
           icon={Cpu}
           label="CPU"
@@ -614,6 +622,23 @@ export function ServerView({ range }: { range: { from: string; to: string; since
           hint={`${plural(n.dbConnections, 'connection')}${n.dbWaiting ? ` · ${n.dbWaiting} waiting` : ''}`}
           spark={of((x) => x.dbMs)}
           sparkMax={Math.max(100, ...of((x) => x.dbMs))}
+        />
+        <Resource
+          icon={Timer}
+          label="Response wait"
+          value={String(n.lagMs)}
+          unit="ms"
+          pct={n.lagMs / 5}
+          level={levelOf(n.lagMs, 100, 500)}
+          hint={
+            n.lagMs < 100
+              ? 'Requests start at once'
+              : n.lagMs < 500
+                ? 'Requests queue briefly'
+                : 'Requests are kept waiting'
+          }
+          spark={of((x) => x.lag)}
+          sparkMax={Math.max(100, ...of((x) => x.lag))}
         />
       </div>
 

@@ -1141,6 +1141,8 @@ export interface ServerHealth {
     dbMs: number | null;
     dbConnections: number;
     dbWaiting: number;
+    /** How long requests waited for the app (worst 1%), ms. */
+    lagMs: number;
     uptime: number;
   };
   problems: { key: string; level: 'critical' | 'warning'; title: string; detail: string }[];
@@ -1168,6 +1170,7 @@ export interface ServerHealth {
     app: number;
     disk: number;
     dbMs: number | null;
+    lag: number | null;
   }[];
   build: {
     version: { commit: string | null };
