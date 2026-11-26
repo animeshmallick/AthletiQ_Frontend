@@ -410,7 +410,7 @@ function NodeRow({
         </span>
       </div>
       {r.node.kind === 'flat' && r.amount < r.node.value && (
-        <p className="mt-1 pl-7 text-[11px] font-medium text-amber-600">
+        <p className="mt-1 pl-7 text-[11px] font-medium text-amber-700 dark:text-amber-400">
           Only {money(r.amount)} of {money(r.node.value)} covered at this fee
         </p>
       )}
@@ -467,7 +467,7 @@ export function AllPlansDistribution({ plans }: { plans: FeePlan[] }) {
         ))}
       </ul>
       {unsplit > 0 && (
-        <p className="mt-1.5 text-[11px] text-amber-600">
+        <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-400">
           {plural(unsplit, 'plan')} with students {unsplit === 1 ? 'has' : 'have'} no split yet; all
           of it goes to the academy.
         </p>

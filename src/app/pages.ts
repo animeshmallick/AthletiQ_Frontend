@@ -31,7 +31,13 @@ const m22 = () => import('@/pages/admin/people');
 const m23 = () => import('@/pages/admin/payees');
 
 const page = <T>(loader: () => Promise<T>, name: keyof T) =>
-  lazy(async () => ({ default: (await loader())[name] as ComponentType }));
+  lazy(async () => {
+    const module = (await loader()) as T | undefined;
+    // Its code is gone after a deploy and the app is reloading (see client-log): keep the loader
+    // on screen until it does, instead of an error flashing by.
+    if (!module) return new Promise<never>(() => {});
+    return { default: module[name] as ComponentType };
+  });
 
 export const LoginPage = page(m0, 'LoginPage');
 export const AcceptInvitePage = page(m1, 'AcceptInvitePage');

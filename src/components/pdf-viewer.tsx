@@ -152,10 +152,13 @@ function Viewer({ file, onClose }: { file: PdfFile; onClose: () => void }) {
       </header>
       <div
         ref={scrollRef}
+        tabIndex={0}
+        role="region"
+        aria-label="PDF pages"
         className="min-h-0 flex-1 overflow-auto overscroll-contain p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
       >
         {state === 'loading' && (
-          <div className="mx-auto max-w-[900px] space-y-2" aria-label="Loading PDF">
+          <div className="mx-auto max-w-[900px] space-y-2" role="status" aria-label="Loading PDF">
             <Skeleton className="aspect-[1/1.41] w-full rounded-md" />
           </div>
         )}

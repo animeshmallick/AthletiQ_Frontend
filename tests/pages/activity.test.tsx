@@ -264,6 +264,88 @@ describe('Activity log (admin)', () => {
     expect(api.find('GET /activity/performance')[0]!.query.get('since')).toBeTruthy();
   });
 
+  it('shows admins the server’s health, with what needs attention first', async () => {
+    const api = mockApi({
+      'GET /activity/server': () => ({
+        score: 82,
+        availability: 99.8,
+        outages: [{ from: '2026-03-16T01:00:00Z', to: '2026-03-16T01:06:00Z', minutes: 6 }],
+        byHour: Array.from({ length: 24 }, (_, hour) => ({ hour, cpu: hour === 18 ? 40 : 5 })),
+        now: {
+          cpu: 12,
+          steal: 8,
+          load: 0.4,
+          cores: 2,
+          memTotal: 1000,
+          memUsed: 610,
+          swapTotal: 2048,
+          swapUsed: 100,
+          diskTotal: 20_480,
+          diskFree: 2048,
+          appMem: 130,
+          appLimit: 512,
+          dbMs: 78,
+          dbConnections: 3,
+          dbWaiting: 0,
+          uptime: 90_000,
+        },
+        problems: [
+          {
+            key: 'disk',
+            level: 'warning',
+            title: 'Server disk is 90% full',
+            detail: '2.0 GB left.',
+          },
+        ],
+        diskDaysLeft: 12,
+        summary: {
+          readings: 60,
+          cpuAvg: 9,
+          cpuMax: 71,
+          cpuP95: 30,
+          stealMax: 8,
+          memMax: 700,
+          swapMax: 100,
+          appMax: 150,
+          lagMax: 40,
+          dbAvg: 80,
+          dbMax: 300,
+          dbDown: 0,
+          waitingMax: 1,
+        },
+        series: ['2026-03-16T06:30:00Z', '2026-03-16T06:31:00Z'].map((at) => ({
+          at,
+          cpu: 9,
+          cpuMax: 20,
+          mem: 600,
+          app: 130,
+          disk: 18_000,
+          dbMs: 80,
+        })),
+        build: {
+          version: { commit: 'abc1234' },
+          deployment: { deployedAt: null, rollback: false, previousVersion: null },
+          server: { uptime: '2h 3m', node: 'v26' },
+        },
+      }),
+    });
+    await renderPage(<AuditLogPage />, {
+      path: '/audit-log',
+      route: '/audit-log?tab=server',
+      user: adminUser,
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server disk is 90% full');
+    expect(screen.getByText('2.0 GB free · full in ~12 days')).toBeInTheDocument();
+    expect(screen.getByText('AWS holding back 8%')).toBeInTheDocument();
+    expect(screen.getByText('9% on average, 71% at most')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Health score 82 of 100' })).toBeInTheDocument();
+    expect(screen.getByText(/Each database trip takes about 80 ms/)).toBeInTheDocument();
+    expect(screen.getByText('Busiest around 6 pm (40%)')).toBeInTheDocument();
+    expect(screen.getByText('6 minutes')).toBeInTheDocument();
+    expect(screen.getByText('1 day 1 h')).toBeInTheDocument();
+    expect(api.find('GET /activity/server')).toHaveLength(1);
+  });
+
   it('charts a single day hour by hour', async () => {
     const day = today();
     mockApi({
@@ -385,7 +467,7 @@ describe('Activity log (admin)', () => {
         '/api/v1/students/:id',
       ),
     );
-    await user.click(screen.getByRole('radio', { name: 'Server' }));
+    await user.click(screen.getByRole('radio', { name: 'Server faults' }));
     await waitFor(() =>
       expect(api.find('GET /activity/errors').at(-1)!.query.get('kind')).toBe('server'),
     );

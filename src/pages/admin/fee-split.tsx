@@ -261,7 +261,7 @@ function LevelTotal({ nodes }: { nodes: SplitNode[] }) {
     <span
       className={cn(
         'inline-flex items-center gap-1 text-[11px] font-semibold',
-        okay ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400',
+        okay ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400',
       )}
     >
       {okay ? <CheckCircle2 className="size-3.5" /> : <AlertTriangle className="size-3.5" />}

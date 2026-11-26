@@ -1119,6 +1119,74 @@ export const useAppSpeed = ({ from, to, since }: Range) =>
     placeholderData: keepPreviousData,
   });
 
+export interface ServerHealth {
+  score: number;
+  availability: number | null;
+  outages: { from: string; to: string; minutes: number }[];
+  byHour: { hour: number; cpu: number | null }[];
+  now: {
+    cpu: number;
+    steal: number;
+    load: number;
+    cores: number;
+    memTotal: number;
+    memUsed: number;
+    swapTotal: number;
+    swapUsed: number;
+    diskTotal: number;
+    diskFree: number;
+    appMem: number;
+    appLimit: number | null;
+    dbMs: number | null;
+    dbConnections: number;
+    dbWaiting: number;
+    uptime: number;
+  };
+  problems: { key: string; level: 'critical' | 'warning'; title: string; detail: string }[];
+  diskDaysLeft: number | null;
+  summary: {
+    readings: number;
+    cpuAvg: number | null;
+    cpuMax: number | null;
+    cpuP95: number | null;
+    stealMax: number | null;
+    memMax: number | null;
+    swapMax: number | null;
+    appMax: number | null;
+    lagMax: number | null;
+    dbAvg: number | null;
+    dbMax: number | null;
+    dbDown: number;
+    waitingMax: number | null;
+  };
+  series: {
+    at: string;
+    cpu: number;
+    cpuMax: number;
+    mem: number;
+    app: number;
+    disk: number;
+    dbMs: number | null;
+  }[];
+  build: {
+    version: { commit: string | null };
+    deployment: {
+      deployedAt: string | null;
+      rollback: boolean;
+      previousVersion: string | null;
+    };
+    server: { uptime: string; node: string };
+  };
+}
+
+export const useServerHealth = ({ from, to, since }: Range) =>
+  useQuery({
+    queryKey: ['activity', 'server', from, to, since ?? null],
+    queryFn: ({ signal }) => api.get<ServerHealth>('/activity/server', { from, to, since }, signal),
+    placeholderData: keepPreviousData,
+    refetchInterval: 60_000,
+  });
+
 export type ClientEventKind =
   | 'crash'
   | 'error'

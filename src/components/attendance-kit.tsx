@@ -185,6 +185,7 @@ export function AttendanceTrail({
     <>
       {list.length > 0 ? (
         <span
+          role="img"
           className="flex items-center gap-0.5"
           title={list
             .map((r) => `${formatShortDate(r.date)}: ${ATTENDANCE_META[r.status].label}`)

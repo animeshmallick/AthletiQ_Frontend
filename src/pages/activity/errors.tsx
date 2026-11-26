@@ -248,7 +248,7 @@ export function ErrorsView({
           onChange={setKind}
           options={[
             { value: 'all', label: 'All' },
-            { value: 'server', label: 'Server' },
+            { value: 'server', label: 'Server faults' },
             { value: 'client', label: 'Rejected' },
           ]}
         />

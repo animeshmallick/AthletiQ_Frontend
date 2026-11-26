@@ -55,7 +55,7 @@ export function Bars({
       </p>
       <div
         className="flex h-24 items-end gap-[2px]"
-        role="img"
+        role="group"
         aria-label={summary ?? `${total} ${unit}; busiest ${max}`}
         onMouseLeave={() => setHover(null)}
       >

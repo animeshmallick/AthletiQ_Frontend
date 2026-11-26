@@ -408,7 +408,11 @@ export function BatchDialog({
                 control={control}
                 name="isActive"
                 render={({ field }) => (
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    aria-label="Batch active"
+                  />
                 )}
               />
             </Field>

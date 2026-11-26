@@ -265,7 +265,7 @@ const AVATAR_TONES = [
   'bg-sky-500/14 text-sky-800 dark:text-sky-300',
   'bg-violet-500/12 text-violet-700 dark:text-violet-300',
   'bg-teal-500/14 text-teal-800 dark:text-teal-300',
-  'bg-orange-500/14 text-orange-700 dark:text-orange-300',
+  'bg-orange-500/14 text-orange-800 dark:text-orange-300',
 ];
 
 /** Same name → same colour, everywhere. */

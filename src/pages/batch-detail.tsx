@@ -644,26 +644,20 @@ function StudentCard({
   const fee = FEE_BADGE[r.fees.status];
   const rate = r.attendance.rate;
   return (
-    <Card
-      role="button"
-      tabIndex={0}
-      aria-label={`${r.fullName} details`}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className="cursor-pointer space-y-2 p-2.5 transition-shadow hover:shadow-e2"
-    >
+    <Card className="relative space-y-2 p-2.5 transition-shadow hover:shadow-e2">
+      {/* The whole card opens the details; the name above it stays a link. */}
+      <button
+        type="button"
+        aria-label={`${r.fullName} details`}
+        onClick={onOpen}
+        className="absolute inset-0 cursor-pointer rounded-[inherit] focus-visible:ring-2 focus-visible:ring-ring"
+      />
       <div className="flex items-center gap-2.5">
         <Avatar name={r.fullName} className="size-10" />
         <div className="min-w-0 flex-1">
           <Link
             to={`/students/${r.studentId}`}
-            onClick={(e) => e.stopPropagation()}
-            className="block truncate text-[14px] font-semibold hover:underline"
+            className="relative block w-fit max-w-full truncate text-[14px] font-semibold hover:underline"
           >
             {r.fullName}
           </Link>

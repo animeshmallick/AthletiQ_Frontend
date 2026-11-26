@@ -338,7 +338,7 @@ export function FeePlansPage() {
                   {retiredToggle}
                 </div>
                 <div
-                  role="listbox"
+                  role="group"
                   aria-label="Fee plans"
                   className="max-h-[calc(100dvh-15rem)] min-h-[26rem] space-y-1.5 overflow-y-auto p-2"
                 >

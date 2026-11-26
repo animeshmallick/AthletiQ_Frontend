@@ -5,10 +5,11 @@
  *  - Activity: key events (audit trail) or every change (request log), grouped by day.
  *  - Errors: app errors from devices (admins: everyone; coaches: their own) and, for admins,
  *    failed requests by kind, endpoint and code.
+ *  - Server (admins): the machine's health — CPU, memory, disk, database.
  * A "Summarise all" button reads the whole log on request. Filters live in the URL, so
  * back / forward and shared links keep them.
  */
-import { AlertTriangle, BarChart3, Bug, ListTree } from 'lucide-react';
+import { AlertTriangle, BarChart3, Bug, ListTree, Server as ServerIcon } from 'lucide-react';
 import { useCallback } from 'react';
 import { useSearchParams } from 'react-router';
 import { useUser } from '@/app/auth';
@@ -23,9 +24,10 @@ import { ErrorsView } from './errors';
 import { EventFeed, FilterChip, RequestFeed } from './feed';
 import { ActivityInsightsView, type Drill } from './insights';
 import { ENTITY, entityMeta } from './meta';
+import { ServerView } from './server';
 import { SummaryButton } from './summary';
 
-type Tab = 'activity' | 'insights' | 'errors';
+type Tab = 'activity' | 'insights' | 'errors' | 'server';
 type View = 'events' | 'changes';
 
 export function AuditLogPage() {
@@ -34,7 +36,10 @@ export function AuditLogPage() {
   const [params, setParams] = useSearchParams();
 
   const rawTab = params.get('tab');
-  const tab: Tab = rawTab === 'activity' || rawTab === 'errors' ? rawTab : 'insights';
+  const tab: Tab =
+    rawTab === 'activity' || rawTab === 'errors' || (rawTab === 'server' && admin)
+      ? rawTab
+      : 'insights';
   // Errors: app errors from devices, or (admins) failed requests on the server.
   const errorsView: 'app' | 'requests' =
     admin && params.get('errors') === 'requests' ? 'requests' : 'app';
@@ -84,6 +89,7 @@ export function AuditLogPage() {
     { value: 'insights', label: 'Dashboard', icon: BarChart3 },
     { value: 'errors' as const, label: 'Errors', icon: Bug },
     { value: 'activity', label: 'Activity', icon: ListTree },
+    ...(admin ? [{ value: 'server' as const, label: 'Server', icon: ServerIcon }] : []),
   ];
 
   return (
@@ -244,6 +250,7 @@ export function AuditLogPage() {
         </>
       )}
       {tab === 'insights' && <ActivityInsightsView range={range} admin={admin} onDrill={drill} />}
+      {tab === 'server' && <ServerView range={range} />}
       {tab === 'errors' && (
         <div className="space-y-2">
           {admin && (

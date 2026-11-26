@@ -341,8 +341,10 @@ export function startClientLog(tokenGetter: () => string | null) {
       details: { payload: text((e as Event & { payload?: unknown }).payload, 200) },
     });
     try {
-      if (!sessionStorage.getItem('atq-preload-reloaded')) {
-        sessionStorage.setItem('atq-preload-reloaded', '1');
+      // Not again within a minute (it would loop if the file really is missing).
+      const last = Number(sessionStorage.getItem('atq-preload-reloaded') ?? 0);
+      if (Date.now() - last > 60_000) {
+        sessionStorage.setItem('atq-preload-reloaded', String(Date.now()));
         e.preventDefault();
         noteReload('Reloaded into the new version (screen code was missing)');
         window.location.reload();
