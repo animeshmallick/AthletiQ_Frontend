@@ -1,5 +1,6 @@
 import { MutationCache, QueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/lib/api';
+import { onResume } from '@/lib/idle';
 
 export function createQueryClient() {
   const client: QueryClient = new QueryClient({
@@ -19,5 +20,7 @@ export function createQueryClient() {
       onSuccess: () => void client.invalidateQueries({ queryKey: ['me', 'tasks'] }),
     }),
   });
+  // Back after a while away: polling had stopped, so bring what's on screen up to date.
+  onResume(() => void client.invalidateQueries());
   return client;
 }

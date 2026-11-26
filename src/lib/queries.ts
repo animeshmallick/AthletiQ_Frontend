@@ -2,6 +2,7 @@
  * React Query hooks for every API resource. Pages only use these hooks — never `fetch` directly —
  * so caching, invalidation and loading states are consistent across the app.
  */
+import { pollWhileActive } from '@/lib/idle';
 import { pendingMarks, queueMarks } from './attendance-outbox';
 import {
   keepPreviousData,
@@ -1184,7 +1185,7 @@ export const useServerHealth = ({ from, to, since }: Range) =>
     queryKey: ['activity', 'server', from, to, since ?? null],
     queryFn: ({ signal }) => api.get<ServerHealth>('/activity/server', { from, to, since }, signal),
     placeholderData: keepPreviousData,
-    refetchInterval: 60_000,
+    refetchInterval: pollWhileActive(60_000),
   });
 
 export type ClientEventKind =
@@ -1401,8 +1402,8 @@ export const useTasks = () =>
   useQuery({
     queryKey: ['me', 'tasks'] as const,
     queryFn: () => api.get<TasksResponse>('/me/tasks'),
-    // Not every minute: an app left open would keep the database from ever pausing.
-    refetchInterval: 5 * 60_000,
+    // Not every minute, and not while nobody is using the app: the database must be able to pause.
+    refetchInterval: pollWhileActive(10 * 60_000),
     staleTime: 20_000,
   });
 

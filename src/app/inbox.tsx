@@ -6,6 +6,7 @@
  *    (title, message, Open) instead of the phone's system banner;
  *  - the app icon badge (installed web app) follows the unread count.
  */
+import { pollWhileActive } from '@/lib/idle';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellOff, CheckCheck, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -38,7 +39,7 @@ export function useInbox(enabled = true) {
   const q = useQuery({
     queryKey: KEY,
     queryFn: ({ signal }) => api.get<Inbox>('/me/notifications', undefined, signal),
-    refetchInterval: 5 * 60_000,
+    refetchInterval: pollWhileActive(10 * 60_000),
     enabled,
   });
   const unread = q.data?.unread ?? 0;

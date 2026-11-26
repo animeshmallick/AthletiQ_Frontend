@@ -2,6 +2,7 @@
  * Admin-only "Deployments" panel: what's live right now (API + web + Android app), when it was
  * deployed and whether the last API deploy was a rollback. Reads the API's public /ready endpoint.
  */
+import { pollWhileActive } from '@/lib/idle';
 import { useQuery } from '@tanstack/react-query';
 import { Globe, Server, Smartphone } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -91,7 +92,7 @@ export function DeploymentsInfo({ className }: { className?: string }) {
       const res = await fetch(`${API_URL}/ready`, { cache: 'no-store' });
       return (await res.json()) as Ready;
     },
-    refetchInterval: 5 * 60_000,
+    refetchInterval: pollWhileActive(15 * 60_000),
     retry: 1,
   });
   const [app, setApp] = useState<{ version: string; build: string } | null>(null);
